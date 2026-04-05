@@ -12,4 +12,8 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; img-src 'self' https: data:; script-src 'self' https://identity.netlify.com https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.netlify.com https://identity.netlify.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-eval' https://identity.netlify.com https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.netlify.com https://identity.netlify.com https://api.github.com; frame-ancestors 'none';"
