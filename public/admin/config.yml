@@ -3,9 +3,9 @@ backend:
   branch: main
 
 local_backend: true
-display_url: "https://github.com/Stan69000/photographie"
+display_url: "https://stunning-sawine-d32a00.netlify.app"
 
-site_url: https://example.com
+site_url: https://stunning-sawine-d32a00.netlify.app
 logo_url: /favicon.svg
 
 media_folder: "public/uploads"
