@@ -167,33 +167,31 @@ const hero = photos[0];
   }
 
   .mosaic {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 1rem;
+    columns: 3;
+    column-gap: 1rem;
   }
 
   .tile {
-    grid-column: span 4;
+    break-inside: avoid;
     position: relative;
     border-radius: 0.8rem;
     overflow: hidden;
-    min-height: 280px;
     border: 1px solid var(--line);
     display: block;
     padding: 0;
     background: var(--surface);
     cursor: zoom-in;
+    margin-bottom: 1rem;
+    width: 100%;
   }
 
   .tile.large {
-    grid-column: span 8;
-    min-height: 380px;
+    /* intentionnellement identique en masonry — la hauteur naturelle suffit */
   }
 
   .tile img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
     display: block;
     transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -260,17 +258,14 @@ const hero = photos[0];
       min-height: 300px;
     }
 
-    .tile,
-    .tile.large {
-      grid-column: span 12;
-      min-height: 260px;
+    .mosaic {
+      columns: 2;
     }
   }
 
-  @media (max-width: 620px) {
-    .tile,
-    .tile.large {
-      min-height: 220px;
+  @media (max-width: 520px) {
+    .mosaic {
+      columns: 1;
     }
   }
 </style>

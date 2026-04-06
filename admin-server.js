@@ -136,7 +136,7 @@ async function processImage(src, seriesSlug, photoSlug) {
   const versions = {};
   for (const [name, cfg] of Object.entries(CFG.sharp)) {
     const out = path.join(outDir, `${name}.webp`);
-    await sharp(src).resize({ width: cfg.width, withoutEnlargement: true }).webp({ quality: cfg.quality }).toFile(out);
+    await sharp(src).rotate().resize({ width: cfg.width, withoutEnlargement: true }).webp({ quality: cfg.quality }).toFile(out);
     versions[name] = out;
   }
   return versions;
