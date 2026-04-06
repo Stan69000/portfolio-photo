@@ -25,11 +25,11 @@ const CFG = {
   processDir:  path.join(__dirname, '.processed'),
   domain:      'http://photos.bost7423.odns.fr',  // URL temporaire O2Switch
   ftp: {
-    host:       'bost7423.odns.fr',
+    host:       'ftp.bost7423.odns.fr',
     port:       21,
-    username:   'bost7423',
+    username:   'photo@stan-bouchet.eu',
     password:   process.env.FTP_PASSWORD || '',  // défini dans .env
-    remotePath: '/stan-bouchet.eu',              // chemin relatif au home FTP
+    remotePath: '/',                    // racine du compte FTP photo@stan-bouchet.eu
     secure:     false,                           // passer à true si TLS disponible
   },
   sharp: {
