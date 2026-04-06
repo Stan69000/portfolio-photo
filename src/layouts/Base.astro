@@ -55,6 +55,9 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
     <main>
       <slot />
     </main>
+    <footer class="site-footer">
+      <p>Site réalisé avec <span class="heart">❤️</span> par <a href="https://www.linkedin.com/in/stanislas-bouchet/" target="_blank" rel="noopener noreferrer">Stan BOUCHET</a></p>
+    </footer>
   </body>
 </html>
 
@@ -127,6 +130,36 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
       padding: 0.3rem 0.5rem;
       font-size: 0.78rem;
     }
+  }
+
+  .site-footer {
+    margin-top: 5rem;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+
+  .site-footer p {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .site-footer a {
+    color: var(--muted);
+    border-bottom: 1px solid transparent;
+    transition: color 180ms ease, border-color 180ms ease;
+  }
+
+  .site-footer a:hover {
+    color: var(--text);
+    border-bottom-color: var(--muted);
+  }
+
+  .heart {
+    font-style: normal;
   }
 </style>
 
