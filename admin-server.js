@@ -443,6 +443,7 @@ ${msgHtml}
   <button type="button" class="btn btn-sm" onclick="batchAction('publish')">→ En ligne</button>
   <button type="button" class="btn btn-sm" onclick="batchAction('draft')">→ Brouillon</button>
   <button type="button" class="btn btn-sm btn-danger" onclick="batchAction('trash')">→ Corbeille</button>
+  ${filter==='trash' ? '<button type="button" class="btn btn-sm btn-danger" onclick="batchDelete()">🗑 Supprimer définitivement</button>' : ''}
   <a href="/batch" class="btn btn-sm">Renommer par lot</a>
 </div>
 <div class="grid">
@@ -464,6 +465,14 @@ function batchAction(action){
 function moveToTrash(f,t){openModal('Corbeille','"'+t+'" sera masquée du site.',()=>{fetch('/action/trash/'+f,{method:'POST'}).then(()=>location.reload())})}
 function restore(f){fetch('/action/restore/'+f,{method:'POST'}).then(()=>location.reload())}
 function hardDelete(f,t){openModal('Suppression définitive','"'+t+'" et ses fichiers O2Switch seront supprimés.',()=>{fetch('/action/delete/'+f,{method:'POST'}).then(()=>location.reload())})}
+function batchDelete(){
+  const sel=getSelected();
+  if(!sel.length){alert('Sélectionne au moins une photo.');return;}
+  openModal('Suppression définitive',sel.length+' photo(s) et leurs fichiers O2Switch seront supprimés. Irréversible.',()=>{
+    fetch('/batch/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel})})
+    .then(()=>location.reload());
+  });
+}
 </script>`, 'photos');
 }
 
@@ -1203,6 +1212,19 @@ const server = http.createServer(async (req, res) => {
       if(newFile!==file) fs.unlinkSync(fp);
     }
     autoGitPush(`batch: renommage slug (${body.renames.length} photo(s))`);
+    json({ok:true});
+
+  // ── Batch delete (suppression définitive)
+  } else if (req.method==='POST' && p==='/batch/delete') {
+    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    for(const file of body.files) {
+      const fp=path.join(CFG.photosDir,path.basename(file));
+      if(!fs.existsSync(fp)) continue;
+      const photo=readYaml(fp);
+      fs.unlinkSync(fp);
+      if(photo.slug&&photo.series) deleteViaFTP(photo.series,photo.slug).catch(()=>{});
+    }
+    autoGitPush(`batch: suppression définitive (${body.files.length} photo(s))`);
     json({ok:true});
 
   // ── Upload page
