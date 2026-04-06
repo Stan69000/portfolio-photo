@@ -1,6 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { readFileSync } from "fs";
 // charge .env manuellement (pas de dep dotenv)
 try { const envLines = readFileSync(new URL(".env", import.meta.url)).toString().split("\n"); for (const l of envLines) { const [k,...v]=l.split("="); if(k&&v.length) process.env[k.trim()]=v.join("=").trim(); } } catch {}
@@ -529,7 +530,13 @@ function doUpload(){
   xhr.upload.onprogress=e=>{if(e.lengthComputable)document.getElementById('prog-bar').style.width=(e.loaded/e.total*100)+'%';};
   xhr.onload=()=>{
     const r=JSON.parse(xhr.responseText);
-    document.getElementById('upload-log').innerHTML=r.results.map(x=>(x.ok?'✓':'✗')+' '+x.slug+(x.sftp===false?' (SFTP: config à renseigner)':'')).join('<br>');
+    const lines=r.results.map(x=>(x.ok?'✓':'✗')+' '+x.slug+(x.sftp===false?' <span style="color:#ffb347">(FTP: échec)</span>':' <span style="color:#7aff7a">(FTP OK)</span>')).join('<br>');
+    const deployLine = r.gitStatus==='deploy'
+      ? '<br><span style="color:#748fff">🚀 Site en cours de déploiement (~2 min)…</span>'
+      : r.gitStatus==='git-error'
+      ? '<br><span style="color:#ff7a7a">⚠️ Git push échoué — fais-le manuellement</span>'
+      : '';
+    document.getElementById('upload-log').innerHTML=lines+deployLine;
     if(r.ok)document.getElementById('prog-bar').style.background='#7aff7a';
   };
   xhr.send(fd);
@@ -1145,7 +1152,22 @@ const server = http.createServer(async (req, res) => {
           results.push({slug:photoSlug,ok:true,sftp:sftpRes.ok});
         } catch(e){results.push({slug:photoSlug,ok:false,error:e.message});}
       }
-      json({ok:true,results});
+      // Auto git push — déclenche le rebuild du site sur O2Switch
+      const pushed = results.filter(r=>r.ok);
+      let gitStatus = '';
+      if (pushed.length) {
+        try {
+          const slugs = pushed.map(r=>r.slug).join(', ');
+          execSync('git add src/content/photos/ src/content/series/', { cwd: __dirname });
+          execSync(`git commit -m "photos: ajout ${slugs}"`, { cwd: __dirname });
+          execSync('git push origin main', { cwd: __dirname });
+          gitStatus = 'deploy';
+        } catch(e) {
+          gitStatus = 'git-error';
+          console.error('Git push error:', e.message);
+        }
+      }
+      json({ok:true,results,gitStatus});
     } catch(e){json({ok:false,error:e.message},500);}
 
   // ── Series list
