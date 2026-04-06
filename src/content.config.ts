@@ -8,10 +8,15 @@ const photos = defineCollection({
     slug: z.string(),
     series: z.string(),
     url: z.string(),
+    url_thumb: z.string().optional(),
+    url_web: z.string().optional(),
+    url_zoom: z.string().optional(),
+    status: z.enum(['published', 'draft']).default('published'),
     date: z.coerce.date(),
     description: z.string().default(''),
     tags: z.array(z.string()).default([]),
     rating: z.number().min(0).max(5).optional(),
+    views: z.number().default(0),
     exif: z
       .object({
         camera: z.string().optional(),
@@ -32,7 +37,8 @@ const series = defineCollection({
     slug: z.string(),
     description: z.string(),
     cover_url: z.string(),
-    published: z.boolean().default(true)
+    published: z.boolean().default(true),
+    status: z.enum(['published', 'draft']).default('published')
   })
 });
 
