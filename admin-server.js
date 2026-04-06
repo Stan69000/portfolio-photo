@@ -288,7 +288,60 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#748fff}
 .batch-row{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;padding:.3rem 0;border-bottom:1px solid #1a2e52}
 .tag-row{display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #1a2e52}
 .tag-count{font-size:.75rem;color:#9fb2d4;min-width:2rem;text-align:right}
+.ti-wrap{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;padding:.4rem .6rem;cursor:text;min-height:2.4rem}
+.ti-wrap:focus-within{border-color:#748fff}
+.ti-chip{display:inline-flex;align-items:center;gap:.3rem;background:#748fff22;border:1px solid #748fff44;border-radius:999px;padding:.15rem .55rem;font-size:.78rem;color:#9fb2ff;white-space:nowrap}
+.ti-chip button{background:none;border:none;color:#748fff;cursor:pointer;font-size:.9rem;line-height:1;padding:0;display:flex;align-items:center}
+.ti-chip button:hover{color:#ff7a7a}
+.ti-input{background:none;border:none;outline:none;color:#edf4ff;font-size:.85rem;font-family:inherit;min-width:80px;flex:1}
 `;
+
+// ─── TAG INPUT WIDGET ─────────────────────────────────────────────────────────
+// Génère un widget chips pour saisir plusieurs tags
+// inputName : nom du champ hidden soumis avec le formulaire
+// currentTags : tableau de strings
+// allTags : suggestions (datalist)
+// id : identifiant unique (pour avoir plusieurs widgets par page)
+function tagInputWidget(inputName, currentTags, allTags, id='ti') {
+  const tagsJson = JSON.stringify(currentTags);
+  const dlId = id + '-dl';
+  const suggestions = allTags.map(t => '<option value="' + t.replace(/"/g,'&quot;') + '">').join('');
+  return `
+<div class="ti-wrap" id="${id}-wrap" onclick="document.getElementById('${id}-input').focus()">
+  <div id="${id}-chips" style="display:contents"></div>
+  <input class="ti-input" id="${id}-input" list="${dlId}" placeholder="Ajouter un tag…" autocomplete="off">
+  <datalist id="${dlId}">${suggestions}</datalist>
+</div>
+<input type="hidden" name="${inputName}" id="${id}-hidden">
+<script>
+(function(){
+  const id='${id}';
+  let tags=${tagsJson};
+  const hidden=document.getElementById(id+'-hidden');
+  const input=document.getElementById(id+'-input');
+  function render(){
+    document.getElementById(id+'-chips').innerHTML=tags.map((t,i)=>
+      '<span class="ti-chip">'+t.replace(/</g,'&lt;')+'<button type="button" onclick="window[\\'tiRemove_'+id+'\\']('+(i)+')">×</button></span>'
+    ).join('');
+    hidden.value=tags.join(',');
+  }
+  window['tiRemove_'+id]=function(i){tags.splice(i,1);render();};
+  function addTag(v){
+    const t=v.trim();
+    if(t&&!tags.includes(t)){tags.push(t);}
+    input.value='';
+    render();
+  }
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===','){e.preventDefault();addTag(input.value);}
+    if(e.key==='Backspace'&&input.value===''&&tags.length){tags.pop();render();}
+  });
+  input.addEventListener('blur',()=>{if(input.value.trim())addTag(input.value);});
+  input.addEventListener('input',()=>{if(input.value.endsWith(','))addTag(input.value.slice(0,-1));});
+  render();
+})();
+</script>`;
+}
 
 // ─── LAYOUT ───────────────────────────────────────────────────────────────────
 function layout(title, content, active = '') {
@@ -416,14 +469,14 @@ function hardDelete(f,t){openModal('Suppression définitive','"'+t+'" et ses fic
 
 // ─── EDIT PAGE ────────────────────────────────────────────────────────────────
 function editPage(photo, file, saved=false) {
-  const tags = Array.isArray(photo.tags)?photo.tags.join(', '):(photo.tags||'');
+  const currentTags = Array.isArray(photo.tags) ? photo.tags : (photo.tags ? [photo.tags] : []);
   const series = readSeries();
   const allTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
   const savedHtml = saved ? '<div class="alert alert-success">✓ Sauvegardé.</div>' : '';
   const thumbUrl = photo.url_thumb||photo.url_web;
   const thumbHtml = thumbUrl ? '<img src="' + thumbUrl + '" style="max-width:360px;border-radius:.5rem;margin-bottom:1.5rem;display:block">' : '';
   const seriesOptsHtml = series.map(s=>'<option value="' + s.slug + '"' + (photo.series===s.slug?' selected':'') + '>' + s.name + '</option>').join('');
-  const tagsDatalistHtml = allTags.map(t=>'<option value="' + t + '">').join('');
+  const tagsWidget = tagInputWidget('tags', currentTags, allTags, 'ti-photo');
   return layout('Modifier — ' + photo.title, `
 <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
   <a href="/" class="btn">← Retour</a>
@@ -443,9 +496,8 @@ ${thumbHtml}
   </select></div>
   <div class="field full"><label>Description</label><textarea name="description">${photo.description||''}</textarea></div>
   <div class="field full">
-    <label>Tags <span class="hint">séparés par des virgules</span></label>
-    <input name="tags" value="${tags}" placeholder="lyon, sport, portrait" list="tags-dl">
-    <datalist id="tags-dl">${tagsDatalistHtml}</datalist>
+    <label>Tags</label>
+    ${tagsWidget}
   </div>
   <div class="field"><label>Appareil</label><input name="exif_camera" value="${photo.exif?.camera||''}"></div>
   <div class="field"><label>Objectif</label><input name="exif_lens" value="${photo.exif?.lens||''}"></div>
@@ -608,9 +660,9 @@ function seriesEditPage(serie={}, file='', msg='') {
   const isNew = !file;
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
   const pageTitle = isNew ? 'Nouvelle série' : 'Modifier — ' + serie.name;
-  const tagsValue = Array.isArray(serie.tags) ? serie.tags.join(', ') : (serie.tags||'');
+  const currentTags = Array.isArray(serie.tags) ? serie.tags : (serie.tags ? [serie.tags] : []);
   const allPhotoTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
-  const tagsDatalistHtml = allPhotoTags.map(t=>'<option value="' + t + '">').join('');
+  const tagsWidget = tagInputWidget('tags', currentTags, allPhotoTags, 'ti-serie');
   return layout(pageTitle, `
 <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem">
   <a href="/series" class="btn">← Retour</a>
@@ -622,9 +674,9 @@ ${msgHtml}
   <div class="field"><label>Nom</label><input name="name" value="${serie.name||''}" required oninput="autoSlug(this.value)"></div>
   <div class="field"><label>Slug</label><input name="slug" id="slug-field" value="${serie.slug||''}"></div>
   <div class="field full"><label>Description</label><textarea name="description">${serie.description||''}</textarea></div>
-  <div class="field full"><label>Tags <span class="hint">séparés par virgule</span></label>
-    <input name="tags" value="${tagsValue}" placeholder="paysage, urbain, nuit" list="tags-dl">
-    <datalist id="tags-dl">${tagsDatalistHtml}</datalist>
+  <div class="field full">
+    <label>Tags</label>
+    ${tagsWidget}
   </div>
   <div class="field full"><label>URL de la photo de couverture</label><input name="cover_url" value="${serie.cover_url||''}" placeholder="https://photos.mondomaine.fr/serie/web/photo.webp"></div>
   <div class="field"><label>Statut</label><select name="status">
