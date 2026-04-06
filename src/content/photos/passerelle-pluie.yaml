@@ -1,12 +1,14 @@
-title: "Passerelle après la pluie"
-slug: "passerelle-apres-la-pluie"
-series: "urbain-nocturne"
-url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=2000&q=80"
-date: "2025-11-12"
-description: "Reflets métalliques et halo des néons dans une brume fine."
+title: Tiens c'est cool ici !
+slug: passerelle-apres-la-pluie
+series: urbain-nocturne
+url: https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=2000&q=80
+date: '2025-11-12'
+description: Reflets métalliques et halo des néons dans une brume fine. Un test de Stan
 exif:
-  camera: "Nikon Z6"
-  lens: "35mm f/1.8"
-  settings: "1/125s • f/2.0"
-  iso: 1600
+  camera: Nikon Z6
+  lens: 35mm f/1.8
+  settings: 1/125s • f/2.0
+  iso: '1600'
 for_sale: false
+tags: []
+status: published

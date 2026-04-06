@@ -1,3 +1,8 @@
-site_title: "Portfolio Stan"
-watermark_name: "Stan"
-about_text: "Photographe indépendant, séries personnelles et travaux éditoriaux."
+site_title: Stan Bouchet Photographie
+watermark_name: Stan BOUCHET
+hero_title: Bonjour, moi c'est Stan.
+about_text: Je suis photographe amateur et je partage ici mes images, sans prétention, avec l'envie de partager ici mon univers.
+images_domain: https://photos-stan-bouchet.eu
+series_title: Albums
+series_subtitle: Des ensembles d'images pensés comme des mini-récits visuels.
+featured_photo_slug: passerelle-apres-la-pluie

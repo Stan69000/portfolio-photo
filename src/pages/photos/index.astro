@@ -7,6 +7,7 @@ const seriesCollection = await getCollection('series');
 const seriesBySlug = new Map(seriesCollection.map((item) => [item.data.slug, item.data.name]));
 
 const photos = (await getCollection('photos'))
+  .filter((p) => p.data.status === 'published')
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .map((photo) => ({
     slug: photo.data.slug,

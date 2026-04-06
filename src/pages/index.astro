@@ -2,12 +2,28 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
-const allSeries = await getCollection('series', ({ data }) => data.published);
-const allPhotos = await getCollection('photos');
+const settingsEntries = await getCollection('settings');
+const siteSettings = settingsEntries[0]?.data ?? {};
 
-const featured = allPhotos
+const heroTitle      = siteSettings.hero_title      || 'Bonjour, moi c\u2019est Stan.';
+const aboutText      = siteSettings.about_text      || '';
+const siteTitle      = siteSettings.site_title      || 'Stan Bouchet';
+const seriesTitle    = siteSettings.series_title    || 'S\u00e9ries';
+const seriesSubtitle = siteSettings.series_subtitle || 'Des ensembles d\u2019images pens\u00e9s comme des mini-r\u00e9cits visuels.';
+const featuredSlug   = siteSettings.featured_photo_slug || '';
+
+const allSeries = await getCollection('series', ({ data }) => data.published);
+const allPhotos = (await getCollection('photos')).filter((p) => p.data.status === 'published');
+
+const latestPhoto = allPhotos
   .slice()
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())[0];
+
+const featured = featuredSlug
+  ? (allPhotos.find(p => p.data.slug === featuredSlug) ?? latestPhoto)
+  : latestPhoto;
+
+const featuredLabel = featuredSlug ? 'Photo du jour' : 'Derni\u00e8re photo';
 
 const cards = allSeries
   .map((series) => {
@@ -43,16 +59,9 @@ const cards = allSeries
 <Base title="Portfolio | Accueil" description="Galerie photo personnelle de Stan">
   <section class="hero">
     <div class="hero-copy">
-      <p class="kicker">Stan Bouchet · Galerie personnelle</p>
-      <h1>Bonjour, moi c'est Stan.</h1>
-      <p>
-        Je suis photographe amateur et je partage ici mes images, sans prétention,
-        avec l’envie de construire des séries cohérentes et sensibles.
-      </p>
-      <p>
-        Tu peux explorer par série, rechercher par tags, et voter anonymement
-        (1 vote max par photo et par personne).
-      </p>
+      <p class="kicker">{siteTitle} &middot; Galerie personnelle</p>
+      <h1>{heroTitle}</h1>
+      <p>{aboutText}</p>
       <div class="hero-actions">
         <a href="/photos">Explorer les photos</a>
         <a href="/series">Voir les séries</a>
@@ -63,7 +72,7 @@ const cards = allSeries
       <a href={`/photo/${featured.data.slug}/`} class="hero-image">
         <img src={featured.data.url} alt={featured.data.title} loading="eager" decoding="async" />
         <div class="caption">
-          <span>Dernière image</span>
+          <span>{featuredLabel}</span>
           <strong>{featured.data.title}</strong>
         </div>
       </a>
@@ -71,8 +80,8 @@ const cards = allSeries
   </section>
 
   <section class="series-head">
-    <h2>Séries</h2>
-    <p>Des ensembles d’images pensés comme des mini-récits visuels.</p>
+    <h2>{seriesTitle}</h2>
+    <p>{seriesSubtitle}</p>
   </section>
 
   <section class="series-grid">
@@ -84,7 +93,7 @@ const cards = allSeries
           <p>{card.description}</p>
           <div class="meta">
             <span>{card.count} images</span>
-            {card.topTags.length > 0 && <span>{card.topTags.join(' · ')}</span>}
+            {card.topTags.length > 0 && <span>{card.topTags.join(' \u00b7 ')}</span>}
           </div>
         </div>
       </a>

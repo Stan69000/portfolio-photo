@@ -13,7 +13,7 @@ export async function getStaticPaths() {
 
 const { series } = Astro.props;
 const photos = (await getCollection('photos'))
-  .filter((photo) => photo.data.series === series.data.slug)
+  .filter((photo) => photo.data.series === series.data.slug && photo.data.status === 'published')
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .map((photo) => ({
     id: photo.id,

@@ -11,7 +11,7 @@ const photos = defineCollection({
     url_thumb: z.string().optional(),
     url_web: z.string().optional(),
     url_zoom: z.string().optional(),
-    status: z.enum(['published', 'draft']).default('published'),
+    status: z.enum(['published', 'draft', 'trash']).default('published'),
     date: z.coerce.date(),
     description: z.string().default(''),
     tags: z.array(z.string()).default([]),
@@ -47,7 +47,12 @@ const settings = defineCollection({
   schema: z.object({
     site_title: z.string(),
     watermark_name: z.string(),
-    about_text: z.string()
+    hero_title: z.string().optional(),
+    about_text: z.string(),
+    images_domain: z.string().optional(),
+    series_title: z.string().optional(),
+    series_subtitle: z.string().optional(),
+    featured_photo_slug: z.string().optional()
   })
 });
 

@@ -5,19 +5,21 @@ import Base from '../../layouts/Base.astro';
 const seriesCollection = await getCollection('series');
 const seriesBySlug = new Map(seriesCollection.map((item) => [item.data.slug, item.data.name]));
 
-const photos = (await getCollection('photos')).map((photo) => ({
-  slug: photo.data.slug,
-  title: photo.data.title,
-  series: photo.data.series,
-  seriesName: seriesBySlug.get(photo.data.series) ?? photo.data.series,
-  tags: photo.data.tags ?? [],
-  rating: photo.data.rating ?? null,
-  date: photo.data.date
-}));
+const allPhotos = await getCollection('photos');
+const photos = allPhotos
+  .filter((p) => p.data.status === 'published')
+  .map((photo) => ({
+    slug: photo.data.slug,
+    title: photo.data.title,
+    series: photo.data.series,
+    seriesName: seriesBySlug.get(photo.data.series) ?? photo.data.series,
+    tags: photo.data.tags ?? [],
+    rating: photo.data.rating ?? null,
+    thumb: photo.data.url_thumb ?? photo.data.url_web ?? photo.data.url ?? '',
+    date: photo.data.date
+  }));
 
 const rated = photos.filter((p) => typeof p.rating === 'number');
-const unrated = photos.filter((p) => typeof p.rating !== 'number');
-
 const avgRating = rated.length
   ? rated.reduce((sum, p) => sum + Number(p.rating), 0) / rated.length
   : 0;
@@ -25,27 +27,21 @@ const avgRating = rated.length
 const topRated = rated
   .slice()
   .sort((a, b) => Number(b.rating) - Number(a.rating))
-  .slice(0, 10);
+  .slice(0, 8);
 
+// Distribution par série — triée par nb photos
 const bySeries = [...new Set(photos.map((p) => p.series))]
   .map((slug) => {
     const items = photos.filter((p) => p.series === slug);
-    const ratedItems = items.filter((p) => typeof p.rating === 'number');
-    const average = ratedItems.length
-      ? ratedItems.reduce((sum, p) => sum + Number(p.rating), 0) / ratedItems.length
-      : null;
-
-    return {
-      slug,
-      name: seriesBySlug.get(slug) ?? slug,
-      total: items.length,
-      rated: ratedItems.length,
-      average
-    };
+    return { slug, name: seriesBySlug.get(slug) ?? slug, count: items.length };
   })
-  .sort((a, b) => b.total - a.total);
+  .filter((s) => s.count > 0)
+  .sort((a, b) => b.count - a.count);
 
-const tagMap = new Map();
+const maxSeriesCount = bySeries[0]?.count ?? 1;
+
+// Tag cloud
+const tagMap = new Map<string, number>();
 for (const photo of photos) {
   for (const tag of photo.tags) {
     const key = tag.trim();
@@ -53,221 +49,385 @@ for (const photo of photos) {
     tagMap.set(key, (tagMap.get(key) ?? 0) + 1);
   }
 }
+const topTags = [...tagMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40);
+const maxTagCount = topTags[0]?.[1] ?? 1;
 
-const topTags = [...tagMap.entries()]
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 30);
+// Données client pour les votes locaux
+const clientPhotos = photos.map((p) => ({ slug: p.slug, title: p.title, series: p.seriesName, thumb: p.thumb }));
 
-const clientPhotos = photos.map((p) => ({ slug: p.slug, title: p.title, series: p.seriesName }));
+function starsFill(rating: number) {
+  const pct = Math.round((Number(rating) / 5) * 100);
+  return pct;
+}
 ---
 
-<Base title="Stats | Portfolio" description="Suivi éditorial et statistiques photo">
-  <section class="head">
-    <h1>Stats & suivi éditorial</h1>
-    <p>Vue interne: notes admin, couverture des séries, tags, et aperçu des votes locaux du navigateur.</p>
+<Base title="Galerie en chiffres | Stan" description="Statistiques et photos favorites de la galerie">
+  <section class="head reveal">
+    <p class="eyebrow">La galerie</p>
+    <h1>En chiffres</h1>
+    <p class="subhead">
+      {photos.length} photo{photos.length > 1 ? 's' : ''} publi&eacute;{photos.length > 1 ? 'es' : 'e'},&nbsp;
+      {bySeries.length} s&eacute;rie{bySeries.length > 1 ? 's' : ''}&nbsp;&middot;&nbsp;
+      {tagMap.size} tag{tagMap.size > 1 ? 's' : ''} diff&eacute;rent{tagMap.size > 1 ? 's' : ''}
+    </p>
   </section>
 
-  <section class="kpis">
-    <article>
-      <span>Total photos</span>
+  <section class="kpis reveal">
+    <article class="kpi-card">
+      <div class="kpi-icon">📷</div>
       <strong>{photos.length}</strong>
+      <span>Photos publi&eacute;es</span>
     </article>
-    <article>
-      <span>Photos notées</span>
-      <strong>{rated.length}</strong>
+    <article class="kpi-card">
+      <div class="kpi-icon">📁</div>
+      <strong>{bySeries.length}</strong>
+      <span>S&eacute;ries actives</span>
     </article>
-    <article>
-      <span>Photos sans note</span>
-      <strong>{unrated.length}</strong>
+    <article class="kpi-card">
+      <div class="kpi-icon">🏷</div>
+      <strong>{tagMap.size}</strong>
+      <span>Tags distincts</span>
     </article>
-    <article>
+    <article class="kpi-card">
+      <div class="kpi-icon">⭐</div>
+      <strong>{rated.length ? avgRating.toFixed(1) : '—'}<span class="kpi-unit">&thinsp;/ 5</span></strong>
       <span>Note moyenne</span>
-      <strong>{rated.length ? avgRating.toFixed(2) : '—'}</strong>
     </article>
   </section>
 
-  <section class="grid-two">
-    <article class="panel">
-      <h2>Top notes internes</h2>
-      <ol>
-        {topRated.map((photo) => (
-          <li>
-            <a href={`/photo/${photo.slug}/`}>{photo.title}</a>
-            <span>{Number(photo.rating).toFixed(1)} / 5 · {photo.seriesName}</span>
-          </li>
-        ))}
-      </ol>
-    </article>
+  <div class="two-col">
+    {topRated.length > 0 && (
+      <section class="panel reveal">
+        <h2>S&eacute;lection &eacute;ditoriale</h2>
+        <p class="panel-sub">Les photos les mieux not&eacute;es de la galerie</p>
+        <ol class="top-list">
+          {topRated.map((photo) => (
+            <li>
+              <a href={`/photo/${photo.slug}/`} class="top-item">
+                {photo.thumb
+                  ? <img src={photo.thumb} alt={photo.title} loading="lazy" />
+                  : <div class="thumb-placeholder" />
+                }
+                <div class="top-info">
+                  <strong>{photo.title}</strong>
+                  <span class="series-label">📁 {photo.seriesName}</span>
+                  <div class="stars-wrap">
+                    <div class="stars-bg">★★★★★</div>
+                    <div class="stars-fg" style={`width:${starsFill(photo.rating!)}%`}>★★★★★</div>
+                  </div>
+                </div>
+                <span class="rating-num">{Number(photo.rating).toFixed(1)}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
 
-    <article class="panel">
-      <h2>Stats par série</h2>
-      <ul>
-        {bySeries.map((row) => (
+    <section class="panel reveal">
+      <h2>Par s&eacute;rie</h2>
+      <p class="panel-sub">R&eacute;partition des photos publi&eacute;es</p>
+      <ul class="series-bars">
+        {bySeries.map((s) => (
           <li>
-            <strong>{row.name}</strong>
-            <span>
-              {row.total} photos · {row.rated} notées · moyenne {row.average ? row.average.toFixed(2) : '—'}
-            </span>
+            <div class="bar-header">
+              <a href={`/series/${s.slug}/`} class="bar-name">{s.name}</a>
+              <span class="bar-count">{s.count}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style={`width:${Math.round((s.count / maxSeriesCount) * 100)}%`} />
+            </div>
           </li>
         ))}
       </ul>
-    </article>
-  </section>
+    </section>
+  </div>
 
-  <section class="panel">
-    <h2>Tags les plus utilisés</h2>
-    <div class="tags">
-      {topTags.map(([tag, count]) => (
-        <span>#{tag} · {count}</span>
-      ))}
-    </div>
-  </section>
+  {topTags.length > 0 && (
+    <section class="panel reveal tag-section">
+      <h2>Univers de la galerie</h2>
+      <p class="panel-sub">La taille refl&egrave;te la fr&eacute;quence d&apos;utilisation</p>
+      <div class="tag-cloud">
+        {topTags.map(([tag, count]) => {
+          const ratio = count / maxTagCount;
+          const size = 0.78 + ratio * 0.9;
+          const opacity = 0.5 + ratio * 0.5;
+          return (
+            <span class="cloud-tag" style={`font-size:${size.toFixed(2)}rem;opacity:${opacity.toFixed(2)}`}>
+              #{tag}
+              <sup class="cloud-count">{count}</sup>
+            </span>
+          );
+        })}
+      </div>
+    </section>
+  )}
 
-  <section class="panel" id="local-votes" data-photos={JSON.stringify(clientPhotos)}>
-    <h2>Votes locaux (ce navigateur)</h2>
-    <p id="local-summary">Chargement…</p>
-    <ol id="local-top"></ol>
+  <section class="panel reveal" id="coups-de-coeur" data-photos={JSON.stringify(clientPhotos)}>
+    <h2>Vos coups de c&oelig;ur</h2>
+    <p class="panel-sub" id="votes-summary">Chargement&hellip;</p>
+    <ol class="top-list" id="votes-list"></ol>
   </section>
 </Base>
 
 <style>
   .head {
-    display: grid;
-    gap: 0.55rem;
-    margin-bottom: 1rem;
+    margin-bottom: 2rem;
   }
-
-  .head h1,
-  .head p {
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #748fff;
+    margin: 0 0 0.4rem;
+  }
+  .head h1 {
+    margin: 0 0 0.5rem;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.05;
+  }
+  .subhead {
     margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
   }
 
+  /* KPIs */
   .kpis {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.8rem;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
   }
-
-  .kpis article {
+  .kpi-card {
     border: 1px solid var(--line);
-    background: rgba(10, 22, 48, 0.86);
-    border-radius: 0.75rem;
-    padding: 0.75rem;
+    background: linear-gradient(145deg, rgba(14,30,61,0.95), rgba(7,18,41,0.95));
+    border-radius: 0.85rem;
+    padding: 1.1rem 0.85rem;
     display: grid;
-    gap: 0.35rem;
+    gap: 0.25rem;
+    text-align: center;
   }
-
-  .kpis span {
-    font-size: 0.82rem;
+  .kpi-icon {
+    font-size: 1.3rem;
+    margin-bottom: 0.15rem;
+  }
+  .kpi-card strong {
+    font-size: 2rem;
+    line-height: 1;
+    font-family: var(--font-display);
+  }
+  .kpi-unit {
+    font-size: 0.9rem;
+    font-weight: 400;
     color: var(--muted);
   }
-
-  .kpis strong {
-    font-size: 1.35rem;
+  .kpi-card span:not(.kpi-unit) {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
   }
 
-  .grid-two {
+  /* Layout */
+  .two-col {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.8rem;
-    margin-bottom: 0.8rem;
+    gap: 1rem;
+    margin-bottom: 1rem;
   }
-
   .panel {
     border: 1px solid var(--line);
     background: rgba(10, 22, 48, 0.86);
-    border-radius: 0.75rem;
-    padding: 0.85rem;
+    border-radius: 0.85rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
   }
-
   .panel h2 {
-    margin: 0 0 0.7rem;
-    font-size: 1rem;
+    margin: 0 0 0.2rem;
+    font-size: 1.05rem;
   }
-
-  .panel ol,
-  .panel ul {
-    margin: 0;
-    padding-left: 1.1rem;
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .panel li {
-    display: grid;
-    gap: 0.15rem;
-  }
-
-  .panel li span {
-    font-size: 0.82rem;
+  .panel-sub {
+    margin: 0 0 1rem;
+    font-size: 0.8rem;
     color: var(--muted);
   }
 
-  .tags {
+  /* Top rated list */
+  .top-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .top-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    border-radius: 0.6rem;
+    padding: 0.4rem;
+    transition: background 200ms;
+    text-decoration: none;
+    color: inherit;
+  }
+  .top-item:hover {
+    background: rgba(116,143,255,0.08);
+  }
+  .top-item img,
+  .thumb-placeholder {
+    width: 60px;
+    height: 45px;
+    object-fit: cover;
+    border-radius: 0.4rem;
+    flex-shrink: 0;
+    border: 1px solid var(--line);
+  }
+  .thumb-placeholder {
+    background: rgba(10,22,48,0.8);
+  }
+  .top-info {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 0.15rem;
+  }
+  .top-info strong {
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .series-label {
+    font-size: 0.73rem;
+    color: var(--muted);
+  }
+  .stars-wrap {
+    position: relative;
+    display: inline-block;
+    width: 5em;
+    font-size: 0.85rem;
+    line-height: 1;
+    color: #748fff33;
+  }
+  .stars-bg { letter-spacing: 0.05em; }
+  .stars-fg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    color: #f5c842;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .rating-num {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #f5c842;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+  }
+
+  /* Series bars */
+  .series-bars {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.25rem;
+  }
+  .bar-name {
+    font-size: 0.85rem;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .bar-name:hover { color: #748fff; }
+  .bar-count {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  .bar-track {
+    height: 6px;
+    background: rgba(116,143,255,0.12);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #748fff, #9fb2ff);
+    border-radius: 999px;
+    min-width: 4px;
+  }
+
+  /* Tag cloud */
+  .tag-section { margin-bottom: 1rem; }
+  .tag-cloud {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.5rem 0.75rem;
+    align-items: baseline;
+  }
+  .cloud-tag {
+    color: #c8d8ff;
+    font-family: var(--font-mono);
+    cursor: default;
+    transition: color 200ms;
+    line-height: 1.4;
+  }
+  .cloud-tag:hover { color: #748fff; }
+  .cloud-count {
+    font-size: 0.6em;
+    color: var(--muted);
+    margin-left: 0.1em;
   }
 
-  .tags span {
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 999px;
-    padding: 0.18rem 0.55rem;
-    font-size: 0.8rem;
-    color: #cfdeff;
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .two-col { grid-template-columns: 1fr; }
   }
-
-  @media (max-width: 980px) {
-    .kpis {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .grid-two {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 620px) {
-    .kpis {
-      grid-template-columns: 1fr;
-    }
+  @media (max-width: 480px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 
 <script is:inline>
-  const root = document.querySelector('#local-votes');
-  const summary = document.querySelector('#local-summary');
-  const top = document.querySelector('#local-top');
+  const root = document.querySelector('#coups-de-coeur');
+  const summary = document.querySelector('#votes-summary');
+  const list = document.querySelector('#votes-list');
 
-  const renderLocalVotes = () => {
-    if (!root || !window.PhotoVotes || !summary || !top) return;
+  function renderVotes() {
+    if (!root || !window.PhotoVotes || !summary || !list) return;
     const photos = JSON.parse(root.dataset.photos || '[]');
 
     const scored = photos
-      .map((p) => ({ ...p, votes: Number(window.PhotoVotes.getScore(p.slug) || 0) }))
-      .sort((a, b) => b.votes - a.votes || a.title.localeCompare(b.title, 'fr'));
+      .map((p) => ({ ...p, score: Number(window.PhotoVotes.getScore(p.slug) || 0) }))
+      .filter((p) => p.score > 0)
+      .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, 'fr'))
+      .slice(0, 8);
 
-    const total = scored.reduce((sum, p) => sum + p.votes, 0);
-    const voters = scored.filter((p) => p.votes > 0).length;
-
-    summary.textContent = `${total} vote(s) enregistrés localement sur ${voters} photo(s).`;
-    top.innerHTML = '';
-
-    scored.filter((p) => p.votes > 0).slice(0, 10).forEach((p) => {
-      const li = document.createElement('li');
-      li.innerHTML = `<a href="/photo/${p.slug}/">${p.title}</a> <span>${p.votes} vote(s) · ${p.series}</span>`;
-      top.appendChild(li);
-    });
-
-    if (!top.children.length) {
-      const li = document.createElement('li');
-      li.textContent = 'Aucun vote local pour le moment.';
-      top.appendChild(li);
+    if (!scored.length) {
+      summary.textContent = 'Aucun coup de cœur enregistré sur ce navigateur pour l\'instant.';
+      list.innerHTML = '';
+      return;
     }
-  };
 
-  window.addEventListener('photo-votes:changed', renderLocalVotes);
-  document.addEventListener('DOMContentLoaded', renderLocalVotes);
-  renderLocalVotes();
+    summary.textContent = scored.length + ' photo' + (scored.length > 1 ? 's' : '') + ' dans vos favoris.';
+    list.innerHTML = scored.map((p) => {
+      const img = p.thumb
+        ? `<img src="${p.thumb}" alt="${p.title}" loading="lazy" style="width:60px;height:45px;object-fit:cover;border-radius:.4rem;flex-shrink:0;border:1px solid rgba(255,255,255,.1)">`
+        : `<div style="width:60px;height:45px;background:rgba(10,22,48,.8);border-radius:.4rem;flex-shrink:0"></div>`;
+      return `<li><a href="/photo/${p.slug}/" class="top-item">${img}<div class="top-info"><strong>${p.title}</strong><span class="series-label">📁 ${p.series}</span></div><span class="rating-num" style="color:#ff8fa3">♥ ${p.score}</span></a></li>`;
+    }).join('');
+  }
+
+  window.addEventListener('photo-votes:changed', renderVotes);
+  document.addEventListener('DOMContentLoaded', renderVotes);
+  renderVotes();
 </script>

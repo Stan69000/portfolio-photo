@@ -1,4 +1,5 @@
 ---
+import { getCollection } from 'astro:content';
 import '../styles/global.css';
 
 interface Props {
@@ -14,6 +15,9 @@ const {
 const { pathname } = Astro.url;
 const isActive = (href: string) =>
   href === '/' ? pathname === '/' : pathname.startsWith(href);
+
+const settingsEntries = await getCollection('settings');
+const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
 ---
 
 <!doctype html>
@@ -35,7 +39,7 @@ const isActive = (href: string) =>
   <body>
     <header class="site-header">
       <div class="header-inner">
-        <a href="/" class="wordmark">STAN</a>
+        <a href="/" class="wordmark">{wordmark}</a>
         <nav class="nav">
           <a href="/" class:list={['nav-link', { active: isActive('/') }]}>Accueil</a>
           <a href="/photos" class:list={['nav-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
@@ -75,9 +79,8 @@ const isActive = (href: string) =>
     font-family: var(--font-display);
     font-size: 1.4rem;
     font-weight: 400;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.06em;
     color: var(--text);
-    text-transform: uppercase;
   }
 
   .nav {

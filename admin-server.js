@@ -225,8 +225,8 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#748fff}
 .drop-zone{border:2px dashed #243a65;border-radius:.8rem;padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .2s;color:#9fb2d4}
 .drop-zone.dragover,.drop-zone:hover{border-color:#748fff;color:#748fff;background:#748fff08}
 .drop-zone input[type=file]{display:none}
-.upload-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.75rem;margin-top:1rem}
-.upload-thumb{aspect-ratio:1;object-fit:cover;border-radius:.5rem;border:1px solid #243a65}
+.upload-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,120px));gap:.75rem;margin-top:1rem;max-width:640px}
+.upload-thumb{width:120px;height:120px;object-fit:cover;border-radius:.5rem;border:1px solid #243a65;display:block}
 .progress{height:4px;background:#243a65;border-radius:999px;margin-top:.75rem;overflow:hidden}
 .progress-bar{height:100%;background:#748fff;width:0%;transition:width .3s}
 .alert{border-radius:.5rem;padding:.75rem 1rem;margin-bottom:1.5rem;font-size:.85rem}
@@ -240,9 +240,15 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#748fff}
 .modal p{color:#9fb2d4;font-size:.88rem;margin-bottom:1.5rem}
 .modal-actions{display:flex;gap:.75rem;justify-content:flex-end}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:2rem}
-.stat-card{background:#0f1f3d;border:1px solid #243a65;border-radius:.8rem;padding:1.25rem;text-align:center}
+.stat-card{background:#0f1f3d;border:1px solid #243a65;border-radius:.8rem;padding:1.25rem;text-align:center;transition:border-color .2s,background .2s}
+.stat-card.clickable{cursor:pointer}
+.stat-card.clickable:hover{border-color:#748fff55;background:#142240}
+.stat-card.active{border-color:#748fff;background:#1a2e52}
 .stat-num{font-size:2rem;font-weight:700;color:#748fff}
 .stat-label{font-size:.78rem;color:#9fb2d4;margin-top:.25rem}
+.lb-overlay{display:none;position:fixed;inset:0;background:rgba(5,11,26,.93);z-index:300;align-items:center;justify-content:center;cursor:zoom-out}
+.lb-overlay.open{display:flex}
+.lb-overlay img{max-width:92vw;max-height:92vh;border-radius:.5rem;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,.8)}
 .table{width:100%;border-collapse:collapse;font-size:.85rem}
 .table th{text-align:left;padding:.5rem .75rem;color:#9fb2d4;border-bottom:1px solid #243a65;font-weight:500}
 .table td{padding:.5rem .75rem;border-bottom:1px solid #1a2e52}
@@ -256,14 +262,16 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#748fff}
 // ─── LAYOUT ───────────────────────────────────────────────────────────────────
 function layout(title, content, active = '') {
   const nav = [
-    ['/', 'photos', '📷 Photos'],
-    ['/series', 'series', '📁 Séries'],
-    ['/upload', 'upload', '⬆️ Upload'],
-    ['/tags', 'tags', '🏷 Tags'],
-    ['/stats', 'stats', '📊 Stats'],
-    ['/settings', 'settings', '⚙️ Réglages'],
+    ['http://localhost:4321', 'home', '🏠 Accueil', true],
+    ['/', 'adminhome', '⬅ Admin', false],
+    ['/', 'photos', '📷 Photos', false],
+    ['/series', 'series', '📁 Séries', false],
+    ['/upload', 'upload', '⬆️ Upload', false],
+    ['/tags', 'tags', '🏷 Tags', false],
+    ['/stats', 'stats', '📊 Stats', false],
+    ['/settings', 'settings', '⚙️ Réglages', false],
   ];
-  const navLinks = nav.map(([href,id,label]) => '<a href="' + href + '" class="' + (active===id?'active':'') + '">' + label + '</a>').join('');
+  const navLinks = nav.map(([href,id,label,ext]) => '<a href="' + href + '"' + (ext?' target="_blank"':'') + ' class="' + (active===id?'active':'') + '">' + label + '</a>').join('');
   return `<!doctype html><html lang="fr"><head>
 <meta charset="utf-8"><title>${title} — Admin</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -466,13 +474,33 @@ ${errHtml}
     <button type="button" class="btn btn-primary" id="upload-btn" onclick="doUpload()">Importer et traiter</button>
   </div>
 </form>
+<div class="lb-overlay" id="lb-overlay" onclick="this.classList.remove('open')">
+  <img id="lb-img" src="" alt="">
+</div>
 <script>
 const drop=document.getElementById('drop-zone'),input=document.getElementById('file-input'),preview=document.getElementById('preview');
 input.addEventListener('change',showPreviews);
 drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover')});
 drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');const dt=e.dataTransfer;if(dt.files.length){const fil=dt.files;input.files=fil;showPreviews();}});
-function showPreviews(){preview.innerHTML='';for(const f of input.files){const img=document.createElement('img');img.className='upload-thumb';img.src=URL.createObjectURL(f);preview.appendChild(img);}}
+function openLb(src){document.getElementById('lb-img').src=src;document.getElementById('lb-overlay').classList.add('open');}
+function showPreviews(){
+  preview.innerHTML='';
+  for(const f of input.files){
+    const src=URL.createObjectURL(f);
+    const wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;width:120px;height:120px;flex-shrink:0;cursor:zoom-in';
+    wrap.title='Cliquer pour agrandir — '+f.name;
+    const img=document.createElement('img');
+    img.style.cssText='width:120px;height:120px;object-fit:cover;border-radius:.5rem;border:1px solid #243a65;display:block;transition:opacity .15s';
+    img.src=src;
+    img.onmouseenter=()=>{img.style.opacity='.75';};
+    img.onmouseleave=()=>{img.style.opacity='1';};
+    wrap.onclick=()=>openLb(src);
+    wrap.appendChild(img);
+    preview.appendChild(wrap);
+  }
+}
 function doUpload(){
   const ser=document.getElementById('series-sel').value;
   const stat=document.getElementById('status-sel').value;
@@ -572,39 +600,126 @@ document.getElementById('slug-field').addEventListener('input',()=>document.getE
 // ─── TAGS PAGE ────────────────────────────────────────────────────────────────
 function tagsPage(msg='') {
   const photos = readPhotos();
+  const allSeries = readSeries();
+
+  // photo data payload for JS (non-trash)
+  const photoData = photos.filter(p=>p.status!=='trash').map(p=>({
+    file:p.file, title:p.title, series:p.series||'',
+    tags:p.tags||[], thumb:p.url_thumb||p.url_web||''
+  }));
+
+  // global tag stats
   const tagMap = {};
-  photos.filter(p=>p.status!=='trash').forEach(p=>(p.tags||[]).forEach(t=>{tagMap[t]=(tagMap[t]||0)+1;}));
+  photoData.forEach(p=>p.tags.forEach(t=>{const k=t.trim();if(k)tagMap[k]=(tagMap[k]||0)+1;}));
   const sorted = Object.entries(tagMap).sort((a,b)=>b[1]-a[1]);
   const dupes = sorted.filter(([t])=>sorted.some(([t2])=>t2!==t&&t2.toLowerCase()===t.toLowerCase()));
+
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
   const dupesHtml = dupes.length ? '<div class="alert alert-info">⚠️ ' + dupes.length + ' tag(s) potentiellement en doublon (casse différente).</div>' : '';
-  const tagRowsHtml = sorted.map(([t,c])=>'\n    <div class="tag-row">\n      <span class="tag">' + t + '</span>\n      <span class="tag-count">' + c + ' photo' + (c>1?'s':'') + '</span>\n      <button class="btn btn-sm" onclick="fillRename(\'' + t + '\')">Renommer</button>\n    </div>').join('');
+  const seriesOptsHtml = allSeries.map(s=>'<option value="' + s.slug + '">' + s.name + '</option>').join('');
   const tagsDatalistHtml = sorted.map(([t])=>'<option value="' + t + '">').join('');
+  const photoDataJson = JSON.stringify(photoData);
 
   return layout('Tags', `
 <h1>Gestion des tags</h1>
 ${msgHtml}
 ${dupesHtml}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:900px">
+<div style="display:flex;gap:.75rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap">
+  <label style="font-size:.82rem;color:#9fb2d4">Filtrer :</label>
+  <select id="filter-series" onchange="filterTags()" style="background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.35rem .75rem;font-size:.82rem">
+    <option value="">— Toutes les séries —</option>
+    ${seriesOptsHtml}
+  </select>
+  <input type="search" id="filter-photo" placeholder="Titre ou tag…" oninput="filterTags()"
+    style="background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.35rem .75rem;font-size:.82rem;width:200px">
+  <span id="filter-badge" style="font-size:.78rem;color:#748fff"></span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:960px">
   <div>
-    <h2>${sorted.length} tags utilisés</h2>
-    <div style="max-height:500px;overflow-y:auto">
-    ${tagRowsHtml}
-    </div>
+    <h2>Tags — <span id="tags-count" style="font-weight:400;font-size:.85rem;color:#9fb2d4"></span></h2>
+    <div style="max-height:520px;overflow-y:auto" id="tag-list"></div>
   </div>
-  <div>
-    <h2>Renommer / Fusionner</h2>
-    <form method="POST" action="/tags/rename" style="display:flex;flex-direction:column;gap:1rem">
-      <div class="field"><label>Tag source (à renommer)</label><input name="from" id="tag-from" placeholder="ancien-tag" list="tags-dl"></div>
-      <div class="field"><label>Nouveau nom</label><input name="to" placeholder="nouveau-tag"></div>
-      <datalist id="tags-dl">${tagsDatalistHtml}</datalist>
-      <div class="hint">Si le tag cible existe déjà, les deux seront fusionnés.</div>
-      <button type="submit" class="btn btn-primary">Appliquer sur toutes les photos</button>
-    </form>
+  <div style="display:flex;flex-direction:column;gap:2rem">
+    <div>
+      <h2>Renommer / Fusionner</h2>
+      <form method="POST" action="/tags/rename" style="display:flex;flex-direction:column;gap:1rem">
+        <div class="field"><label>Tag source</label><input name="from" id="tag-from" placeholder="ancien-tag" list="tags-dl"></div>
+        <div class="field"><label>Nouveau nom</label><input name="to" placeholder="nouveau-tag"></div>
+        <datalist id="tags-dl">${tagsDatalistHtml}</datalist>
+        <div class="hint">Si le tag cible existe déjà, les deux seront fusionnés.</div>
+        <button type="submit" class="btn btn-primary">Appliquer sur toutes les photos</button>
+      </form>
+    </div>
+    <div id="photo-tag-editor" style="display:none;background:#0f1f3d;border:1px solid #243a65;border-radius:.8rem;padding:1rem">
+      <h2 style="margin-bottom:.5rem">Éditer les tags</h2>
+      <div id="photo-tag-info" style="font-size:.82rem;color:#9fb2d4;margin-bottom:.75rem"></div>
+      <div class="field" style="margin-bottom:.75rem">
+        <label>Tags <span class="hint">séparés par virgule</span></label>
+        <input id="photo-tags-input" placeholder="tag1, tag2" list="tags-dl">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="button" class="btn btn-primary btn-sm" onclick="savePhotoTags()">Sauvegarder</button>
+        <button type="button" class="btn btn-sm" onclick="closePhotoEditor()">Fermer</button>
+      </div>
+      <div id="photo-tag-msg" style="font-size:.78rem;margin-top:.5rem"></div>
+    </div>
   </div>
 </div>
 <script>
+const photoData=${photoDataJson};
+let editingFile=null;
+function getFiltered(){
+  const serie=document.getElementById('filter-series').value;
+  const q=document.getElementById('filter-photo').value.toLowerCase();
+  return photoData.filter(p=>{
+    if(serie&&p.series!==serie)return false;
+    if(q&&!p.title.toLowerCase().includes(q)&&!p.tags.some(t=>t.toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+function filterTags(){
+  const filtered=getFiltered();
+  const tm={};
+  filtered.forEach(p=>p.tags.forEach(t=>{const k=t.trim();if(k)tm[k]=(tm[k]||0)+1;}));
+  const s=Object.entries(tm).sort((a,b)=>b[1]-a[1]);
+  const serie=document.getElementById('filter-series').value;
+  const q=document.getElementById('filter-photo').value;
+  document.getElementById('filter-badge').textContent=(serie||q)?'('+filtered.length+' photo'+(filtered.length>1?'s':'')+')':'';
+  document.getElementById('tags-count').textContent=s.length+' tag'+(s.length>1?'s':'');
+  document.getElementById('tag-list').innerHTML=s.map(([t,c])=>{
+    const safe=t.replace(/\\\\/g,'\\\\\\\\').replace(/'/g,"\\\\'");
+    return '<div class="tag-row">'+
+      '<span class="tag" onclick="fillRename(\''+safe+'\')" title="Clic pour préremplir renommage">'+t+'</span>'+
+      '<span class="tag-count">'+c+' photo'+(c>1?'s':'')+'</span>'+
+      '<button class="btn btn-sm" onclick="fillRename(\''+safe+'\')">Renommer</button>'+
+      '</div>';
+  }).join('')||'<div style="color:#6b7fa8;padding:1rem 0;font-size:.85rem">Aucun tag pour cette sélection.</div>';
+  if(filtered.length===1)showPhotoEditor(filtered[0]);
+  else if(!filtered.some(p=>p.file===editingFile)){document.getElementById('photo-tag-editor').style.display='none';editingFile=null;}
+}
+function showPhotoEditor(p){
+  editingFile=p.file;
+  document.getElementById('photo-tag-info').textContent=p.title+(p.series?' · '+p.series:'');
+  document.getElementById('photo-tags-input').value=p.tags.join(', ');
+  document.getElementById('photo-tag-editor').style.display='block';
+  document.getElementById('photo-tag-msg').textContent='';
+}
+function closePhotoEditor(){document.getElementById('photo-tag-editor').style.display='none';editingFile=null;}
 function fillRename(t){document.getElementById('tag-from').value=t;}
+function savePhotoTags(){
+  const tags=document.getElementById('photo-tags-input').value.split(',').map(t=>t.trim()).filter(Boolean);
+  fetch('/tags/photo-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:editingFile,tags})})
+  .then(r=>r.json()).then(r=>{
+    if(r.ok){
+      const p=photoData.find(x=>x.file===editingFile);
+      if(p)p.tags=tags;
+      document.getElementById('photo-tag-msg').textContent='✓ Sauvegardé';
+      document.getElementById('photo-tag-msg').style.color='#7aff7a';
+      filterTags();
+    }
+  });
+}
+filterTags();
 </script>`, 'tags');
 }
 
@@ -693,23 +808,69 @@ function statsPage(photos, series, views) {
   const bySeries=series.map(s=>({...s,count:photos.filter(p=>p.series===s.slug&&p.status!=='trash').length})).sort((a,b)=>b.count-a.count);
   const allTags=[...new Set(photos.flatMap(p=>p.tags||[]))];
 
-  const bySeriesRowsHtml = bySeries.map(s=>'<tr><td>' + s.name + '</td><td>' + s.count + '</td><td><span class="status-badge status-' + (s.status||'published') + '">' + (s.status==='draft'?'Brouillon':'En ligne') + '</span></td></tr>').join('');
-  const topRatedRowsHtml = topRated.map(p=>'<tr><td><a href="/edit/' + p.file + '" style="color:#748fff">' + p.title + '</a></td><td>⭐ ' + p.rating + '</td></tr>').join('') || '<tr><td colspan="2" style="color:#6b7fa8">Aucune note renseignée</td></tr>';
-  const topViewedRowsHtml = topViewed.map(p=>'<tr><td><a href="/edit/' + p.file + '" style="color:#748fff">' + p.title + '</a></td><td>' + views[p.slug] + '</td><td>' + (p.series||'—') + '</td></tr>').join('');
-  const topViewedHtml = topViewed.length ? '<div style="grid-column:1/-1">\n    <h2>Photos les plus vues</h2>\n    <table class="table">\n      <tr><th>Photo</th><th>Vues</th><th>Série</th></tr>\n      ' + topViewedRowsHtml + '\n    </table>\n  </div>' : '';
+  const bySeriesRowsHtml = bySeries.map(s=>{
+    const safeName=s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return '<tr style="cursor:pointer" onclick="showPhotos({series:\''+s.slug+'\'},\''+safeName+'\')">'+
+      '<td><span style="color:#748fff">'+s.name+'</span></td><td>'+s.count+'</td>'+
+      '<td><span class="status-badge status-'+(s.status||'published')+'">'+(s.status==='draft'?'Brouillon':'En ligne')+'</span></td></tr>';
+  }).join('');
+  const topRatedRowsHtml = topRated.map(p=>'<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td><td>⭐ '+p.rating+'</td></tr>').join('')
+    || '<tr><td colspan="2" style="color:#6b7fa8">Aucune note renseignée</td></tr>';
+  const topViewedRowsHtml = topViewed.map(p=>'<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td><td>'+views[p.slug]+'</td><td>'+(p.series||'—')+'</td></tr>').join('');
+  const topViewedHtml = topViewed.length
+    ? '<div style="grid-column:1/-1"><h2>Photos les plus vues</h2><table class="table"><tr><th>Photo</th><th>Vues</th><th>Série</th></tr>'+topViewedRowsHtml+'</table></div>'
+    : '';
+
+  const photoDataJson = JSON.stringify(photos.map(p=>({
+    file:p.file, title:p.title, slug:p.slug||'', series:p.series||'',
+    status:p.status||'published', thumb:p.url_thumb||p.url_web||'',
+    tags:p.tags||[], rating:p.rating||0
+  })));
+  const viewsJson = JSON.stringify(views);
+  const totalNonTrash = photos.filter(p=>p.status!=='trash').length;
+
   return layout('Statistiques', `
 <h1>Statistiques</h1>
 <div class="stat-grid">
-  <div class="stat-card"><div class="stat-num">${photos.filter(p=>p.status!=='trash').length}</div><div class="stat-label">Photos totales</div></div>
-  <div class="stat-card"><div class="stat-num" style="color:#7aff7a">${pub}</div><div class="stat-label">En ligne</div></div>
-  <div class="stat-card"><div class="stat-num" style="color:#ffb347">${draft}</div><div class="stat-label">Brouillons</div></div>
-  <div class="stat-card"><div class="stat-num">${series.length}</div><div class="stat-label">Séries</div></div>
-  <div class="stat-card"><div class="stat-num">${allTags.length}</div><div class="stat-label">Tags uniques</div></div>
-  <div class="stat-card"><div class="stat-num">${totalViews.toLocaleString()}</div><div class="stat-label">Vues totales</div></div>
+  <div class="stat-card clickable" onclick="showPhotos({status:'all'},'Toutes les photos')">
+    <div class="stat-num">${totalNonTrash}</div><div class="stat-label">Photos totales ↗</div>
+  </div>
+  <div class="stat-card clickable" onclick="showPhotos({status:'published'},'En ligne')">
+    <div class="stat-num" style="color:#7aff7a">${pub}</div><div class="stat-label">En ligne ↗</div>
+  </div>
+  <div class="stat-card clickable" onclick="showPhotos({status:'draft'},'Brouillons')">
+    <div class="stat-num" style="color:#ffb347">${draft}</div><div class="stat-label">Brouillons ↗</div>
+  </div>
+  <div class="stat-card clickable" onclick="showPhotos({status:'trash'},'Corbeille')">
+    <div class="stat-num" style="color:#ff7a7a">${trash}</div><div class="stat-label">Corbeille ↗</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">${series.length}</div><div class="stat-label">Séries</div>
+  </div>
+  <div class="stat-card clickable" onclick="window.location='/tags'">
+    <div class="stat-num">${allTags.length}</div><div class="stat-label">Tags uniques ↗</div>
+  </div>
+  <div class="stat-card clickable" onclick="showPhotos({topViewed:true},'Plus vues')">
+    <div class="stat-num">${totalViews.toLocaleString()}</div><div class="stat-label">Vues totales ↗</div>
+  </div>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;flex-wrap:wrap">
+
+<div id="filter-view" style="display:none;background:#0a1628;border:1px solid #243a65;border-radius:.8rem;padding:1.25rem;margin-bottom:2rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+    <h2 style="margin:0" id="filter-title"></h2>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <input type="search" id="filter-search" placeholder="Filtrer…" oninput="renderGrid()"
+        style="background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.3rem .65rem;font-size:.8rem;width:180px">
+      <button class="btn btn-sm" onclick="closeFilter()">✕ Fermer</button>
+    </div>
+  </div>
+  <div id="filter-grid"></div>
+  <div id="filter-footer" style="font-size:.78rem;color:#6b7fa8;margin-top:.75rem;text-align:right"></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem">
   <div>
-    <h2>Par série</h2>
+    <h2>Par série <span style="font-weight:400;font-size:.78rem;color:#6b7fa8">cliquer pour filtrer</span></h2>
     <table class="table">
       <tr><th>Série</th><th>Photos</th><th>Statut</th></tr>
       ${bySeriesRowsHtml}
@@ -723,11 +884,95 @@ function statsPage(photos, series, views) {
     </table>
   </div>
   ${topViewedHtml}
-</div>`, 'stats');
+</div>
+<script>
+const allPhotos=${photoDataJson};
+const views=${viewsJson};
+let activeKey=null,currentFilter=null;
+function closeFilter(){
+  document.getElementById('filter-view').style.display='none';
+  document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));
+  activeKey=null;
+}
+function showPhotos(filter,label){
+  const key=JSON.stringify(filter);
+  if(activeKey===key){closeFilter();return;}
+  activeKey=key;currentFilter=filter;
+  document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('filter-title').textContent=label;
+  document.getElementById('filter-search').value='';
+  document.getElementById('filter-view').style.display='block';
+  renderGrid();
+  document.getElementById('filter-view').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function getFilteredList(){
+  const f=currentFilter;
+  const q=document.getElementById('filter-search').value.toLowerCase();
+  let list=allPhotos.slice();
+  if(f.status==='all')list=list.filter(p=>p.status!=='trash');
+  else if(f.status)list=list.filter(p=>p.status===f.status);
+  else if(f.series)list=list.filter(p=>p.series===f.series);
+  else if(f.topViewed)list=list.filter(p=>views[p.slug]).sort((a,b)=>(views[b.slug]||0)-(views[a.slug]||0)).slice(0,20);
+  if(q)list=list.filter(p=>p.title.toLowerCase().includes(q)||p.series.toLowerCase().includes(q)||(p.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  return list;
+}
+function renderGrid(){
+  const list=getFilteredList();
+  document.getElementById('filter-footer').textContent=list.length+' photo'+(list.length>1?'s':'');
+  document.getElementById('filter-grid').innerHTML=list.map(p=>{
+    const img=p.thumb
+      ?'<img src="'+p.thumb+'" style="width:72px;height:54px;object-fit:cover;border-radius:.35rem;flex-shrink:0">'
+      :'<div style="width:72px;height:54px;background:#0f1f3d;border-radius:.35rem;flex-shrink:0"></div>';
+    const sc=p.status==='published'?'#7aff7a':p.status==='draft'?'#ffb347':'#ff7a7a';
+    const stLbl=p.status==='published'?'En ligne':p.status==='draft'?'Brouillon':'Corbeille';
+    const tags=(p.tags||[]).slice(0,3).map(t=>'<span class="tag">'+t+'</span>').join('');
+    return '<div style="display:flex;gap:.75rem;align-items:center;padding:.5rem 0;border-bottom:1px solid #1a2e52">'+
+      img+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.title+'</div>'+
+        '<div style="font-size:.72rem;color:#9fb2d4;margin:.15rem 0">📁 '+p.series+'</div>'+
+        '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.2rem">'+tags+'</div>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;flex-shrink:0">'+
+        '<span style="font-size:.7rem;font-weight:600;color:'+sc+'">● '+stLbl+'</span>'+
+        '<a href="/edit/'+p.file+'" class="btn btn-sm">Modifier</a>'+
+      '</div>'+
+    '</div>';
+  }).join('')||'<div style="color:#6b7fa8;padding:1rem 0">Aucune photo dans cette catégorie.</div>';
+}
+</script>`, 'stats');
 }
 
 // ─── SETTINGS PAGE ────────────────────────────────────────────────────────────
-function settingsPage(settings, msg='') {
+function settingsPage(settings, photos, allSeries, msg='') {
+  // Photo du jour — build grouped select
+  const published = photos.filter(p => p.status !== 'trash');
+  const seriesNames = {};
+  allSeries.forEach(s => { seriesNames[s.slug] = s.name; });
+  const grouped = {};
+  published.forEach(p => {
+    const key = p.series || '_';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(p);
+  });
+  const current = settings.featured_photo_slug || '';
+  const optgroupsHtml = Object.entries(grouped).map(([slug, list]) => {
+    const label = seriesNames[slug] || slug;
+    const opts = list.map(p => {
+      const thumb = p.url_thumb || p.url_web || '';
+      const sel = p.slug === current ? ' selected' : '';
+      return '<option value="' + p.slug + '" data-thumb="' + thumb + '"' + sel + '>' + p.title + '</option>';
+    }).join('');
+    return '<optgroup label="' + label + '">' + opts + '</optgroup>';
+  }).join('');
+
+  // Current preview
+  const currentPhoto = published.find(p => p.slug === current);
+  const previewThumb = currentPhoto?.url_thumb || currentPhoto?.url_web || '';
+  const previewHtml = previewThumb
+    ? '<img id="featured-img" src="' + previewThumb + '" style="width:100%;max-height:200px;object-fit:cover;border-radius:.5rem;border:1px solid #243a65;display:block">'
+    : '<div id="featured-img" style="width:100%;height:120px;border-radius:.5rem;border:1px dashed #243a65;display:flex;align-items:center;justify-content:center;color:#6b7fa8;font-size:.8rem">Aucune sélection</div>';
+
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
   return layout('Réglages', `
 <h1>Réglages du site</h1>
@@ -736,14 +981,49 @@ ${msgHtml}
 <div class="form-grid">
   <div class="field full"><label>Titre du site</label><input name="site_title" value="${settings.site_title||''}"></div>
   <div class="field full"><label>Nom watermark</label><input name="watermark_name" value="${settings.watermark_name||''}"></div>
+  <div class="field full"><label>Titre hero (grande phrase d'accueil)</label><input name="hero_title" value="${settings.hero_title||''}"></div>
   <div class="field full">
-    <label>Texte d'introduction (page d'accueil) <span class="hint">Markdown supporté</span></label>
-    <textarea name="about_text" style="min-height:160px">${settings.about_text||''}</textarea>
+    <label>Texte d'introduction (paragraphe sous le titre)</label>
+    <textarea name="about_text" style="min-height:120px">${settings.about_text||''}</textarea>
   </div>
   <div class="field full"><label>Domaine images O2Switch <span class="hint">Sans slash final</span></label><input name="images_domain" value="${settings.images_domain||CFG.domain}" placeholder="https://photos.mondomaine.fr"></div>
 </div>
+
+<h2 style="margin-top:2rem;margin-bottom:1rem">📷 Photo du jour</h2>
+<div style="display:grid;grid-template-columns:1fr 200px;gap:1rem;align-items:start;max-width:640px">
+  <div style="display:flex;flex-direction:column;gap:.75rem">
+    <div class="field">
+      <label>Photo à mettre en avant <span class="hint">affichée en hero sur l'accueil</span></label>
+      <select name="featured_photo_slug" id="featured-sel" onchange="updatePreview()" style="width:100%">
+        <option value="">— Dernière photo publiée (auto) —</option>
+        ${optgroupsHtml}
+      </select>
+    </div>
+    <button type="button" class="btn btn-sm" onclick="document.getElementById('featured-sel').value='';updatePreview()">✕ Remettre en automatique</button>
+  </div>
+  <div id="featured-preview">${previewHtml}</div>
+</div>
+
+<h2 style="margin-top:2rem;margin-bottom:1rem">Section Séries (page d'accueil)</h2>
+<div class="form-grid">
+  <div class="field full"><label>Titre de la section</label><input name="series_title" value="${settings.series_title||'Séries'}" placeholder="Séries"></div>
+  <div class="field full"><label>Sous-titre de la section</label><input name="series_subtitle" value="${settings.series_subtitle||''}" placeholder="Des ensembles d'images pensés comme des mini-récits visuels."></div>
+</div>
 <div style="margin-top:1.5rem"><button type="submit" class="btn btn-primary">Sauvegarder</button></div>
-</form>`, 'settings');
+</form>
+<script>
+function updatePreview(){
+  const sel=document.getElementById('featured-sel');
+  const opt=sel.options[sel.selectedIndex];
+  const thumb=opt?opt.dataset.thumb:'';
+  const box=document.getElementById('featured-preview');
+  if(thumb){
+    box.innerHTML='<img id="featured-img" src="'+thumb+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:.5rem;border:1px solid #243a65;display:block">';
+  } else {
+    box.innerHTML='<div id="featured-img" style="width:100%;height:120px;border-radius:.5rem;border:1px dashed #243a65;display:flex;align-items:center;justify-content:center;color:#6b7fa8;font-size:.8rem">Automatique</div>';
+  }
+}
+</script>`, 'settings');
 }
 
 // ─── SERVER ───────────────────────────────────────────────────────────────────
@@ -903,6 +1183,14 @@ const server = http.createServer(async (req, res) => {
   } else if (req.method==='GET' && p==='/tags') {
     html(tagsPage(url.searchParams.get('saved')||''));
 
+  // ── Save tags for a single photo (inline editor)
+  } else if (req.method==='POST' && p==='/tags/photo-save') {
+    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    const fp=path.join(CFG.photosDir,path.basename(body.file||''));
+    if(!fs.existsSync(fp)){json({ok:false,error:'Not found'},404);return;}
+    savePhoto(path.basename(body.file),{tags:Array.isArray(body.tags)?body.tags:[]});
+    json({ok:true});
+
   // ── Rename/merge tags
   } else if (req.method==='POST' && p==='/tags/rename') {
     const body=await parseBody(req);
@@ -937,12 +1225,22 @@ const server = http.createServer(async (req, res) => {
 
   // ── Settings
   } else if (req.method==='GET' && p==='/settings') {
-    html(settingsPage(readSettings(), url.searchParams.get('saved')||''));
+    html(settingsPage(readSettings(), readPhotos(), readSeries(), url.searchParams.get('saved')||''));
 
   } else if (req.method==='POST' && p==='/settings/save') {
     const body=await parseBody(req);
     const current=readSettings();
-    writeYaml(CFG.settingsFile,{...current,site_title:body.site_title,watermark_name:body.watermark_name,about_text:body.about_text,images_domain:body.images_domain});
+    writeYaml(CFG.settingsFile,{
+      ...current,
+      site_title: body.site_title,
+      watermark_name: body.watermark_name,
+      hero_title: body.hero_title,
+      about_text: body.about_text,
+      images_domain: body.images_domain,
+      series_title: body.series_title||undefined,
+      series_subtitle: body.series_subtitle||undefined,
+      featured_photo_slug: body.featured_photo_slug||undefined,
+    });
     redirect('/settings?saved=1');
 
   } else {

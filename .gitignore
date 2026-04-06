@@ -8,3 +8,6 @@ public/demo/
 .env
 .env.local
 .claude/
+
+.processed/
+.tmp-upload/
