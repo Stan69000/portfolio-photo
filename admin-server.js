@@ -64,6 +64,21 @@ function readSettings() {
   try { return readYaml(CFG.settingsFile); } catch { return {}; }
 }
 
+function autoGitPush(msg) {
+  try {
+    execSync('git add -A src/content/', { cwd: __dirname, stdio: 'pipe' });
+    // vérifie qu'il y a quelque chose à commiter
+    const diff = execSync('git diff --cached --name-only', { cwd: __dirname }).toString().trim();
+    if (!diff) return 'nothing';
+    execSync(`git commit -m "${msg.replace(/"/g, "'")}"`, { cwd: __dirname, stdio: 'pipe' });
+    execSync('git push origin main', { cwd: __dirname, stdio: 'pipe' });
+    return 'ok';
+  } catch(e) {
+    console.error('autoGitPush error:', e.message);
+    return 'error';
+  }
+}
+
 function readViews() {
   try {
     fs.mkdirSync(path.dirname(CFG.viewsFile), { recursive: true });
@@ -485,7 +500,8 @@ ${errHtml}
   </div>
   <div class="upload-preview" id="preview"></div>
   <div class="progress" id="prog-wrap" style="display:none"><div class="progress-bar" id="prog-bar"></div></div>
-  <div id="upload-log" style="font-size:.8rem;color:#9fb2d4;margin-top:.75rem"></div>
+  <div id="upload-summary" style="display:none;margin-top:.75rem;display:none;gap:.5rem;flex-wrap:wrap;align-items:center"></div>
+  <div id="upload-log" style="font-size:.8rem;color:#9fb2d4;margin-top:.5rem"></div>
   <div style="margin-top:1.5rem">
     <button type="button" class="btn btn-primary" id="upload-btn" onclick="doUpload()">Importer et traiter</button>
   </div>
@@ -530,13 +546,17 @@ function doUpload(){
   xhr.upload.onprogress=e=>{if(e.lengthComputable)document.getElementById('prog-bar').style.width=(e.loaded/e.total*100)+'%';};
   xhr.onload=()=>{
     const r=JSON.parse(xhr.responseText);
-    const lines=r.results.map(x=>(x.ok?'✓':'✗')+' '+x.slug+(x.sftp===false?' <span style="color:#ffb347">(FTP: échec)</span>':' <span style="color:#7aff7a">(FTP OK)</span>')).join('<br>');
-    const deployLine = r.gitStatus==='deploy'
-      ? '<br><span style="color:#748fff">🚀 Site en cours de déploiement (~2 min)…</span>'
-      : r.gitStatus==='git-error'
-      ? '<br><span style="color:#ff7a7a">⚠️ Git push échoué — fais-le manuellement</span>'
-      : '';
-    document.getElementById('upload-log').innerHTML=lines+deployLine;
+    const ok=r.results.filter(x=>x.ok).length;
+    const fail=r.results.filter(x=>!x.ok).length;
+    const sum=document.getElementById('upload-summary');
+    sum.style.display='flex';
+    sum.innerHTML=
+      (ok ? '<span style="background:#1a3d1a;border:1px solid #2d6b2d;color:#7aff7a;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem;font-weight:600">✓ '+ok+' réussi'+(ok>1?'s':'')+'</span>' : '')+
+      (fail ? '<span style="background:#3d0a0a;border:1px solid #6b1a1a;color:#ff7a7a;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem;font-weight:600">✗ '+fail+' échec'+(fail>1?'s':'')+'</span>' : '')+
+      (r.gitStatus==='deploy' ? '<span style="background:#0f1f3d;border:1px solid #243a65;color:#748fff;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">🚀 Déploiement en cours (~2 min)</span>' : '')+
+      (r.gitStatus==='git-error' ? '<span style="background:#3d2a00;border:1px solid #6b4a00;color:#ffb347;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">⚠️ Git push échoué</span>' : '');
+    const lines=r.results.map(x=>'<span style="color:'+(x.ok?'#9fb2d4':'#ff7a7a')+'">'+(x.ok?'✓':'✗')+' '+x.slug+(x.ok&&x.sftp===false?' <em style="color:#ffb347">(FTP: échec)</em>':'')+'</span>').join('<br>');
+    document.getElementById('upload-log').innerHTML=lines;
     if(r.ok)document.getElementById('prog-bar').style.background='#7aff7a';
   };
   xhr.send(fd);
@@ -1081,6 +1101,7 @@ const server = http.createServer(async (req, res) => {
       for_sale:body.for_sale==='true',
       exif:{camera:body.exif_camera||undefined,lens:body.exif_lens||undefined,settings:body.exif_settings||undefined,iso:body.exif_iso||undefined}
     });
+    autoGitPush(`edit: ${body.title||file}`);
     redirect(`/edit/${file}?saved=1`);
 
   // ── Actions trash/restore/delete
@@ -1096,6 +1117,7 @@ const server = http.createServer(async (req, res) => {
       fs.unlinkSync(fp);
       if(photo.slug&&photo.series) deleteViaFTP(photo.series,photo.slug).catch(()=>{});
     }
+    autoGitPush(`${action}: ${file}`);
     json({ok:true});
 
   // ── Batch status
@@ -1105,6 +1127,7 @@ const server = http.createServer(async (req, res) => {
       const fp=path.join(CFG.photosDir,file);
       if(fs.existsSync(fp)) savePhoto(file,{status:body.status});
     }
+    autoGitPush(`batch: statut → ${body.status} (${body.files.length} photo(s))`);
     json({ok:true});
 
   // ── Batch rename
@@ -1120,6 +1143,7 @@ const server = http.createServer(async (req, res) => {
       writeYaml(path.join(CFG.photosDir,newFile),data);
       if(newFile!==file) fs.unlinkSync(fp);
     }
+    autoGitPush(`batch: renommage slug (${body.renames.length} photo(s))`);
     json({ok:true});
 
   // ── Upload page
@@ -1156,16 +1180,9 @@ const server = http.createServer(async (req, res) => {
       const pushed = results.filter(r=>r.ok);
       let gitStatus = '';
       if (pushed.length) {
-        try {
-          const slugs = pushed.map(r=>r.slug).join(', ');
-          execSync('git add src/content/photos/ src/content/series/', { cwd: __dirname });
-          execSync(`git commit -m "photos: ajout ${slugs}"`, { cwd: __dirname });
-          execSync('git push origin main', { cwd: __dirname });
-          gitStatus = 'deploy';
-        } catch(e) {
-          gitStatus = 'git-error';
-          console.error('Git push error:', e.message);
-        }
+        const slugs = pushed.map(r=>r.slug).join(', ');
+        const res2 = autoGitPush(`photos: ajout ${slugs}`);
+        gitStatus = res2 === 'ok' ? 'deploy' : res2 === 'nothing' ? '' : 'git-error';
       }
       json({ok:true,results,gitStatus});
     } catch(e){json({ok:false,error:e.message},500);}
@@ -1194,6 +1211,7 @@ const server = http.createServer(async (req, res) => {
     const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft'};
     const outFile=isNew?`${slug}.yaml`:file;
     writeYaml(path.join(CFG.seriesDir,outFile),data);
+    autoGitPush(`serie: ${isNew?'création':'modification'} ${slug}`);
     redirect(`/series/edit/${outFile}?saved=1`);
 
   // ── Delete series
@@ -1214,6 +1232,7 @@ const server = http.createServer(async (req, res) => {
       for(const photo of photos) savePhoto(photo.file,{series:''});
     }
     fs.unlinkSync(fp);
+    autoGitPush(`serie: suppression ${serie.slug}`);
     json({ok:true});
 
   // ── Tags page
@@ -1226,6 +1245,7 @@ const server = http.createServer(async (req, res) => {
     const fp=path.join(CFG.photosDir,path.basename(body.file||''));
     if(!fs.existsSync(fp)){json({ok:false,error:'Not found'},404);return;}
     savePhoto(path.basename(body.file),{tags:Array.isArray(body.tags)?body.tags:[]});
+    autoGitPush(`tags: mise à jour ${path.basename(body.file)}`);
     json({ok:true});
 
   // ── Rename/merge tags
@@ -1242,6 +1262,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
     }
+    autoGitPush(`tags: renommage "${from}" → "${to}"`);
     redirect('/tags?saved=Tag+renommé+sur+toutes+les+photos');
 
   // ── Batch rename page
@@ -1278,6 +1299,7 @@ const server = http.createServer(async (req, res) => {
       series_subtitle: body.series_subtitle||undefined,
       featured_photo_slug: body.featured_photo_slug||undefined,
     });
+    autoGitPush('settings: mise à jour');
     redirect('/settings?saved=1');
 
   } else {

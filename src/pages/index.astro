@@ -43,11 +43,16 @@ const cards = allSeries
       .slice(0, 3)
       .map(([tag]) => tag);
 
+    // fallback cover : première photo publiée de la série si cover_url absent
+    const coverFallback = photos.find(p => p.data.status === 'published')?.data.url_thumb
+      || photos.find(p => p.data.status === 'published')?.data.url
+      || '';
+
     return {
       slug: series.data.slug,
       name: series.data.name,
       description: series.data.description,
-      cover: series.data.cover_url,
+      cover: series.data.cover_url || coverFallback,
       count: photos.length,
       topTags
     };
