@@ -20,13 +20,13 @@ const CFG = {
   viewsFile:   path.join(__dirname, 'src/content/stats/views.json'),
   tmpDir:      path.join(__dirname, '.tmp-upload'),
   processDir:  path.join(__dirname, '.processed'),
-  domain:      'https://photos.mondomaine.fr',   // ← à remplacer au go-live
+  domain:      'https://photos-stan-bouchet.eu',  // domaine images O2Switch (synchro avec Settings)
   sftp: {
-    host:           'ftp.mondomaine.fr',          // ← à remplacer
+    host:           'ssh.cpanel.net',             // ← hôte SSH O2Switch (ou ton domaine)
     port:           22,
-    username:       'stanbouchet',               // ← à remplacer
+    username:       'stanbouchet',                // ← ton identifiant O2Switch
     privateKeyPath: '/Users/stanbouchet/.ssh/id_ed25519_github_stan',
-    remotePath:     '/home/stanbouchet/www/photos',
+    remotePath:     '/home/stanbouchet/www/photos', // ← chemin absolu sur O2Switch
   },
   sharp: {
     thumb: { width: 500,  quality: 80 },
@@ -170,10 +170,11 @@ async function deleteViaFTP(seriesSlug, photoSlug) {
 }
 
 function buildUrls(seriesSlug, photoSlug) {
+  const domain = (readSettings().images_domain || CFG.domain).replace(/\/$/, '');
   return {
-    url_thumb: `${CFG.domain}/${seriesSlug}/thumb/${photoSlug}.webp`,
-    url_web:   `${CFG.domain}/${seriesSlug}/web/${photoSlug}.webp`,
-    url_zoom:  `${CFG.domain}/${seriesSlug}/zoom/${photoSlug}.webp`,
+    url_thumb: `${domain}/${seriesSlug}/thumb/${photoSlug}.webp`,
+    url_web:   `${domain}/${seriesSlug}/web/${photoSlug}.webp`,
+    url_zoom:  `${domain}/${seriesSlug}/zoom/${photoSlug}.webp`,
   };
 }
 
