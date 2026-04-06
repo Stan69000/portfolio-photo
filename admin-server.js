@@ -608,6 +608,9 @@ function seriesEditPage(serie={}, file='', msg='') {
   const isNew = !file;
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
   const pageTitle = isNew ? 'Nouvelle série' : 'Modifier — ' + serie.name;
+  const tagsValue = Array.isArray(serie.tags) ? serie.tags.join(', ') : (serie.tags||'');
+  const allPhotoTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
+  const tagsDatalistHtml = allPhotoTags.map(t=>'<option value="' + t + '">').join('');
   return layout(pageTitle, `
 <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem">
   <a href="/series" class="btn">← Retour</a>
@@ -619,6 +622,10 @@ ${msgHtml}
   <div class="field"><label>Nom</label><input name="name" value="${serie.name||''}" required oninput="autoSlug(this.value)"></div>
   <div class="field"><label>Slug</label><input name="slug" id="slug-field" value="${serie.slug||''}"></div>
   <div class="field full"><label>Description</label><textarea name="description">${serie.description||''}</textarea></div>
+  <div class="field full"><label>Tags <span class="hint">séparés par virgule</span></label>
+    <input name="tags" value="${tagsValue}" placeholder="paysage, urbain, nuit" list="tags-dl">
+    <datalist id="tags-dl">${tagsDatalistHtml}</datalist>
+  </div>
   <div class="field full"><label>URL de la photo de couverture</label><input name="cover_url" value="${serie.cover_url||''}" placeholder="https://photos.mondomaine.fr/serie/web/photo.webp"></div>
   <div class="field"><label>Statut</label><select name="status">
     <option value="published"${(serie.status||'published')==='published'?' selected':''}>En ligne</option>
@@ -1208,7 +1215,8 @@ const server = http.createServer(async (req, res) => {
     const body=await parseBody(req);
     const isNew=!file||file==='new';
     const slug=body.slug||slugify(body.name);
-    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft'};
+    const seriesTags=body.tags?body.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
+    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft',tags:seriesTags};
     const outFile=isNew?`${slug}.yaml`:file;
     writeYaml(path.join(CFG.seriesDir,outFile),data);
     autoGitPush(`serie: ${isNew?'création':'modification'} ${slug}`);

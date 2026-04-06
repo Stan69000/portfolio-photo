@@ -38,7 +38,8 @@ const series = defineCollection({
     description: z.string(),
     cover_url: z.string(),
     published: z.boolean().default(true),
-    status: z.enum(['published', 'draft']).default('published')
+    status: z.enum(['published', 'draft']).default('published'),
+    tags: z.array(z.string()).default([])
   })
 });
 
