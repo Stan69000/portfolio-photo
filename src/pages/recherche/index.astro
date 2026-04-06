@@ -1,0 +1,571 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const seriesCollection = await getCollection('series', ({ data }) => data.published);
+const seriesBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.name]));
+
+const photos = (await getCollection('photos'))
+  .filter((p) => p.data.status === 'published')
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .map((p) => ({
+    slug:       p.data.slug,
+    title:      p.data.title,
+    series:     p.data.series,
+    seriesName: seriesBySlug.get(p.data.series) ?? p.data.series ?? '',
+    url:        p.data.url_thumb || p.data.url,
+    tags:       p.data.tags ?? [],
+    date:       p.data.date.getTime(),
+  }));
+
+// Tag cloud — fréquence décroissante
+const tagFreq = new Map<string, number>();
+for (const p of photos) {
+  for (const t of p.tags) tagFreq.set(t, (tagFreq.get(t) ?? 0) + 1);
+}
+const tagCloud = [...tagFreq.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 40);
+
+const seriesList = seriesCollection
+  .map((s) => ({ slug: s.data.slug, name: s.data.name }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+const photosJson = JSON.stringify(photos);
+---
+
+<Base title="Recherche | Portfolio" description="Rechercher dans la galerie par titre, tag ou série">
+
+  <section class="search-hero reveal">
+    <p class="search-kicker">Recherche</p>
+    <h1>Trouvez une photo</h1>
+
+    <div class="search-bar-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        id="q"
+        type="search"
+        class="search-bar"
+        placeholder="Titre, tag, série…"
+        autocomplete="off"
+        autofocus
+      />
+      <span id="q-count" class="search-count"></span>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-group">
+        <span class="filter-label">Série</span>
+        <div class="pill-list" id="series-pills">
+          <button class="pill active" data-series="">Toutes</button>
+          {seriesList.map((s) => (
+            <button class="pill" data-series={s.slug}>{s.name}</button>
+          ))}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Trier</span>
+        <select id="sort-sel" class="sort-sel">
+          <option value="newest">Plus récentes</option>
+          <option value="title">Titre A → Z</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  {tagCloud.length > 0 && (
+    <section class="tag-cloud-section reveal">
+      <p class="filter-label">Tags</p>
+      <div class="tag-cloud" id="tag-cloud">
+        {tagCloud.map(([tag, count]) => (
+          <button
+            class="tag-pill"
+            data-tag={tag}
+            style={`--w: ${Math.max(0.72, Math.min(1.15, 0.72 + count * 0.06))}rem`}
+          >
+            #{tag}
+            <span class="tag-count">{count}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <section id="results" class="results-grid">
+    {photos.map((photo) => (
+      <article
+        class="r-card reveal"
+        data-slug={photo.slug}
+        data-title={photo.title.toLowerCase()}
+        data-series={photo.series}
+        data-series-name={photo.seriesName.toLowerCase()}
+        data-tags={photo.tags.join(' ').toLowerCase()}
+        data-date={photo.date}
+      >
+        <a href={`/photo/${photo.slug}/`} class="r-img-link">
+          <img src={photo.url} alt={photo.title} loading="lazy" decoding="async"
+               style={`view-transition-name: photo-${photo.slug};`} />
+          <div class="r-overlay">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+        </a>
+        <div class="r-body">
+          <a href={`/photo/${photo.slug}/`} class="r-title">{photo.title}</a>
+          {photo.seriesName && (
+            <a href={`/series/${photo.series}/`} class="r-series">{photo.seriesName}</a>
+          )}
+          {photo.tags.length > 0 && (
+            <div class="r-tags">
+              {photo.tags.map((t) => (
+                <button class="r-tag" data-tag-filter={t}>#{t}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      </article>
+    ))}
+  </section>
+
+  <div id="empty-state" class="empty-state" style="display:none">
+    <p class="empty-icon">◌</p>
+    <p class="empty-msg">Aucune photo pour cette recherche.</p>
+    <button class="reset-btn" id="reset-btn">Réinitialiser</button>
+  </div>
+
+</Base>
+
+<style>
+  /* ── Hero ──────────────────────────────────────────────── */
+  .search-hero {
+    margin-bottom: 2rem;
+    display: grid;
+    gap: 1.4rem;
+    max-width: 760px;
+  }
+
+  .search-kicker {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+
+  .search-hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.05;
+  }
+
+  /* ── Search bar ────────────────────────────────────────── */
+  .search-bar-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(15, 31, 61, 0.75);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.1rem 1rem 0.1rem 1.1rem;
+    gap: 0.6rem;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  .search-bar-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(116, 143, 255, 0.12);
+  }
+
+  .search-icon {
+    width: 17px;
+    height: 17px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .search-bar {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    padding: 0.75rem 0;
+  }
+
+  .search-bar::placeholder { color: var(--muted); }
+
+  /* clear button natif */
+  .search-bar::-webkit-search-cancel-button { cursor: pointer; }
+
+  .search-count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Filters ───────────────────────────────────────────── */
+  .filter-row {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .filter-group {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .filter-label {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+  }
+
+  .pill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .pill {
+    border: 1px solid var(--line);
+    background: none;
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+
+  .pill:hover  { color: var(--text); border-color: var(--muted); }
+  .pill.active { color: var(--text); border-color: var(--accent); background: rgba(116, 143, 255, 0.1); }
+
+  .sort-sel {
+    background: rgba(6, 16, 36, 0.8);
+    border: 1px solid var(--line);
+    border-radius: 0.55rem;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+  }
+
+  .sort-sel:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Tag cloud ─────────────────────────────────────────── */
+  .tag-cloud-section {
+    margin-bottom: 2rem;
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+
+  .tag-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    border: 1px solid var(--line);
+    background: none;
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-family: var(--font-mono);
+    font-size: var(--w, 0.8rem);
+    cursor: pointer;
+    transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+
+  .tag-pill:hover  { color: var(--text); border-color: var(--muted); }
+  .tag-pill.active { color: var(--accent); border-color: var(--accent); background: rgba(116, 143, 255, 0.1); }
+
+  .tag-count {
+    font-size: 0.65em;
+    opacity: 0.6;
+  }
+
+  /* ── Results ───────────────────────────────────────────── */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .r-card {
+    background: linear-gradient(160deg, rgba(14, 30, 62, 0.85), rgba(9, 20, 43, 0.85));
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    transition: border-color 200ms ease, transform 200ms ease;
+  }
+
+  .r-card:hover {
+    border-color: rgba(116, 143, 255, 0.3);
+    transform: translateY(-2px);
+  }
+
+  .r-img-link {
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .r-img-link img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    display: block;
+    transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .r-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    opacity: 0;
+    transition: opacity 220ms ease;
+  }
+
+  .r-img-link:hover .r-overlay { opacity: 1; }
+  .r-img-link:hover img          { transform: scale(1.04); }
+
+  .r-body {
+    padding: 0.7rem 0.85rem 0.85rem;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .r-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.2;
+    transition: color 160ms ease;
+  }
+
+  .r-title:hover { color: var(--accent); }
+
+  .r-series {
+    font-family: var(--font-mono);
+    font-size: 0.73rem;
+    color: var(--muted);
+    transition: color 160ms ease;
+  }
+
+  .r-series:hover { color: var(--text); }
+
+  .r-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+  }
+
+  .r-tag {
+    border: none;
+    background: rgba(116, 143, 255, 0.08);
+    color: rgba(159, 178, 212, 0.75);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    cursor: pointer;
+    transition: color 150ms ease, background 150ms ease;
+  }
+
+  .r-tag:hover    { color: var(--accent); background: rgba(116, 143, 255, 0.15); }
+  .r-tag.active   { color: var(--accent); background: rgba(116, 143, 255, 0.18); }
+
+  /* ── Empty state ────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+    display: grid;
+    gap: 0.75rem;
+    justify-items: center;
+  }
+
+  .empty-icon {
+    font-size: 2.5rem;
+    color: var(--line);
+    margin: 0;
+  }
+
+  .empty-msg {
+    margin: 0;
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  .reset-btn {
+    border: 1px solid var(--line);
+    background: none;
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 0.4rem 1.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-top: 0.25rem;
+    transition: color 160ms ease, border-color 160ms ease;
+  }
+
+  .reset-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .filter-row { gap: 1rem; }
+    .results-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  }
+</style>
+
+<script is:inline define:vars={{ photosJson }}>
+  const ALL = JSON.parse(photosJson);
+
+  let activeTag    = '';
+  let activeSeries = '';
+
+  const qEl      = document.getElementById('q');
+  const countEl  = document.getElementById('q-count');
+  const sortEl   = document.getElementById('sort-sel');
+  const grid     = document.getElementById('results');
+  const emptyEl  = document.getElementById('empty-state');
+  const resetBtn = document.getElementById('reset-btn');
+  const cards    = Array.from(document.querySelectorAll('.r-card'));
+
+  /* ── URL param ?tag= au chargement ───── */
+  const urlTag = new URLSearchParams(location.search).get('tag') || '';
+  if (urlTag) {
+    activeTag = urlTag;
+    const btn = document.querySelector(`.tag-pill[data-tag="${CSS.escape(urlTag)}"]`);
+    if (btn) btn.classList.add('active');
+  }
+
+  /* ── Filtre + tri ─────────────────────────────────────── */
+  function run() {
+    const q      = (qEl.value || '').trim().toLowerCase();
+    const sortBy = sortEl.value;
+
+    let visible = cards.filter((card) => {
+      const title      = card.dataset.title       || '';
+      const seriesSlug = card.dataset.series      || '';
+      const seriesName = card.dataset.seriesName  || '';
+      const tags       = card.dataset.tags        || '';
+
+      const textOk   = !q          || title.includes(q) || seriesName.includes(q) || tags.includes(q);
+      const seriesOk = !activeSeries || seriesSlug === activeSeries;
+      const tagOk    = !activeTag   || tags.split(' ').includes(activeTag);
+
+      return textOk && seriesOk && tagOk;
+    });
+
+    /* Tri */
+    visible.sort((a, b) =>
+      sortBy === 'title'
+        ? (a.dataset.title || '').localeCompare(b.dataset.title || '', 'fr')
+        : Number(b.dataset.date) - Number(a.dataset.date)
+    );
+
+    /* Affichage */
+    cards.forEach((c) => (c.style.display = 'none'));
+    visible.forEach((c) => {
+      c.style.display = '';
+      grid.appendChild(c);
+    });
+
+    /* Compteur */
+    const n = visible.length;
+    countEl.textContent = n
+      ? `${n} résultat${n > 1 ? 's' : ''}`
+      : '';
+
+    /* Empty state */
+    emptyEl.style.display = n === 0 ? 'grid' : 'none';
+
+    /* r-tag active highlight */
+    document.querySelectorAll('.r-tag').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tagFilter === activeTag);
+    });
+  }
+
+  /* ── Série pills ──────────────────────────────────────── */
+  document.querySelectorAll('.pill').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pill').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeSeries = btn.dataset.series || '';
+      run();
+    });
+  });
+
+  /* ── Tag cloud ────────────────────────────────────────── */
+  document.querySelectorAll('.tag-pill').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.tag || '';
+      if (activeTag === t) {
+        activeTag = '';
+        btn.classList.remove('active');
+      } else {
+        document.querySelectorAll('.tag-pill').forEach((b) => b.classList.remove('active'));
+        activeTag = t;
+        btn.classList.add('active');
+      }
+      run();
+    });
+  });
+
+  /* ── Tags sur les cards ───────────────────────────────── */
+  document.querySelectorAll('.r-tag').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.tagFilter || '';
+      if (activeTag === t) {
+        activeTag = '';
+      } else {
+        activeTag = t;
+        document.querySelectorAll('.tag-pill').forEach((b) => {
+          b.classList.toggle('active', b.dataset.tag === activeTag);
+        });
+      }
+      run();
+    });
+  });
+
+  /* ── Recherche texte + tri ────────────────────────────── */
+  qEl.addEventListener('input', run);
+  sortEl.addEventListener('change', run);
+
+  /* ── Reset ────────────────────────────────────────────── */
+  resetBtn.addEventListener('click', () => {
+    qEl.value    = '';
+    activeTag    = '';
+    activeSeries = '';
+    document.querySelectorAll('.pill').forEach((b, i) => b.classList.toggle('active', i === 0));
+    document.querySelectorAll('.tag-pill').forEach((b) => b.classList.remove('active'));
+    run();
+  });
+
+  run();
+</script>

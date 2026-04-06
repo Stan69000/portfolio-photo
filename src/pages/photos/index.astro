@@ -108,6 +108,13 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
         <div class="card-body">
           <a href={`/photo/${photo.slug}/`} class="card-title">{photo.title}</a>
           <p class="card-series">{photo.seriesName}</p>
+          {photo.tags.length > 0 && (
+            <div class="card-tags">
+              {photo.tags.slice(0, 3).map((t) => (
+                <a href={`/recherche?tag=${encodeURIComponent(t)}`} class="card-tag">#{t}</a>
+              ))}
+            </div>
+          )}
           <div class="tools-row">
             <button type="button" class="tool-btn" data-vote-btn data-vote-slug={photo.slug}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -277,6 +284,28 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--muted);
+  }
+
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+  }
+
+  .card-tag {
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    color: rgba(159, 178, 212, 0.6);
+    background: rgba(116, 143, 255, 0.07);
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    transition: color 150ms ease, background 150ms ease;
+  }
+
+  .card-tag:hover {
+    color: var(--accent);
+    background: rgba(116, 143, 255, 0.15);
   }
 
   .tools-row {
