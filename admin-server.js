@@ -1,6 +1,9 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { readFileSync } from "fs";
+// charge .env manuellement (pas de dep dotenv)
+try { const envLines = readFileSync(new URL(".env", import.meta.url)).toString().split("\n"); for (const l of envLines) { const [k,...v]=l.split("="); if(k&&v.length) process.env[k.trim()]=v.join("=").trim(); } } catch {}
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import Busboy from 'busboy';
@@ -20,13 +23,14 @@ const CFG = {
   viewsFile:   path.join(__dirname, 'src/content/stats/views.json'),
   tmpDir:      path.join(__dirname, '.tmp-upload'),
   processDir:  path.join(__dirname, '.processed'),
-  domain:      'http://photos.bost7423.odns.fr',  // URL temporaire O2Switch (à remplacer par ton vrai domaine)
-  sftp: {
-    host:           'bost7423.odns.fr',
-    port:           22,
-    username:       'bost7423',
-    privateKeyPath: '/Users/stanbouchet/.ssh/id_rsa_photo',
-    remotePath:     '/home/bost7423/stan-bouchet.eu', // racine du sous-domaine photos
+  domain:      'http://photos.bost7423.odns.fr',  // URL temporaire O2Switch
+  ftp: {
+    host:       'bost7423.odns.fr',
+    port:       21,
+    username:   'bost7423',
+    password:   process.env.FTP_PASSWORD || '',  // défini dans .env
+    remotePath: '/stan-bouchet.eu',              // chemin relatif au home FTP
+    secure:     false,                           // passer à true si TLS disponible
   },
   sharp: {
     thumb: { width: 500,  quality: 80 },
@@ -90,15 +94,20 @@ function parseUpload(req) {
   return new Promise((resolve, reject) => {
     const bb = Busboy({ headers: req.headers, limits: { fileSize: 300*1024*1024 } });
     const fields = {}, files = [];
+    const pending = [];
     fs.mkdirSync(CFG.tmpDir, { recursive: true });
     bb.on('field', (k,v) => { fields[k]=v; });
     bb.on('file', (name, stream, info) => {
       const tmp = path.join(CFG.tmpDir, `${Date.now()}-${info.filename}`);
       const ws = fs.createWriteStream(tmp);
       stream.pipe(ws);
-      ws.on('finish', () => files.push({ path: tmp, filename: info.filename, mime: info.mimeType }));
+      const done = new Promise((res, rej) => {
+        ws.on('finish', () => { files.push({ path: tmp, filename: info.filename, mime: info.mimeType }); res(); });
+        ws.on('error', rej);
+      });
+      pending.push(done);
     });
-    bb.on('close', () => resolve({ fields, files }));
+    bb.on('close', () => Promise.all(pending).then(() => resolve({ fields, files })).catch(reject));
     bb.on('error', reject);
     req.pipe(bb);
   });
@@ -133,38 +142,43 @@ async function readExif(filePath) {
   } catch { return {}; }
 }
 
-// ─── SFTP ─────────────────────────────────────────────────────────────────────
-async function getSftp() {
-  const { default: SftpClient } = await import('ssh2-sftp-client');
-  const sftp = new SftpClient();
-  await sftp.connect({
-    host: CFG.sftp.host, port: CFG.sftp.port, username: CFG.sftp.username,
-    privateKey: fs.readFileSync(CFG.sftp.privateKeyPath),
+// ─── FTP ──────────────────────────────────────────────────────────────────────
+async function getFtp() {
+  const { Client } = await import('basic-ftp');
+  const client = new Client();
+  await client.access({
+    host:     CFG.ftp.host,
+    port:     CFG.ftp.port,
+    user:     CFG.ftp.username,
+    password: CFG.ftp.password,
+    secure:   CFG.ftp.secure,
   });
-  return sftp;
+  return client;
 }
 
 async function uploadViaFTP(versions, seriesSlug, photoSlug) {
+  if (!CFG.ftp.password) return { ok: false, error: 'Mot de passe FTP non configuré' };
   try {
-    const sftp = await getSftp();
+    const ftp = await getFtp();
     for (const [name, lp] of Object.entries(versions)) {
-      const rp = `${CFG.sftp.remotePath}/${seriesSlug}/${name}/${photoSlug}.webp`;
-      await sftp.mkdir(path.dirname(rp), true);
-      await sftp.put(lp, rp);
+      const remoteDir = `${CFG.ftp.remotePath}/${seriesSlug}/${name}`;
+      await ftp.ensureDir(remoteDir);
+      await ftp.uploadFrom(lp, `${remoteDir}/${photoSlug}.webp`);
     }
-    await sftp.end();
+    ftp.close();
     return { ok: true };
   } catch(e) { return { ok: false, error: e.message }; }
 }
 
 async function deleteViaFTP(seriesSlug, photoSlug) {
+  if (!CFG.ftp.password) return { ok: false };
   try {
-    const sftp = await getSftp();
+    const ftp = await getFtp();
     for (const name of ['thumb','web','zoom']) {
-      const rp = `${CFG.sftp.remotePath}/${seriesSlug}/${name}/${photoSlug}.webp`;
-      await sftp.delete(rp).catch(()=>{});
+      const rp = `${CFG.ftp.remotePath}/${seriesSlug}/${name}/${photoSlug}.webp`;
+      await ftp.remove(rp).catch(()=>{});
     }
-    await sftp.end();
+    ftp.close();
     return { ok: true };
   } catch(e) { return { ok: false, error: e.message }; }
 }

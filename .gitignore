@@ -11,4 +11,4 @@ public/demo/
 
 .processed/
 .tmp-upload/
-admin-server.js
+.env.local
