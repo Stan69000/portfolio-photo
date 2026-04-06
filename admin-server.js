@@ -20,13 +20,13 @@ const CFG = {
   viewsFile:   path.join(__dirname, 'src/content/stats/views.json'),
   tmpDir:      path.join(__dirname, '.tmp-upload'),
   processDir:  path.join(__dirname, '.processed'),
-  domain:      'https://photos-stan-bouchet.eu',  // domaine images O2Switch (synchro avec Settings)
+  domain:      'http://photos.bost7423.odns.fr',  // URL temporaire O2Switch (à remplacer par ton vrai domaine)
   sftp: {
-    host:           'ssh.cpanel.net',             // ← hôte SSH O2Switch (ou ton domaine)
+    host:           'bost7423.odns.fr',
     port:           22,
-    username:       'stanbouchet',                // ← ton identifiant O2Switch
-    privateKeyPath: '/Users/stanbouchet/.ssh/id_ed25519_github_stan',
-    remotePath:     '/home/stanbouchet/www/photos', // ← chemin absolu sur O2Switch
+    username:       'bost7423',
+    privateKeyPath: '/Users/stanbouchet/.ssh/id_rsa_photo',
+    remotePath:     '/home/bost7423/stan-bouchet.eu', // racine du sous-domaine photos
   },
   sharp: {
     thumb: { width: 500,  quality: 80 },
