@@ -346,7 +346,7 @@ function tagInputWidget(inputName, currentTags, allTags, id='ti') {
 // ─── LAYOUT ───────────────────────────────────────────────────────────────────
 function layout(title, content, active = '') {
   const nav = [
-    ['http://localhost:4321', 'home', '🏠 Accueil', true],
+    ['https://stan-bouchet.eu/', 'home', '🏠 Accueil', true],
     ['/', 'adminhome', '⬅ Admin', false],
     ['/', 'photos', '📷 Photos', false],
     ['/series', 'series', '📁 Séries', false],
