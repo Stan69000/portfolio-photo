@@ -40,6 +40,12 @@ const CFG = {
   }
 };
 
+// ─── LIMITS ───────────────────────────────────────────────────────────────────
+const LIMITS = {
+  photos: { max: 500, recommended: 200 },
+  series: { max: 50,  recommended: 20  },
+};
+
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 const slugify = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -156,6 +162,32 @@ async function readExif(filePath) {
       iso:      data.ISOSpeedRatings ? String(data.ISOSpeedRatings) : '',
     };
   } catch { return {}; }
+}
+
+async function readExifDate(filePath) {
+  try {
+    const { default: exifr } = await import('exifr');
+    const data = await exifr.parse(filePath, { pick: ['DateTimeOriginal'] });
+    if (data?.DateTimeOriginal) return new Date(data.DateTimeOriginal).toISOString().split('T')[0];
+  } catch {}
+  return null;
+}
+
+function limitBar(current, recommended, max, label) {
+  const pct = Math.min(100, Math.round(current / max * 100));
+  const color = current >= max ? '#ff4a4a' : current >= recommended ? '#ff9a6a' : '#4aff9a';
+  return `<div style="margin-bottom:1.5rem">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.35rem">
+    <span style="font-family:monospace;font-size:.78rem;color:#9fb2d4">${label}</span>
+    <span style="font-family:monospace;font-size:.78rem">
+      <strong style="color:${color}">${current}</strong>
+      <span style="color:#5a7090"> / ${max} max — conseillé : ${recommended}</span>
+    </span>
+  </div>
+  <div style="background:#0a1628;border-radius:999px;height:6px;overflow:hidden;border:1px solid #1a2d52">
+    <div style="background:${color};width:${pct}%;height:100%;border-radius:999px"></div>
+  </div>
+</div>`;
 }
 
 // ─── FTP ──────────────────────────────────────────────────────────────────────
@@ -460,7 +492,8 @@ function photosPage(photos, filter='all', search='', msg='') {
   </div></div>`;
   }).join('');
   return layout('Photos', `
-<h1>Photos <span style="color:#9fb2d4;font-size:.85rem;font-weight:400">${list.length} / ${photos.length}</span></h1>
+<h1>Photos <span style="color:#9fb2d4;font-size:.85rem;font-weight:400">${list.length} affiché${list.length>1?'s':''}</span></h1>
+${limitBar(counts.all, LIMITS.photos.recommended, LIMITS.photos.max, 'Photos (publiées + brouillons, hors corbeille)')}
 ${msgHtml}
 <div class="filters">
   <a href="/?filter=all" class="filter-btn ${filter==='all'?'active':''}">Tous (${counts.all})</a>
@@ -709,7 +742,8 @@ function seriesListPage(series, msg='') {
   </div></div>`;
   }).join('');
   return layout('Séries', `
-<h1>Séries</h1>
+<h1>Séries <span style="color:#9fb2d4;font-size:.85rem;font-weight:400">${series.length}</span></h1>
+${limitBar(series.length, LIMITS.series.recommended, LIMITS.series.max, 'Séries')}
 ${msgHtml}
 <div style="margin-bottom:1.5rem"><a href="/series/new" class="btn btn-primary">+ Nouvelle série</a></div>
 <div class="grid">
@@ -1314,18 +1348,26 @@ const server = http.createServer(async (req, res) => {
       const uploadTags=fields.tags?fields.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
       const results=[];
+      const usedSlugs=new Set(readPhotos().map(p=>p.slug).filter(Boolean));
       for(const file of files){
-        const photoSlug=slugify(path.parse(file.filename).name);
+        const origTitle=path.parse(file.filename).name.replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+        const exifDateStr=await readExifDate(file.path);
+        const dateStr=exifDateStr||new Date().toISOString().split('T')[0];
+        let base=`${seriesSlug}-${dateStr}`;
+        let photoSlug=base;
+        let n=2;
+        while(usedSlugs.has(photoSlug)){photoSlug=`${base}-${String(n).padStart(3,'0')}`;n++;}
+        usedSlugs.add(photoSlug);
         try{
           const [versions, exif]=await Promise.all([processImage(file.path,seriesSlug,photoSlug), readExif(file.path)]);
           const sftpRes=await uploadViaFTP(versions,seriesSlug,photoSlug);
           const urls=buildUrls(seriesSlug,photoSlug);
-          const yamlFile=`${seriesSlug}-${photoSlug}.yaml`;
+          const yamlFile=`${photoSlug}.yaml`;
           writeYaml(path.join(CFG.photosDir,yamlFile),{
-            title:photoSlug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),
+            title:origTitle,
             slug:photoSlug, series:seriesSlug, status,
             url:urls.url_web, url_thumb:urls.url_thumb, url_web:urls.url_web, url_zoom:urls.url_zoom,
-            date:new Date().toISOString().split('T')[0],
+            date:dateStr,
             description:'', tags:uploadTags,
             ...(Object.values(exif).some(Boolean)?{exif}:{}),
           });
