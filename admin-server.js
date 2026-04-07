@@ -1502,8 +1502,8 @@ a:hover{background:#748fff33}</style></head><body>
 <a href="/auth/github">Se reconnecter</a></div></body></html>`);
     return;
 
-  // ── Auth check — toutes les autres routes
-  } else if (!SKIP_AUTH && GITHUB_CLIENT_ID) {
+  // ── Auth check — toutes les autres routes (sauf API publique)
+  } else if (!SKIP_AUTH && GITHUB_CLIENT_ID && !p.startsWith('/api/')) {
     const user = getSessionUser(req);
     if (!user) { redirect('/auth/github'); return; }
   }
