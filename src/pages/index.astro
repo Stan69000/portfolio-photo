@@ -74,7 +74,7 @@ const cards = allSeries
     </div>
 
     {featured && (
-      <a href={`/photo/${featured.data.slug}/`} class="hero-image">
+      <a href={featured.data.series ? `/series/${featured.data.series}/` : `/photo/${featured.data.slug}/`} class="hero-image">
         <img src={featured.data.url} alt={featured.data.title} loading="eager" decoding="async" />
         <div class="caption">
           <span>{featuredLabel}</span>

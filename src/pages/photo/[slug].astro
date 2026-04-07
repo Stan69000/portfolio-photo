@@ -5,17 +5,20 @@ import Base from '../../layouts/Base.astro';
 export async function getStaticPaths() {
   const photos = (await getCollection('photos')).filter((p) => p.data.status === 'published');
   const sorted = photos.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+  const seriesCollection = await getCollection('series');
+  const seriesTagsBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.tags ?? []]));
   return sorted.map((photo, index) => ({
     params: { slug: photo.data.slug },
     props: {
       photo,
+      seriesTags: seriesTagsBySlug.get(photo.data.series) ?? [],
       prev: sorted[index - 1] ?? null,
       next: sorted[index + 1] ?? null
     }
   }));
 }
 
-const { photo, prev, next } = Astro.props;
+const { photo, seriesTags, prev, next } = Astro.props;
 
 const exif = photo.data.exif;
 const exifFields = exif
@@ -27,8 +30,9 @@ const exifFields = exif
     ].filter(Boolean)
   : [];
 
+const effectiveTags = [...new Set([...seriesTags, ...(photo.data.tags ?? [])])];
 const tagGroups: Record<string, string[]> = {};
-for (const tag of photo.data.tags) {
+for (const tag of effectiveTags) {
   const i = tag.indexOf(':');
   const cat = i > 0 ? tag.slice(0, i).trim() : '';
   const val = i > 0 ? tag.slice(i + 1).trim() : tag;
@@ -100,7 +104,7 @@ for (const tag of photo.data.tags) {
         )}
       </div>
 
-      {photo.data.tags.length > 0 && (
+      {effectiveTags.length > 0 && (
         <div class="tags-section">
           {Object.entries(tagGroups).map(([cat, vals]) => (
             <div class="tag-group">

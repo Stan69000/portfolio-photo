@@ -4,19 +4,25 @@ import Base from '../../layouts/Base.astro';
 
 const seriesCollection = await getCollection('series', ({ data }) => data.published);
 const seriesBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.name]));
+const seriesTagsBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.tags ?? []]));
 
 const photos = (await getCollection('photos'))
   .filter((p) => p.data.status === 'published')
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
-  .map((p) => ({
-    slug:       p.data.slug,
-    title:      p.data.title,
-    series:     p.data.series,
-    seriesName: seriesBySlug.get(p.data.series) ?? p.data.series ?? '',
-    url:        p.data.url_thumb || p.data.url,
-    tags:       p.data.tags ?? [],
-    date:       p.data.date.getTime(),
-  }));
+  .map((p) => {
+    const seriesTags = seriesTagsBySlug.get(p.data.series) ?? [];
+    const photoTags = p.data.tags ?? [];
+    const tags = [...new Set([...seriesTags, ...photoTags])];
+    return {
+      slug:       p.data.slug,
+      title:      p.data.title,
+      series:     p.data.series,
+      seriesName: seriesBySlug.get(p.data.series) ?? p.data.series ?? '',
+      url:        p.data.url_thumb || p.data.url,
+      tags,
+      date:       p.data.date.getTime(),
+    };
+  });
 
 // Tag cloud — fréquence décroissante
 const tagFreq = new Map<string, number>();
