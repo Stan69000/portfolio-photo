@@ -305,4 +305,24 @@ const cards = allSeries
       min-height: 270px;
     }
   }
+
+  @media (max-width: 600px) {
+    .hero-copy {
+      padding: 0.85rem;
+    }
+
+    .hero-image {
+      min-height: 220px;
+      max-height: 280px;
+    }
+
+    .series-card,
+    .series-card:nth-child(3n) {
+      min-height: 220px;
+    }
+
+    .overlay p {
+      display: none;
+    }
+  }
 </style>

@@ -29,6 +29,7 @@ html,
 body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
   font-family: var(--font-sans);
   background:
     radial-gradient(900px 480px at 12% -5%, rgba(78, 120, 205, 0.34), transparent 62%),
@@ -76,6 +77,12 @@ main {
   max-width: var(--max);
   margin: 0 auto;
   padding: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  main {
+    padding: 1rem;
+  }
 }
 
 h1,

@@ -364,7 +364,14 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   }
 
   @media (max-width: 620px) {
+    .filters { grid-template-columns: 1fr 1fr; }
+    .fav-only { grid-column: span 2; }
+    .results-grid { columns: 2; }
+  }
+
+  @media (max-width: 480px) {
     .filters { grid-template-columns: 1fr; }
+    .fav-only { grid-column: span 1; }
     .results-grid { columns: 2; }
   }
 
