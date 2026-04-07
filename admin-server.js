@@ -708,7 +708,7 @@ function doUpload(){
     sum.innerHTML=
       (ok ? '<span style="background:#1a3d1a;border:1px solid #2d6b2d;color:#7aff7a;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem;font-weight:600">✓ '+ok+' réussi'+(ok>1?'s':'')+'</span>' : '')+
       (fail ? '<span style="background:#3d0a0a;border:1px solid #6b1a1a;color:#ff7a7a;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem;font-weight:600">✗ '+fail+' échec'+(fail>1?'s':'')+'</span>' : '')+
-      (r.gitStatus==='deploy' ? '<span style="background:#0f1f3d;border:1px solid #243a65;color:#748fff;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">🚀 Déploiement en cours (~2 min)</span>' : '')+
+      (r.gitStatus==='deploy' ? '<span style="background:#0f1f3d;border:1px solid #243a65;color:#748fff;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">🚀 GitHub Action déclenchée — site MAJ sur O2Switch (~2 min)</span>' : '')+
       (r.gitStatus==='git-error' ? '<span style="background:#3d2a00;border:1px solid #6b4a00;color:#ffb347;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">⚠️ Git push échoué</span>' : '');
     const lines=r.results.map(x=>'<span style="color:'+(x.ok?'#9fb2d4':'#ff7a7a')+'">'+(x.ok?'✓':'✗')+' '+x.slug+(x.ok&&x.sftp===false?' <em style="color:#ffb347">(FTP: échec)</em>':'')+'</span>').join('<br>');
     document.getElementById('upload-log').innerHTML=lines;
