@@ -42,8 +42,8 @@ const CFG = {
 
 // ─── LIMITS ───────────────────────────────────────────────────────────────────
 const LIMITS = {
-  photos: { max: 500, recommended: 200 },
-  series: { max: 50,  recommended: 20  },
+  photos: { max: 10000, recommended: 2000 },
+  series: { max: 500,   recommended: 100  },
 };
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
