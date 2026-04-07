@@ -28,20 +28,7 @@ const featuredLabel = featuredSlug ? 'Photo du jour' : 'Derni\u00e8re photo';
 const cards = allSeries
   .map((series) => {
     const photos = allPhotos.filter((photo) => photo.data.series === series.data.slug);
-    const tagStats = new Map<string, number>();
-
-    for (const photo of photos) {
-      for (const tag of photo.data.tags ?? []) {
-        const key = tag.trim();
-        if (!key) continue;
-        tagStats.set(key, (tagStats.get(key) ?? 0) + 1);
-      }
-    }
-
-    const topTags = [...tagStats.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([tag]) => tag);
+    const topTags = (series.data.tags ?? []).slice(0, 3);
 
     // fallback cover : première photo publiée de la série si cover_url absent
     const coverFallback = photos.find(p => p.data.status === 'published')?.data.url_thumb
