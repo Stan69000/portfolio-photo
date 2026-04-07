@@ -14,6 +14,46 @@ import Busboy from 'busboy';
 const require = createRequire(import.meta.url);
 const yaml  = require('js-yaml');
 const sharp = require('sharp');
+const Database = require('better-sqlite3');
+
+// ─── RATINGS DB ───────────────────────────────────────────────────────────────
+const dbPath = path.join(__dirname, 'ratings.db');
+const db = new Database(dbPath);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ratings (
+    slug    TEXT PRIMARY KEY,
+    total   INTEGER NOT NULL DEFAULT 0,
+    count   INTEGER NOT NULL DEFAULT 0,
+    updated INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
+const stmtUpsert = db.prepare(`
+  INSERT INTO ratings (slug, total, count, updated)
+  VALUES (?, ?, 1, ?)
+  ON CONFLICT(slug) DO UPDATE SET
+    total   = total + excluded.total,
+    count   = count + 1,
+    updated = excluded.updated
+`);
+const stmtGet    = db.prepare(`SELECT total, count FROM ratings WHERE slug = ?`);
+const stmtAll    = db.prepare(`SELECT slug, total, count FROM ratings ORDER BY (total * 1.0 / count) DESC`);
+
+function dbRate(slug, score) {
+  stmtUpsert.run(slug, score, Date.now());
+}
+function dbGetRating(slug) {
+  const r = stmtGet.get(slug);
+  if (!r || r.count === 0) return null;
+  return { avg: Math.round((r.total / r.count) * 10) / 10, count: r.count };
+}
+function dbGetAll() {
+  return stmtAll.all().map(r => ({
+    slug: r.slug,
+    avg: Math.round((r.total / r.count) * 10) / 10,
+    count: r.count
+  }));
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -1817,6 +1857,48 @@ updatePreview();
       json({ ok: true, message: '🚀 GitHub Action déclenchée — site MAJ sur O2Switch (~2 min)' });
     } else {
       json({ ok: false, message: result.error || 'Erreur lors du git push' }, 500);
+    }
+
+  // ── API publique ratings (CORS ouvert — lecture/écriture sans auth) ─────────
+  } else if (p.startsWith('/api/ratings')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204); res.end(); return;
+    }
+
+    // GET /api/ratings → toutes les moyennes
+    if (req.method === 'GET' && p === '/api/ratings') {
+      json(dbGetAll());
+
+    // GET /api/ratings/:slug → moyenne d'une photo
+    } else if (req.method === 'GET' && p.startsWith('/api/ratings/')) {
+      const slug = decodeURIComponent(p.slice('/api/ratings/'.length));
+      const r = dbGetRating(slug);
+      json(r || { avg: 0, count: 0 });
+
+    // POST /api/ratings/:slug  body: { score: 1-5 }
+    } else if (req.method === 'POST' && p.startsWith('/api/ratings/')) {
+      const slug = decodeURIComponent(p.slice('/api/ratings/'.length));
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        try {
+          const { score } = JSON.parse(body);
+          const n = Number(score);
+          if (!slug || n < 1 || n > 5 || !Number.isInteger(n)) {
+            json({ ok: false, error: 'score invalide (1-5 requis)' }, 400); return;
+          }
+          dbRate(slug, n);
+          json({ ok: true, ...dbGetRating(slug) });
+        } catch {
+          json({ ok: false, error: 'JSON invalide' }, 400);
+        }
+      });
+    } else {
+      json({ ok: false, error: 'Route inconnue' }, 404);
     }
 
   } else {

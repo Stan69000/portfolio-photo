@@ -168,6 +168,12 @@ function starsFill(rating: number) {
     <p class="panel-sub" id="votes-summary">Chargement&hellip;</p>
     <ol class="top-list" id="votes-list"></ol>
   </section>
+
+  <section class="panel reveal" id="global-ratings">
+    <h2>Notes de tous les visiteurs</h2>
+    <p class="panel-sub" id="global-summary">Chargement&hellip;</p>
+    <ol class="top-list" id="global-list"></ol>
+  </section>
 </Base>
 
 <style>
@@ -440,4 +446,48 @@ function starsFill(rating: number) {
   document.addEventListener('ratings-updated', renderVotes);
   document.addEventListener('DOMContentLoaded', renderVotes);
   renderVotes();
+
+  // ── Notes globales (toutes les visiteurs via API) ─────────────────────────
+  const globalSection = document.querySelector('#global-ratings');
+  const globalSummary = document.querySelector('#global-summary');
+  const globalList    = document.querySelector('#global-list');
+  const API_BASE = 'https://admin.stan-bouchet.eu';
+
+  async function renderGlobalRatings() {
+    if (!globalSummary || !globalList) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/ratings`);
+      if (!res.ok) throw new Error('API indisponible');
+      const data = await res.json();
+      const photos = JSON.parse(root?.dataset.photos || '[]');
+      const bySlug = Object.fromEntries(photos.map(p => [p.slug, p]));
+
+      const scored = data
+        .filter(r => r.count > 0 && bySlug[r.slug])
+        .slice(0, 12);
+
+      if (!scored.length) {
+        globalSummary.textContent = 'Aucune note enregistrée pour l\'instant.';
+        globalList.innerHTML = '';
+        return;
+      }
+
+      globalSummary.textContent = scored.length + ' photo' + (scored.length > 1 ? 's' : '') + ' notée' + (scored.length > 1 ? 's' : '') + ' — moyenne sur tous les visiteurs.';
+      globalList.innerHTML = scored.map(r => {
+        const p = bySlug[r.slug];
+        if (!p) return '';
+        const stars = [1,2,3,4,5].map(i => `<span style="color:${i <= Math.round(r.avg) ? '#f5c542' : 'rgba(255,255,255,0.2)'}">★</span>`).join('');
+        const img = p.thumb
+          ? `<img src="${p.thumb}" alt="${p.title}" loading="lazy" style="width:60px;height:45px;object-fit:cover;border-radius:.4rem;flex-shrink:0;border:1px solid rgba(255,255,255,.1)">`
+          : `<div style="width:60px;height:45px;background:rgba(10,22,48,.8);border-radius:.4rem;flex-shrink:0"></div>`;
+        return `<li><a href="/photo/${p.slug}/" class="top-item">${img}<div class="top-info"><strong>${p.title}</strong><span class="series-label">📁 ${p.series}</span></div><span class="rating-num" style="color:#f5c542">${stars} <em style="font-size:.75rem;font-style:normal">${r.avg}/5 (${r.count} vote${r.count > 1 ? 's' : ''})</em></span></a></li>`;
+      }).join('');
+    } catch {
+      globalSummary.textContent = 'Stats globales indisponibles pour l\'instant.';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', renderGlobalRatings);
+  document.addEventListener('ratings-updated', renderGlobalRatings);
+  renderGlobalRatings();
 </script>

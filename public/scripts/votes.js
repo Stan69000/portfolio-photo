@@ -1,5 +1,6 @@
 const RATINGS_KEY   = 'stan-photo-ratings-v1';
 const FAVORITES_KEY = 'stan-photo-favorites-v1';
+const API_BASE      = 'https://admin.stan-bouchet.eu';
 
 // ── Ratings ───────────────────────────────────────────────────────────────────
 function readRatings() {
@@ -18,6 +19,14 @@ function ratePhoto(slug, rating) {
   localStorage.setItem(RATINGS_KEY, JSON.stringify(ratings));
   document.dispatchEvent(new CustomEvent('ratings-updated', { detail: { slug } }));
   refreshStarWidgets();
+  // Envoi silencieux au serveur (best-effort, sans bloquer l'UI)
+  if (rating > 0) {
+    fetch(`${API_BASE}/api/ratings/${encodeURIComponent(slug)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ score: rating })
+    }).catch(() => {}); // Silencieux si le serveur est indisponible
+  }
 }
 
 // ── Favorites ─────────────────────────────────────────────────────────────────
