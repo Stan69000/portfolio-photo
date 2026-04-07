@@ -58,17 +58,11 @@ jobs:
             **/.git*/**
             **/node_modules/**
 
-      - name: Restart Passenger via FTP (touch tmp/restart.txt)
+      - name: Restart Passenger (curl FTP → tmp/restart.txt)
         run: |
-          mkdir -p ./restart-trigger/tmp
-          echo "${{ github.run_id }}-${{ github.run_attempt }}" > ./restart-trigger/tmp/restart.txt
-      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./restart-trigger/
-          server-dir: ${{ secrets.FTP_ADMIN_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
+          echo "${{ github.run_id }}-${{ github.run_attempt }}" | curl -s \
+            --ftp-create-dirs \
+            -T - \
+            "ftp://${{ secrets.FTP_SERVER }}${{ secrets.FTP_ADMIN_DIR }}tmp/restart.txt" \
+            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
+            || echo "FTP restart skipped (non bloquant)"
