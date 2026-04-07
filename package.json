@@ -11,6 +11,7 @@
     "process:photos": "node scripts/process-photos.js"
   },
   "dependencies": {
+    "@astrojs/rss": "^4.0.18",
     "astro": "^5.7.0",
     "basic-ftp": "^5.2.0",
     "busboy": "^1.6.0",
