@@ -24,7 +24,7 @@ const photos = (await getCollection('photos'))
     tags: photo.data.tags ?? []
   }));
 
-const allTags = [...new Set(photos.flatMap((p) => p.tags))].slice(0, 10);
+const allTags = (series.data.tags ?? []).slice(0, 10);
 const hero = photos[0];
 ---
 
