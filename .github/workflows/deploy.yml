@@ -25,7 +25,7 @@ jobs:
       - name: Build Astro
         run: npm run build
 
-      - name: Deploy via FTP → O2Switch
+      - name: Deploy site via FTP → O2Switch
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -33,6 +33,26 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: ${{ secrets.FTP_REMOTE_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+
+      - name: Prépare admin-server pour déploiement
+        run: |
+          mkdir -p ./admin-deploy
+          cp admin-server.js ./admin-deploy/
+          cp package.json ./admin-deploy/
+          cp package-lock.json ./admin-deploy/
+
+      - name: Deploy admin-server via FTP → O2Switch
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./admin-deploy/
+          server-dir: ${{ secrets.FTP_ADMIN_DIR }}
           exclude: |
             **/.git*
             **/.git*/**
