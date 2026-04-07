@@ -55,26 +55,29 @@ const hero = photos[0];
         </div>
       )}
 
-      {series.data.map_lat && series.data.map_lng && (
-        <div class="map-inline">
-          <p class="extras-label">📍 Secteur</p>
-          <div id="series-map" class="series-map"></div>
+      {(series.data.map_lat && series.data.map_lng) || ((series.data.links ?? []).length > 0) ? (
+        <div class="extras-grid">
+          {series.data.map_lat && series.data.map_lng && (
+            <div class="map-inline">
+              <p class="extras-label">📍 Secteur</p>
+              <div id="series-map" class="series-map"></div>
+            </div>
+          )}
+          {(series.data.links ?? []).length > 0 && (
+            <div class="links-inline">
+              <p class="extras-label">🔗 Liens utiles</p>
+              <div class="links-col">
+                {(series.data.links ?? []).map((link) => (
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" class="ext-link">
+                    {link.label}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {(series.data.links ?? []).length > 0 && (
-        <div class="links-inline">
-          <p class="extras-label">🔗 Liens utiles</p>
-          <div class="links-row">
-            {(series.data.links ?? []).map((link) => (
-              <a href={link.url} target="_blank" rel="noopener noreferrer" class="ext-link">
-                {link.label}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+      ) : null}
 
     </div>
   </section>
@@ -86,8 +89,8 @@ const hero = photos[0];
         function initMap() {
           if (!window.L || !document.getElementById('series-map')) return;
           const map = L.map('series-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], zoom);
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© <a href="https://www.esri.com/">Esri</a>, © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
             maxZoom: 19,
           }).addTo(map);
           const icon = L.divIcon({
@@ -135,13 +138,13 @@ const hero = photos[0];
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     gap: 1rem;
     margin-bottom: 1.5rem;
-    align-items: start;
+    align-items: stretch;
   }
 
   .hero-image {
     display: block;
     width: 100%;
-    aspect-ratio: 3 / 2;
+    min-height: 300px;
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--line);
@@ -330,53 +333,61 @@ const hero = photos[0];
     margin: 0 0 0.5rem;
   }
 
-  /* Map */
-  .map-inline {
+  /* Map + Links side by side */
+  .extras-grid {
     border-top: 1px solid var(--line);
     padding-top: 0.85rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  .map-inline,
+  .links-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   .series-map {
-    height: 180px;
+    aspect-ratio: 1;
+    width: 100%;
     border-radius: calc(var(--radius) - 4px);
     overflow: hidden;
     border: 1px solid var(--line);
   }
 
-  /* Override Leaflet for dark theme */
+  /* Override Leaflet popup */
   :global(.leaflet-popup-content-wrapper) {
-    background: #0f1f3d;
+    background: rgba(10, 20, 40, 0.92);
     color: #d2e1ff;
     border: 1px solid #243a65;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,.5);
   }
-  :global(.leaflet-popup-tip) { background: #0f1f3d; }
+  :global(.leaflet-popup-tip) { background: rgba(10, 20, 40, 0.92); }
   :global(.leaflet-popup-close-button) { color: #748fff !important; }
 
   /* Links */
-  .links-inline {
-    border-top: 1px solid var(--line);
-    padding-top: 0.85rem;
-  }
-
-  .links-row {
+  .links-col {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
+    flex-direction: column;
+    gap: 0.45rem;
   }
 
   .ext-link {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.35rem;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text);
     background: rgba(116, 143, 255, 0.08);
     border: 1px solid rgba(116, 143, 255, 0.25);
-    border-radius: 999px;
-    padding: 0.4rem 0.9rem;
+    border-radius: 8px;
+    padding: 0.45rem 0.8rem;
     transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
     text-decoration: none;
   }
