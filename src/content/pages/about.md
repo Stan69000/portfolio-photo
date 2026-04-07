@@ -5,7 +5,7 @@ description: Qui je suis, pourquoi la photographie.
 
 # À propos
 
-Bonjour, je suis **Stan Bouchet**, photographe amateur basé en France.
+Bonjour, je suis **Stan Bouchet**, photographe amateur basé en France dans la campagne Lyonnaise.
 
 ## Ma passion
 
@@ -13,8 +13,8 @@ La photographie est pour moi un moyen de capturer l'instant, de raconter une his
 
 ## Mon matériel
 
-J'utilise un iPhone 15 au quotidien — la meilleure caméra est celle qu'on a toujours avec soi.
+J'utilise un Canon D90 et iPhone 15.
 
 ## Contact
 
-Vous pouvez me retrouver sur [LinkedIn](https://www.linkedin.com/in/stanislas-bouchet/) ou me contacter directement.
+Vous pouvez me retrouver sur [LinkedIn](https://www.linkedin.com/in/stanislas-bouchet/).
