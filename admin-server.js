@@ -1298,7 +1298,7 @@ function statsPage(photos, series, views) {
   </div>
   <div>
     <h2>Meilleures notes</h2>
-    <table class="table">
+    <table class="table" id="top-rated-table">
       <tr><th>Photo</th><th>Note</th></tr>
       ${topRatedRowsHtml}
     </table>
@@ -1309,6 +1309,27 @@ function statsPage(photos, series, views) {
 const allPhotos=${photoDataJson};
 const views=${viewsJson};
 let activeKey=null,currentFilter=null;
+
+// Charge les meilleures notes depuis l'API (toujours à jour)
+(async function loadTopRated() {
+  try {
+    const res = await fetch('/api/ratings');
+    if (!res.ok) return;
+    const ratings = await res.json();
+    if (!ratings.length) return;
+    const bySlug = Object.fromEntries(allPhotos.map(p => [p.slug, p]));
+    const rows = ratings
+      .filter(r => bySlug[r.slug])
+      .slice(0, 10)
+      .map(r => {
+        const p = bySlug[r.slug];
+        return '<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td>'
+          +'<td>⭐ '+r.avg+' <span style="color:#6b7fa8;font-size:.8em">('+r.count+' vote'+(r.count>1?'s':'')+')</span></td></tr>';
+      }).join('');
+    const table = document.getElementById('top-rated-table');
+    if (table && rows) table.innerHTML = '<tr><th>Photo</th><th>Note</th></tr>' + rows;
+  } catch(e) {}
+})();
 function closeFilter(){
   document.getElementById('filter-view').style.display='none';
   document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));
