@@ -26,6 +26,15 @@ const exifFields = exif
       exif.iso    && { label: 'ISO', value: String(exif.iso) }
     ].filter(Boolean)
   : [];
+
+const tagGroups: Record<string, string[]> = {};
+for (const tag of photo.data.tags) {
+  const i = tag.indexOf(':');
+  const cat = i > 0 ? tag.slice(0, i).trim() : '';
+  const val = i > 0 ? tag.slice(i + 1).trim() : tag;
+  if (!tagGroups[cat]) tagGroups[cat] = [];
+  tagGroups[cat].push(val);
+}
 ---
 
 <Base title={`${photo.data.title} | Portfolio`} description={photo.data.description}>
@@ -91,32 +100,21 @@ const exifFields = exif
         )}
       </div>
 
-      {photo.data.tags.length > 0 && (() => {
-        // Grouper par catégorie (syntaxe "Catégorie:valeur")
-        const grouped: Record<string, string[]> = {};
-        for (const tag of photo.data.tags) {
-          const i = tag.indexOf(':');
-          const cat = i > 0 ? tag.slice(0, i).trim() : '';
-          const val = i > 0 ? tag.slice(i + 1).trim() : tag;
-          if (!grouped[cat]) grouped[cat] = [];
-          grouped[cat].push(val);
-        }
-        return (
-          <div class="tags-section">
-            {Object.entries(grouped).map(([cat, vals]) => (
-              <div class="tag-group">
-                {cat && <span class="tag-cat">{cat}</span>}
-                <div class="tags-row">
-                  {vals.map((val) => {
-                    const full = cat ? `${cat}:${val}` : val;
-                    return <a href={`/recherche?tag=${encodeURIComponent(full)}`} class="tag">#{val}</a>;
-                  })}
-                </div>
+      {photo.data.tags.length > 0 && (
+        <div class="tags-section">
+          {Object.entries(tagGroups).map(([cat, vals]) => (
+            <div class="tag-group">
+              {cat && <span class="tag-cat">{cat}</span>}
+              <div class="tags-row">
+                {vals.map((val) => {
+                  const full = cat ? `${cat}:${val}` : val;
+                  return <a href={`/recherche?tag=${encodeURIComponent(full)}`} class="tag">#{val}</a>;
+                })}
               </div>
-            ))}
-          </div>
-        );
-      })()}
+            </div>
+          ))}
+        </div>
+      )}
 
       {exifFields.length > 0 && (
         <div class="exif-block">
