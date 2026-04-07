@@ -1,4 +1,6 @@
 import http from 'http';
+import https from 'https';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -39,6 +41,65 @@ const CFG = {
     zoom:  { width: 2500, quality: 90 },
   }
 };
+
+// ─── AUTH CONFIG ──────────────────────────────────────────────────────────────
+const GITHUB_CLIENT_ID     = process.env.GITHUB_CLIENT_ID     || '';
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+const GITHUB_ALLOWED_USER  = process.env.GITHUB_ALLOWED_USER  || '';
+const SESSION_SECRET       = process.env.SESSION_SECRET       || crypto.randomBytes(32).toString('hex');
+const ADMIN_BASE_URL       = process.env.ADMIN_BASE_URL       || `http://localhost:3333`;
+const SKIP_AUTH            = process.env.SKIP_AUTH            === 'true'; // true en local si pas encore configuré
+
+// ─── SESSION ──────────────────────────────────────────────────────────────────
+const sessions    = new Map(); // id → { user, expires }
+const oauthStates = new Map(); // state → expiry timestamp
+
+function signVal(v)  { return crypto.createHmac('sha256', SESSION_SECRET).update(v).digest('base64url'); }
+
+function getSessionUser(req) {
+  const raw = (req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('sid='));
+  if (!raw) return null;
+  const signed = raw.slice(4);
+  const dot = signed.lastIndexOf('.');
+  if (dot < 0) return null;
+  const id = signed.slice(0, dot), sig = signed.slice(dot+1);
+  if (sig !== signVal(id)) return null;
+  const s = sessions.get(id);
+  if (!s || s.expires < Date.now()) { sessions.delete(id); return null; }
+  return s.user;
+}
+
+function setSessionCookie(res, user) {
+  const id = crypto.randomBytes(32).toString('hex');
+  sessions.set(id, { user, expires: Date.now() + 7*24*3600*1000 });
+  const secure = ADMIN_BASE_URL.startsWith('https') ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `sid=${id}.${signVal(id)}; HttpOnly; SameSite=Lax; Max-Age=${7*24*3600}; Path=/${secure}`);
+}
+
+function clearSession(req, res) {
+  const raw = (req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('sid='));
+  if (raw) { const signed=raw.slice(4); sessions.delete(signed.slice(0, signed.lastIndexOf('.'))); }
+  res.setHeader('Set-Cookie', 'sid=; HttpOnly; Max-Age=0; Path=/');
+}
+
+// ─── GITHUB OAUTH HELPERS ─────────────────────────────────────────────────────
+function httpsPost(hostname, path, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = https.request({ hostname, path, method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json','Content-Length':Buffer.byteLength(data)}
+    }, r => { let b=''; r.on('data',c=>b+=c); r.on('end',()=>{ try{resolve(JSON.parse(b));}catch{resolve({});} }); });
+    req.on('error', reject); req.write(data); req.end();
+  });
+}
+
+function httpsGet(hostname, path, token) {
+  return new Promise((resolve, reject) => {
+    https.get({ hostname, path,
+      headers:{'Authorization':`Bearer ${token}`,'User-Agent':'stan-admin','Accept':'application/json'}
+    }, r => { let b=''; r.on('data',c=>b+=c); r.on('end',()=>{ try{resolve(JSON.parse(b));}catch{resolve({});} }); }).on('error', reject);
+  });
+}
 
 // ─── LIMITS ───────────────────────────────────────────────────────────────────
 const LIMITS = {
@@ -452,7 +513,7 @@ function layout(title, content, active = '') {
 <meta charset="utf-8"><title>${title} — Admin</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${CSS}</style></head><body>
-<nav class="nav">${navLinks}${deployBtn}</nav>
+<nav class="nav">${navLinks}${deployBtn}<a href="/auth/logout" style="margin-left:.5rem;padding:.35rem .8rem;border-radius:999px;border:1px solid #243a65;font-size:.78rem;color:#5a7090;display:inline-flex;align-items:center;gap:.4rem" title="Déconnexion">⎋ Quitter</a></nav>
 ${content}
 <div class="modal-overlay" id="modal"><div class="modal">
   <h3 id="modal-title"></h3><p id="modal-msg"></p>
@@ -1340,6 +1401,47 @@ const server = http.createServer(async (req, res) => {
   const html = (content) => { res.writeHead(200,{'Content-Type':'text/html;charset=utf-8'}); res.end(content); };
   const json = (data, code=200) => { res.writeHead(code,{'Content-Type':'application/json'}); res.end(JSON.stringify(data)); };
   const redirect = (loc) => { res.writeHead(302,{Location:loc}); res.end(); };
+
+  // ── GitHub OAuth — redirect vers GitHub
+  if (p === '/auth/github') {
+    if (!GITHUB_CLIENT_ID) { res.writeHead(500); res.end('GITHUB_CLIENT_ID manquant dans .env'); return; }
+    const state = crypto.randomBytes(16).toString('hex');
+    oauthStates.set(state, Date.now() + 10*60*1000);
+    const cb = encodeURIComponent(`${ADMIN_BASE_URL}/auth/callback`);
+    redirect(`https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${cb}&scope=read:user&state=${state}`);
+    return;
+
+  // ── GitHub OAuth — callback
+  } else if (p === '/auth/callback') {
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    const exp = oauthStates.get(state);
+    if (!state || !exp || exp < Date.now()) { res.writeHead(400); res.end('State OAuth invalide ou expiré. <a href="/auth/github">Réessayer</a>'); return; }
+    oauthStates.delete(state);
+    try {
+      const tok = await httpsPost('github.com', '/login/oauth/access_token', { client_id:GITHUB_CLIENT_ID, client_secret:GITHUB_CLIENT_SECRET, code });
+      if (!tok.access_token) throw new Error('Token GitHub invalide');
+      const user = await httpsGet('api.github.com', '/user', tok.access_token);
+      if (!user.login) throw new Error('Utilisateur GitHub introuvable');
+      if (GITHUB_ALLOWED_USER && user.login.toLowerCase() !== GITHUB_ALLOWED_USER.toLowerCase()) {
+        res.writeHead(403); res.end(`Accès refusé. Compte "@${user.login}" non autorisé.`); return;
+      }
+      setSessionCookie(res, { login: user.login, avatar: user.avatar_url, name: user.name||user.login });
+      redirect('/');
+    } catch(e) { res.writeHead(500); res.end('Erreur OAuth : ' + e.message); }
+    return;
+
+  // ── Logout
+  } else if (p === '/auth/logout') {
+    clearSession(req, res);
+    redirect('/auth/github');
+    return;
+
+  // ── Auth check — toutes les autres routes
+  } else if (!SKIP_AUTH && GITHUB_CLIENT_ID) {
+    const user = getSessionUser(req);
+    if (!user) { redirect('/auth/github'); return; }
+  }
 
   // ── Photos list
   if (req.method==='GET' && p==='/') {
