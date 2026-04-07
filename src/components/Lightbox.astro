@@ -25,6 +25,7 @@ const { photos } = Astro.props;
     <a class="lb-btn detail-link" href="#">Fiche →</a>
     <button type="button" class="lb-btn close" aria-label="Fermer">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <span class="close-label">Fermer</span>
     </button>
   </div>
 
@@ -212,6 +213,23 @@ const { photos } = Astro.props;
     z-index: 10;
   }
 
+  .close {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+    gap: 0.35rem;
+    font-weight: 500;
+  }
+
+  .close:hover {
+    background: rgba(255, 80, 80, 0.2);
+    border-color: rgba(255, 120, 120, 0.5);
+    color: #ffaaaa;
+  }
+
+  .close-label {
+    font-size: 0.8rem;
+  }
+
   @media (max-width: 760px) {
     .lightbox {
       grid-template-columns: auto 1fr auto;
@@ -219,13 +237,17 @@ const { photos } = Astro.props;
     }
 
     .lb-nav {
-      width: 2.2rem;
-      height: 2.2rem;
+      width: 2.6rem;
+      height: 2.6rem;
     }
 
-    .lb-zoom-controls .lb-btn {
-      padding: 0.35rem 0.55rem;
-      font-size: 0.78rem;
+    .lb-zoom-controls {
+      display: none;
+    }
+
+    .close {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
     }
   }
 </style>
