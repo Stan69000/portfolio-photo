@@ -34,6 +34,7 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
       rel="stylesheet"
     />
     <script type="module" src="/scripts/votes.js"></script>
+    <link rel="alternate" type="application/rss+xml" title="Stan Bouchet — Photographie" href="/rss.xml" />
   </head>
   <body>
     <header class="site-header">
@@ -49,6 +50,9 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
           </a>
           <a href="/stats" class:list={['nav-link', { active: isActive('/stats') }]}>Favoris</a>
           <a href="/a-propos" class:list={['nav-link', { active: isActive('/a-propos') }]}>À propos</a>
+          <a href="/rss.xml" class="nav-rss" aria-label="Flux RSS" title="S'abonner au flux RSS" target="_blank" rel="noopener noreferrer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19.01 7.38 20 6.18 20C4.98 20 4 19.01 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1z"/></svg>
+          </a>
         </nav>
       </div>
     </header>
@@ -132,6 +136,24 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
     gap: 0.35rem;
   }
 
+  .nav-rss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #f26522;
+    opacity: 0.75;
+    padding: 0.35rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    transition: opacity 200ms ease, border-color 200ms ease, background 200ms ease;
+  }
+
+  .nav-rss:hover {
+    opacity: 1;
+    border-color: rgba(242, 101, 34, 0.4);
+    background: rgba(242, 101, 34, 0.1);
+  }
+
   @media (max-width: 520px) {
     .nav-link {
       padding: 0.3rem 0.5rem;
@@ -193,4 +215,18 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
   );
 
   document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+</script>
+
+<script is:inline>
+  (function () {
+    function protect(e) {
+      const t = e.target;
+      if (t.tagName === 'IMG' || t.closest('.photo-img-wrap, .card-img-btn, .detail-img-wrap, .hero-image')) {
+        e.preventDefault();
+        return false;
+      }
+    }
+    document.addEventListener('contextmenu', protect);
+    document.addEventListener('dragstart', protect);
+  })();
 </script>

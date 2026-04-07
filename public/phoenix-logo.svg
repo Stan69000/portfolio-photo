@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="60%" r="55%">
+      <stop offset="0%" stop-color="#1c0a00"/>
+      <stop offset="100%" stop-color="#080300"/>
+    </radialGradient>
+    <linearGradient id="flameHot" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#b83000"/>
+      <stop offset="35%" stop-color="#e85d04"/>
+      <stop offset="65%" stop-color="#f4a261"/>
+      <stop offset="100%" stop-color="#ffde87"/>
+    </linearGradient>
+    <linearGradient id="flameCool" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#dc2f02"/>
+      <stop offset="50%" stop-color="#f48c06"/>
+      <stop offset="100%" stop-color="#ffd60a"/>
+    </linearGradient>
+    <linearGradient id="wingL" x1="100%" y1="80%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#c1440e"/>
+      <stop offset="50%" stop-color="#f4813e"/>
+      <stop offset="100%" stop-color="#ffc842" stop-opacity="0.4"/>
+    </linearGradient>
+    <linearGradient id="wingR" x1="0%" y1="80%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c1440e"/>
+      <stop offset="50%" stop-color="#f4813e"/>
+      <stop offset="100%" stop-color="#ffc842" stop-opacity="0.4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="250" fill="none" stroke="#c1440e" stroke-width="1.5" opacity="0.35"/>
+
+  <!-- ── Ambient glow beneath phoenix ── -->
+  <ellipse cx="256" cy="370" rx="120" ry="30" fill="#e85d04" opacity="0.12"/>
+
+  <!-- ── TAIL FEATHERS ── -->
+  <path d="M256 385 C252 408 246 432 250 462 C253 444 255 426 256 448 C257 426 259 444 262 462 C266 432 260 408 256 385Z"
+        fill="url(#flameHot)" opacity="0.9"/>
+  <path d="M242 380 C232 402 222 428 224 456 C229 436 233 416 236 442 C241 420 242 396 242 380Z"
+        fill="url(#flameHot)" opacity="0.65"/>
+  <path d="M270 380 C280 402 290 428 288 456 C283 436 279 416 276 442 C271 420 270 396 270 380Z"
+        fill="url(#flameHot)" opacity="0.65"/>
+  <path d="M228 375 C212 396 200 422 202 448 C208 428 214 408 218 434 C225 412 227 390 228 375Z"
+        fill="url(#flameHot)" opacity="0.4"/>
+  <path d="M284 375 C300 396 312 422 310 448 C304 428 298 408 294 434 C287 412 285 390 284 375Z"
+        fill="url(#flameHot)" opacity="0.4"/>
+
+  <!-- ── LEFT WING — back layer ── -->
+  <path d="M240 272
+           C220 262 195 250 168 238
+           C145 228 118 218  88 205
+           C108 220 122 240 118 265
+           C136 248 156 244 174 252
+           C155 240 132 232 105 218
+           C126 234 148 252 162 272
+           C144 254 134 228 140 200
+           C156 226 164 254 176 272
+           C162 248 156 218 164 192
+           C178 220 182 250 194 268
+           C184 244 180 212 190 188
+           C202 218 204 250 215 268
+           C208 244 207 214 220 192
+           C229 222 229 254 238 272Z"
+        fill="url(#wingL)" opacity="0.75"/>
+
+  <!-- ── LEFT WING — front accent ── -->
+  <path d="M238 268
+           C218 256 192 242 162 228
+           C180 240 192 260 186 280
+           C200 264 216 260 230 266Z"
+        fill="url(#flameCool)" opacity="0.55"/>
+
+  <!-- ── RIGHT WING — back layer ── -->
+  <path d="M272 272
+           C292 262 317 250 344 238
+           C367 228 394 218 424 205
+           C404 220 390 240 394 265
+           C376 248 356 244 338 252
+           C357 240 380 232 407 218
+           C386 234 364 252 350 272
+           C368 254 378 228 372 200
+           C356 226 348 254 336 272
+           C350 248 356 218 348 192
+           C334 220 330 250 318 268
+           C328 244 332 212 322 188
+           C310 218 308 250 297 268
+           C304 244 305 214 292 192
+           C283 222 283 254 274 272Z"
+        fill="url(#wingR)" opacity="0.75"/>
+
+  <!-- ── RIGHT WING — front accent ── -->
+  <path d="M274 268
+           C294 256 320 242 350 228
+           C332 240 320 260 326 280
+           C312 264 296 260 282 266Z"
+        fill="url(#flameCool)" opacity="0.55"/>
+
+  <!-- ── PHOENIX BODY / CHEST ── -->
+  <ellipse cx="256" cy="300" rx="52" ry="62" fill="#110700"/>
+  <ellipse cx="256" cy="300" rx="48" ry="58" fill="#180b00" stroke="#c1440e" stroke-width="1" opacity="0.6"/>
+
+  <!-- ── CAMERA ON CHEST ── -->
+  <!-- Camera body -->
+  <rect x="216" y="276" width="80" height="56" rx="9" fill="#12111e" stroke="#f4813e" stroke-width="2.5"/>
+  <!-- Viewfinder bump -->
+  <rect x="236" y="266" width="38" height="14" rx="6" fill="#12111e" stroke="#f4813e" stroke-width="2.5"/>
+
+  <!-- Lens outer ring (gold) -->
+  <circle cx="256" cy="304" r="21" fill="none" stroke="#ffc842" stroke-width="3"/>
+  <!-- Lens body -->
+  <circle cx="256" cy="304" r="18" fill="#0a0916"/>
+  <!-- Lens inner ring -->
+  <circle cx="256" cy="304" r="13" fill="#07060f" stroke="#f4813e" stroke-width="1.5" opacity="0.7"/>
+  <!-- Lens reflection -->
+  <circle cx="256" cy="304" r="9" fill="#0d0c1a"/>
+  <ellipse cx="250" cy="298" rx="4" ry="3" fill="#ffc842" opacity="0.28" transform="rotate(-20 250 298)"/>
+  <circle cx="261" cy="308" r="1.5" fill="white" opacity="0.12"/>
+
+  <!-- Shutter button -->
+  <circle cx="282" cy="281" r="5.5" fill="#e85d04" stroke="#ffc842" stroke-width="1.2"/>
+
+  <!-- Flash -->
+  <rect x="220" y="280" width="10" height="6" rx="2.5" fill="#dc2f02" opacity="0.8"/>
+
+  <!-- ── NECK ── -->
+  <path d="M240 240 C238 225 240 210 256 200 C272 210 274 225 272 240 C265 235 260 230 256 228 C252 230 247 235 240 240Z"
+        fill="url(#flameHot)"/>
+
+  <!-- ── HEAD ── -->
+  <ellipse cx="256" cy="188" rx="30" ry="34" fill="url(#flameCool)"/>
+  <!-- Head darker center -->
+  <ellipse cx="256" cy="192" rx="18" ry="20" fill="#c1440e" opacity="0.4"/>
+
+  <!-- ── CROWN / CREST FEATHERS ── -->
+  <path d="M256 162 C252 142 248 122 253 98  C255 120 255 142 256 118 C257 142 257 120 259 98  C264 122 260 142 256 162Z"
+        fill="url(#flameCool)" filter="url(#glow)"/>
+  <path d="M244 160 C238 140 233 120 238 96  C241 118 243 140 244 160Z"
+        fill="url(#flameHot)" opacity="0.8"/>
+  <path d="M268 160 C274 140 279 120 274 96  C271 118 269 140 268 160Z"
+        fill="url(#flameHot)" opacity="0.8"/>
+  <path d="M234 155 C226 136 222 116 228 92  C231 114 233 136 234 155Z"
+        fill="url(#flameHot)" opacity="0.5"/>
+  <path d="M278 155 C286 136 290 116 284 92  C281 114 279 136 278 155Z"
+        fill="url(#flameHot)" opacity="0.5"/>
+
+  <!-- ── EYE ── -->
+  <circle cx="256" cy="188" r="9" fill="#0a0500"/>
+  <circle cx="256" cy="188" r="6"  fill="#ff9520"/>
+  <circle cx="256" cy="188" r="3.5" fill="#0a0500"/>
+  <circle cx="254" cy="186" r="1.5" fill="white" opacity="0.85"/>
+
+  <!-- ── BEAK ── -->
+  <path d="M272 194 L290 198 L272 203Z" fill="#ffd60a"/>
+  <path d="M272 194 L290 198 L272 198Z" fill="#ffc842"/>
+
+  <!-- ── WING TIPS — flame wisps ── -->
+  <path d="M94 210 C78 198 62 192 48 182 C64 190 76 204 72 218 C82 208 88 206 94 210Z"
+        fill="url(#flameHot)" opacity="0.5"/>
+  <path d="M418 210 C434 198 450 192 464 182 C448 190 436 204 440 218 C430 208 424 206 418 210Z"
+        fill="url(#flameHot)" opacity="0.5"/>
+
+  <!-- ── SUBTLE FEATHER TEXTURE on wings ── -->
+  <path d="M200 264 C190 256 178 250 165 244" stroke="#ffd60a" stroke-width="1" fill="none" opacity="0.3"/>
+  <path d="M195 278 C182 268 168 260 152 252" stroke="#ffd60a" stroke-width="1" fill="none" opacity="0.25"/>
+  <path d="M312 264 C322 256 334 250 347 244" stroke="#ffd60a" stroke-width="1" fill="none" opacity="0.3"/>
+  <path d="M317 278 C330 268 344 260 360 252" stroke="#ffd60a" stroke-width="1" fill="none" opacity="0.25"/>
+</svg>

@@ -117,3 +117,84 @@ p {
 .js-ready .reveal.is-visible {
   animation: reveal-up 0.55s cubic-bezier(0.22, 0.68, 0, 1.2) both;
 }
+
+/* ── Star buttons ────────────────────────────────────────────────────────────── */
+.star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 1px 2px;
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 120ms ease, transform 120ms ease;
+}
+
+.star-btn.filled {
+  color: #f5c542;
+}
+
+.star-btn.hovered {
+  color: #f5c542;
+  transform: scale(1.2);
+}
+
+/* Overlay étoiles sur les cartes */
+[data-star-overlay] {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 0.5rem 0.4rem 0.6rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 2;
+}
+
+.result-card:hover [data-star-overlay],
+.series-photo-card:hover [data-star-overlay] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Widget étoiles sur page détail */
+[data-star-widget] {
+  display: flex;
+  gap: 2px;
+}
+
+.star-widget-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.star-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+/* ── Protection images ───────────────────────────────────────────────────────── */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.card-img-btn::after,
+.detail-img-wrap::after,
+.hero-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
