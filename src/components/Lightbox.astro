@@ -38,6 +38,16 @@ const { photos } = Astro.props;
       <img src="" alt="" class="lb-image" />
     </div>
     <figcaption class="lb-caption"></figcaption>
+    <div class="lb-stars-wrap">
+      <div class="lb-stars" role="group" aria-label="Noter cette photo">
+        <button type="button" class="lb-star" data-n="1" aria-label="1 étoile">★</button>
+        <button type="button" class="lb-star" data-n="2" aria-label="2 étoiles">★</button>
+        <button type="button" class="lb-star" data-n="3" aria-label="3 étoiles">★</button>
+        <button type="button" class="lb-star" data-n="4" aria-label="4 étoiles">★</button>
+        <button type="button" class="lb-star" data-n="5" aria-label="5 étoiles">★</button>
+      </div>
+      <span class="lb-star-label"></span>
+    </div>
   </figure>
 
   <button type="button" class="lb-nav lb-next" aria-label="Photo suivante">
@@ -230,6 +240,62 @@ const { photos } = Astro.props;
     font-size: 0.8rem;
   }
 
+  /* ── Star rating in lightbox ─────────────────────────────────────────────── */
+  .lb-stars-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.2rem;
+  }
+
+  .lb-stars {
+    display: flex;
+    gap: 4px;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+  }
+
+  .lb-stars[data-glow="1"] { box-shadow: 0 0 18px 4px rgba(255, 90, 60, 0.35); border-color: rgba(255,90,60,0.3); }
+  .lb-stars[data-glow="2"] { box-shadow: 0 0 18px 4px rgba(255, 160, 40, 0.35); border-color: rgba(255,160,40,0.3); }
+  .lb-stars[data-glow="3"] { box-shadow: 0 0 18px 4px rgba(245, 197, 66, 0.35); border-color: rgba(245,197,66,0.3); }
+  .lb-stars[data-glow="4"] { box-shadow: 0 0 18px 4px rgba(140, 220, 100, 0.35); border-color: rgba(140,220,100,0.3); }
+  .lb-stars[data-glow="5"] { box-shadow: 0 0 24px 6px rgba(255, 215, 0, 0.5); border-color: rgba(255,215,0,0.4); }
+
+  .lb-star {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 26px;
+    line-height: 1;
+    padding: 0 2px;
+    color: rgba(255, 255, 255, 0.2);
+    transition: color 120ms ease, transform 120ms ease, text-shadow 200ms ease;
+  }
+
+  .lb-star.filled {
+    color: #f5c542;
+    text-shadow: 0 0 8px rgba(245, 197, 66, 0.6);
+  }
+
+  .lb-star.hovered {
+    color: #f5c542;
+    text-shadow: 0 0 12px rgba(245, 197, 66, 0.8);
+    transform: scale(1.25);
+  }
+
+  .lb-star-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.05em;
+    min-height: 1em;
+    transition: color 200ms ease;
+  }
+
   @media (max-width: 760px) {
     .lightbox {
       grid-template-columns: auto 1fr auto;
@@ -292,6 +358,52 @@ const { photos } = Astro.props;
     applyTransform();
   };
 
+  // ── Stars ─────────────────────────────────────────────────────────────────
+  const starsContainer = root.querySelector('.lb-stars');
+  const starBtns = root.querySelectorAll('.lb-star');
+  const starLabel = root.querySelector('.lb-star-label');
+  const LABELS = ['', 'Décevant', 'Moyen', 'Bien', 'Très bien', 'Excellent !'];
+  const GLOW_COLORS = ['', '#ff5a3c', '#ffa028', '#f5c542', '#8cdc64', '#ffd700'];
+
+  const refreshLbStars = (slug) => {
+    const current = window.PhotoVotes ? window.PhotoVotes.getRating(slug) : 0;
+    starBtns.forEach((b) => {
+      const n = Number(b.dataset.n);
+      b.classList.toggle('filled', n <= current);
+      b.classList.remove('hovered');
+    });
+    if (starsContainer) starsContainer.dataset.glow = current > 0 ? String(current) : '';
+    if (starLabel) starLabel.textContent = current > 0 ? LABELS[current] : '';
+  };
+
+  if (starsContainer) {
+    starsContainer.addEventListener('mouseover', (e) => {
+      const btn = e.target.closest('.lb-star');
+      if (!btn) return;
+      const n = Number(btn.dataset.n);
+      starBtns.forEach((b) => {
+        const bn = Number(b.dataset.n);
+        b.classList.toggle('hovered', bn <= n);
+        b.classList.remove('filled');
+      });
+      starsContainer.dataset.glow = String(n);
+      if (starLabel) { starLabel.textContent = LABELS[n] || ''; starLabel.style.color = GLOW_COLORS[n] || ''; }
+    });
+
+    starsContainer.addEventListener('mouseleave', () => {
+      refreshLbStars(items[index]?.slug);
+      if (starLabel) starLabel.style.color = '';
+    });
+
+    starsContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('.lb-star');
+      if (!btn) return;
+      const slug = items[index]?.slug;
+      const n = Number(btn.dataset.n);
+      if (window.PhotoVotes && slug) { window.PhotoVotes.ratePhoto(slug, n); refreshLbStars(slug); }
+    });
+  }
+
   const sync = () => {
     const item = items[index];
     img.style.animation = 'none';
@@ -302,6 +414,7 @@ const { photos } = Astro.props;
     if (caption) caption.textContent = item.description || item.title;
     if (detailLink) detailLink.href = `/photo/${item.slug}/`;
     if (counter) counter.textContent = `${index + 1} / ${items.length}`;
+    refreshLbStars(item.slug);
   };
 
   const open = (nextIndex) => {
