@@ -296,39 +296,70 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#748fff}
 .ti-input{background:none;border:none;outline:none;color:#edf4ff;font-size:.85rem;font-family:inherit;min-width:80px;flex:1}
 `;
 
+// ─── TAG HELPERS ──────────────────────────────────────────────────────────────
+// Palette de couleurs par catégorie (index cyclique)
+const CAT_COLORS = ['#748fff','#7aff9a','#ffb347','#ff7aaa','#7adcff','#c07aff','#ffdf7a'];
+function catColor(cat) {
+  if (!cat) return '#748fff';
+  let h = 0; for (const c of cat) h = (h * 31 + c.charCodeAt(0)) & 0xffffff;
+  return CAT_COLORS[Math.abs(h) % CAT_COLORS.length];
+}
+function parseTag(t) {
+  const i = t.indexOf(':');
+  return i > 0 ? { cat: t.slice(0, i).trim(), val: t.slice(i + 1).trim(), full: t } : { cat: '', val: t, full: t };
+}
+
 // ─── TAG INPUT WIDGET ─────────────────────────────────────────────────────────
-// Génère un widget chips pour saisir plusieurs tags
-// inputName : nom du champ hidden soumis avec le formulaire
-// currentTags : tableau de strings
-// allTags : suggestions (datalist)
-// id : identifiant unique (pour avoir plusieurs widgets par page)
+// Widget chips avec catégories optionnelles (syntaxe "Catégorie:valeur")
+// Ex: "Lieu:Lyon", "Style:Nuit", "paysage" (sans catégorie)
 function tagInputWidget(inputName, currentTags, allTags, id='ti') {
   const tagsJson = JSON.stringify(currentTags);
+  // Extraire les catégories connues depuis tous les tags existants
+  const cats = [...new Set(allTags.map(t => parseTag(t).cat).filter(Boolean))].sort();
+  const catsJson = JSON.stringify(cats);
   const dlId = id + '-dl';
   const suggestions = allTags.map(t => '<option value="' + t.replace(/"/g,'&quot;') + '">').join('');
+  const catOpts = cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
   return `
-<div class="ti-wrap" id="${id}-wrap" onclick="document.getElementById('${id}-input').focus()">
-  <div id="${id}-chips" style="display:contents"></div>
-  <input class="ti-input" id="${id}-input" list="${dlId}" placeholder="Ajouter un tag…" autocomplete="off">
-  <datalist id="${dlId}">${suggestions}</datalist>
+<div style="display:flex;flex-direction:column;gap:.5rem">
+  <div class="ti-wrap" id="${id}-wrap" onclick="document.getElementById('${id}-input').focus()">
+    <div id="${id}-chips" style="display:contents"></div>
+    <input class="ti-input" id="${id}-input" list="${dlId}" placeholder="tag ou Catégorie:valeur…" autocomplete="off">
+    <datalist id="${dlId}">${suggestions}</datalist>
+  </div>
+  <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+    <span style="font-size:.72rem;color:#6b7fa8">Catégorie rapide :</span>
+    ${cats.length ? '<select id="'+id+'-catsel" style="background:#0f1f3d;border:1px solid #243a65;border-radius:.4rem;color:#edf4ff;padding:.2rem .5rem;font-size:.75rem"><option value="">libre</option>'+catOpts+'</select>' : ''}
+    <span style="font-size:.7rem;color:#6b7fa8">Tape le tag puis <kbd style="background:#1a2e52;border-radius:3px;padding:.05rem .3rem;font-size:.68rem">Entrée</kbd> ou virgule</span>
+  </div>
 </div>
 <input type="hidden" name="${inputName}" id="${id}-hidden">
 <script>
 (function(){
   const id='${id}';
+  const catColors=${JSON.stringify(Object.fromEntries(cats.map(c=>[c,catColor(c)])))};
   let tags=${tagsJson};
   const hidden=document.getElementById(id+'-hidden');
   const input=document.getElementById(id+'-input');
+  const catSel=document.getElementById(id+'-catsel');
+  function chipHtml(t,i){
+    const p=parseTagClient(t);
+    const col=p.cat?(catColors[p.cat]||'#748fff'):'#748fff';
+    const label=p.cat?('<span style="opacity:.6;font-size:.68em;margin-right:.2rem">'+p.cat+':</span>'+p.val):t;
+    return '<span class="ti-chip" style="border-color:'+col+'44;color:'+col+'">'+label+'<button type="button" onclick="window[\\'tiRemove_'+id+'\\']('+(i)+')">×</button></span>';
+  }
+  function parseTagClient(t){const i=t.indexOf(':');return i>0?{cat:t.slice(0,i),val:t.slice(i+1)}:{cat:'',val:t};}
   function render(){
-    document.getElementById(id+'-chips').innerHTML=tags.map((t,i)=>
-      '<span class="ti-chip">'+t.replace(/</g,'&lt;')+'<button type="button" onclick="window[\\'tiRemove_'+id+'\\']('+(i)+')">×</button></span>'
-    ).join('');
+    document.getElementById(id+'-chips').innerHTML=tags.map((t,i)=>chipHtml(t,i)).join('');
     hidden.value=tags.join(',');
   }
   window['tiRemove_'+id]=function(i){tags.splice(i,1);render();};
   function addTag(v){
-    const t=v.trim();
-    if(t&&!tags.includes(t)){tags.push(t);}
+    let t=v.trim();
+    if(!t)return;
+    // Préfixer avec la catégorie sélectionnée si pas déjà préfixé
+    if(catSel&&catSel.value&&!t.includes(':')){t=catSel.value+':'+t;}
+    if(!tags.includes(t)){tags.push(t);}
     input.value='';
     render();
   }
@@ -387,8 +418,10 @@ function photosPage(photos, filter='all', search='', msg='') {
     published: photos.filter(p=>p.status==='published').length,
     draft: photos.filter(p=>p.status==='draft').length,
     trash: photos.filter(p=>p.status==='trash').length,
+    notags: photos.filter(p=>p.status!=='trash'&&(!p.tags||p.tags.length===0)).length,
   };
   let list = filter==='trash' ? photos.filter(p=>p.status==='trash')
+    : filter==='notags' ? photos.filter(p=>p.status!=='trash'&&(!p.tags||p.tags.length===0))
     : filter!=='all' ? photos.filter(p=>p.status===filter)
     : photos.filter(p=>p.status!=='trash');
   if (search) {
@@ -402,7 +435,9 @@ function photosPage(photos, filter='all', search='', msg='') {
     const imgHtml = img ? '<img class="card-img" src="' + img + '" alt="' + p.title + '" loading="lazy">' : '<div class="card-img"></div>';
     const stLabel = st==='published'?'En ligne':st==='draft'?'Brouillon':'Corbeille';
     const seriesHtml = p.series ? '<span>📁 ' + p.series + '</span>' : '';
-    const tagsHtml = (p.tags||[]).slice(0,2).map(t=>'<span class="tag" onclick="window.location=\'/?filter=' + filter + '&search=' + encodeURIComponent(t) + '\'">' + t + '</span>').join('');
+    const hasTags = p.tags&&p.tags.length>0;
+    const noTagBadge = !hasTags&&st!=='trash' ? '<span style="background:#3d1a00;border:1px solid #ff7a4a44;border-radius:999px;padding:.1rem .45rem;font-size:.65rem;color:#ff9a6a">sans tags</span>' : '';
+    const tagsHtml = (p.tags||[]).slice(0,2).map(t=>{const pTag=parseTag(t);const col=catColor(pTag.cat);return '<span class="tag" style="border-color:'+col+'33;color:'+col+'" onclick="window.location=\'/?filter='+filter+'&search='+encodeURIComponent(t)+'\'">'+t+'</span>';}).join('');
     const safeTitle = p.title.replace(/'/g,"\\'");
     const actionsHtml = st!=='trash'
       ? '<button type="button" class="btn btn-sm btn-danger" onclick="moveToTrash(\'' + p.file + '\',\'' + safeTitle + '\')">Corbeille</button>'
@@ -415,6 +450,7 @@ function photosPage(photos, filter='all', search='', msg='') {
     <div class="card-meta">
       <span class="status-badge status-${st}">${stLabel}</span>
       ${seriesHtml}
+      ${noTagBadge}
       ${tagsHtml}
     </div>
     <div class="card-actions">
@@ -431,6 +467,7 @@ ${msgHtml}
   <a href="/?filter=published" class="filter-btn ${filter==='published'?'active':''}">En ligne (${counts.published})</a>
   <a href="/?filter=draft" class="filter-btn ${filter==='draft'?'active':''}">Brouillons (${counts.draft})</a>
   <a href="/?filter=trash" class="filter-btn ${filter==='trash'?'active':''}">Corbeille (${counts.trash})</a>
+  <a href="/?filter=notags" class="filter-btn ${filter==='notags'?'active':''}" style="${counts.notags>0?'border-color:#ff7a4a55;color:#ff9a6a':''}">🏷 Sans tags (${counts.notags})</a>
   <form method="GET" style="margin-left:auto">
     <input type="hidden" name="filter" value="${filter}">
     <input class="search" type="search" name="search" placeholder="Rechercher…" value="${search}" oninput="this.form.submit()">
@@ -443,6 +480,7 @@ ${msgHtml}
   <button type="button" class="btn btn-sm" onclick="batchAction('publish')">→ En ligne</button>
   <button type="button" class="btn btn-sm" onclick="batchAction('draft')">→ Brouillon</button>
   <button type="button" class="btn btn-sm btn-danger" onclick="batchAction('trash')">→ Corbeille</button>
+  <button type="button" class="btn btn-sm" onclick="batchTagModal()" style="border-color:#748fff55;color:#748fff">🏷 Ajouter des tags</button>
   ${filter==='trash' ? '<button type="button" class="btn btn-sm btn-danger" onclick="batchDelete()">🗑 Supprimer définitivement</button>' : ''}
   <a href="/batch" class="btn btn-sm">Renommer par lot</a>
 </div>
@@ -472,6 +510,23 @@ function batchDelete(){
     fetch('/batch/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel})})
     .then(()=>location.reload());
   });
+}
+function batchTagModal(){
+  const sel=getSelected();
+  if(!sel.length){alert('Sélectionne au moins une photo.');return;}
+  document.getElementById('modal-title').textContent='Ajouter des tags — '+sel.length+' photo(s)';
+  document.getElementById('modal-msg').innerHTML=
+    '<div style="margin-bottom:.75rem;font-size:.82rem;color:#9fb2d4">Les tags seront ajoutés sans écraser les existants.</div>'+
+    '<input id="batch-tag-input" placeholder="tag1, Lieu:Lyon, Style:Nuit…" style="width:100%;background:#050b1a;border:1px solid #748fff;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">';
+  document.getElementById('modal-confirm').onclick=()=>{
+    const raw=document.getElementById('batch-tag-input').value;
+    const tags=raw.split(',').map(t=>t.trim()).filter(Boolean);
+    if(!tags.length){closeModal();return;}
+    fetch('/batch/tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel,tags})})
+    .then(()=>{closeModal();location.reload();});
+  };
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>document.getElementById('batch-tag-input')?.focus(),80);
 }
 </script>`, 'photos');
 }
@@ -553,6 +608,11 @@ ${errHtml}
       <option value="published">En ligne</option>
     </select>
   </div>
+  <div style="margin-bottom:1.5rem">
+    <label style="display:block;margin-bottom:.5rem">Tags <span style="color:#6b7fa8;font-size:.78rem">optionnel — appliqués à toutes les photos uploadées</span></label>
+    <input id="upload-tags" placeholder="Lieu:Lyon, Style:Nuit, paysage…" style="width:100%;background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">
+    <div style="font-size:.72rem;color:#6b7fa8;margin-top:.3rem">Syntaxe : <code>Catégorie:valeur</code> ou tag simple. Sépare par des virgules.</div>
+  </div>
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/tiff,image/webp">
     <div style="font-size:2rem;margin-bottom:.5rem">📷</div>
@@ -599,8 +659,9 @@ function doUpload(){
   const stat=document.getElementById('status-sel').value;
   if(!ser){alert('Choisis une série.');return;}
   if(!input.files.length){alert('Sélectionne des photos.');return;}
+  const uploadTags=document.getElementById('upload-tags').value;
   const fd=new FormData();
-  fd.append('series',ser);fd.append('status',stat);
+  fd.append('series',ser);fd.append('status',stat);fd.append('tags',uploadTags);
   for(const f of input.files)fd.append('photos',f);
   const xhr=new XMLHttpRequest();xhr.open('POST','/upload');
   document.getElementById('prog-wrap').style.display='block';
@@ -1214,6 +1275,20 @@ const server = http.createServer(async (req, res) => {
     autoGitPush(`batch: renommage slug (${body.renames.length} photo(s))`);
     json({ok:true});
 
+  // ── Batch add tags
+  } else if (req.method==='POST' && p==='/batch/tags') {
+    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    for(const file of body.files) {
+      const fp=path.join(CFG.photosDir,path.basename(file));
+      if(!fs.existsSync(fp)) continue;
+      const photo=readYaml(fp);
+      const existing=Array.isArray(photo.tags)?photo.tags:[];
+      const merged=[...new Set([...existing,...(body.tags||[])])];
+      savePhoto(path.basename(file),{tags:merged});
+    }
+    autoGitPush(`tags: ajout en masse sur ${body.files.length} photo(s)`);
+    json({ok:true});
+
   // ── Batch delete (suppression définitive)
   } else if (req.method==='POST' && p==='/batch/delete') {
     const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
@@ -1236,6 +1311,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const {fields,files}=await parseUpload(req);
       const seriesSlug=fields.series, status=fields.status||'draft';
+      const uploadTags=fields.tags?fields.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
       const results=[];
       for(const file of files){
@@ -1250,7 +1326,7 @@ const server = http.createServer(async (req, res) => {
             slug:photoSlug, series:seriesSlug, status,
             url:urls.url_web, url_thumb:urls.url_thumb, url_web:urls.url_web, url_zoom:urls.url_zoom,
             date:new Date().toISOString().split('T')[0],
-            description:'', tags:[],
+            description:'', tags:uploadTags,
             ...(Object.values(exif).some(Boolean)?{exif}:{}),
           });
           fs.unlinkSync(file.path);

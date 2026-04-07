@@ -91,13 +91,32 @@ const exifFields = exif
         )}
       </div>
 
-      {photo.data.tags.length > 0 && (
-        <div class="tags-row">
-          {photo.data.tags.map((tag) => (
-            <a href={`/photos?tag=${tag}`} class="tag">#{tag}</a>
-          ))}
-        </div>
-      )}
+      {photo.data.tags.length > 0 && (() => {
+        // Grouper par catégorie (syntaxe "Catégorie:valeur")
+        const grouped: Record<string, string[]> = {};
+        for (const tag of photo.data.tags) {
+          const i = tag.indexOf(':');
+          const cat = i > 0 ? tag.slice(0, i).trim() : '';
+          const val = i > 0 ? tag.slice(i + 1).trim() : tag;
+          if (!grouped[cat]) grouped[cat] = [];
+          grouped[cat].push(val);
+        }
+        return (
+          <div class="tags-section">
+            {Object.entries(grouped).map(([cat, vals]) => (
+              <div class="tag-group">
+                {cat && <span class="tag-cat">{cat}</span>}
+                <div class="tags-row">
+                  {vals.map((val) => {
+                    const full = cat ? `${cat}:${val}` : val;
+                    return <a href={`/recherche?tag=${encodeURIComponent(full)}`} class="tag">#{val}</a>;
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {exifFields.length > 0 && (
         <div class="exif-block">
@@ -281,10 +300,37 @@ const exifFields = exif
   }
 
   /* Tags */
+  .tags-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .tag-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .tag-cat {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    background: rgba(116, 143, 255, 0.1);
+    border: 1px solid rgba(116, 143, 255, 0.25);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
   .tags-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.4rem;
   }
 
   .tag {
@@ -294,12 +340,13 @@ const exifFields = exif
     border: 1px solid var(--line);
     border-radius: 999px;
     padding: 0.22rem 0.65rem;
-    transition: color 180ms ease, border-color 180ms ease;
+    transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
   }
 
   .tag:hover {
-    color: var(--text);
-    border-color: var(--muted);
+    color: var(--accent);
+    border-color: rgba(116, 143, 255, 0.4);
+    background: rgba(116, 143, 255, 0.07);
   }
 
   /* EXIF */
