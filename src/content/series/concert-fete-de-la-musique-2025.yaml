@@ -1,0 +1,21 @@
+name: Concert Fête de la musique 2025
+slug: concert-fete-de-la-musique-2025
+description: Fête de la musique au restaurant Café de la Mairie de Chasselay, dans le cadre d’une animation gérée par l’association dont je fais partie, RVAz. Une sélection de photos vous est proposée.
+cover_url: ''
+status: published
+published: true
+tags:
+  - concert
+  - RVAz
+  - Artiste
+date: '2025-06-21'
+map_lat: 45.874115
+map_lng: 4.772337
+map_zoom: 13
+links:
+  - label: Restaurant de la mairie
+    url: https://les2papillons-restaurant-chasselay.eatbu.com/?lang=fr
+  - label: RVAz - Site web
+    url: https://rvaz2022.rvaz.fr/
+  - label: Diaporama avec mes photos
+    url: https://www.youtube.com/watch?v=P1x33E6dF60
