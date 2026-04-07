@@ -54,21 +54,16 @@ const hero = photos[0];
           ))}
         </div>
       )}
-    </div>
-  </section>
-
-  {(series.data.map_lat && series.data.map_lng || (series.data.links ?? []).length > 0) && (
-    <section class="series-extras reveal">
 
       {series.data.map_lat && series.data.map_lng && (
-        <div class="map-block">
+        <div class="map-inline">
           <p class="extras-label">📍 Secteur</p>
           <div id="series-map" class="series-map"></div>
         </div>
       )}
 
       {(series.data.links ?? []).length > 0 && (
-        <div class="links-block">
+        <div class="links-inline">
           <p class="extras-label">🔗 Liens utiles</p>
           <div class="links-row">
             {(series.data.links ?? []).map((link) => (
@@ -81,8 +76,8 @@ const hero = photos[0];
         </div>
       )}
 
-    </section>
-  )}
+    </div>
+  </section>
 
   {series.data.map_lat && series.data.map_lng && (
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -325,33 +320,24 @@ const hero = photos[0];
     }
   }
 
-  /* ── Extras (map + links) ── */
-  .series-extras {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
+  /* ── Extras inline dans hero-copy ── */
   .extras-label {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--muted);
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
   }
 
   /* Map */
-  .map-block {
-    background: rgba(15, 31, 61, 0.6);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 1.2rem;
+  .map-inline {
+    border-top: 1px solid var(--line);
+    padding-top: 0.85rem;
   }
 
   .series-map {
-    height: 340px;
+    height: 180px;
     border-radius: calc(var(--radius) - 4px);
     overflow: hidden;
     border: 1px solid var(--line);
@@ -369,11 +355,9 @@ const hero = photos[0];
   :global(.leaflet-popup-close-button) { color: #748fff !important; }
 
   /* Links */
-  .links-block {
-    background: rgba(15, 31, 61, 0.6);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 1.2rem;
+  .links-inline {
+    border-top: 1px solid var(--line);
+    padding-top: 0.85rem;
   }
 
   .links-row {
