@@ -1218,7 +1218,13 @@ function statsPage(photos, series, views) {
   const trash=photos.filter(p=>p.status==='trash').length;
   const totalViews=Object.values(views).reduce((a,b)=>a+b,0);
   const topViewed=photos.filter(p=>views[p.slug]).sort((a,b)=>(views[b.slug]||0)-(views[a.slug]||0)).slice(0,10);
-  const topRated=photos.filter(p=>p.rating).sort((a,b)=>b.rating-a.rating).slice(0,10);
+  // Lire les notes depuis ratings.json (pas depuis les YAML)
+  const allRatings = dbGetAll();
+  const photoBySlug = Object.fromEntries(photos.map(p => [p.slug, p]));
+  const topRated = allRatings
+    .filter(r => photoBySlug[r.slug])
+    .slice(0, 10)
+    .map(r => ({ ...photoBySlug[r.slug], _avg: r.avg, _count: r.count }));
   const bySeries=series.map(s=>({...s,count:photos.filter(p=>p.series===s.slug&&p.status!=='trash').length})).sort((a,b)=>b.count-a.count);
   const allTags=[...new Set(photos.flatMap(p=>p.tags||[]))];
 
@@ -1228,7 +1234,7 @@ function statsPage(photos, series, views) {
       '<td><span style="color:#748fff">'+s.name+'</span></td><td>'+s.count+'</td>'+
       '<td><span class="status-badge status-'+(s.status||'published')+'">'+(s.status==='draft'?'Brouillon':'En ligne')+'</span></td></tr>';
   }).join('');
-  const topRatedRowsHtml = topRated.map(p=>'<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td><td>⭐ '+p.rating+'</td></tr>').join('')
+  const topRatedRowsHtml = topRated.map(p=>'<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td><td>⭐ '+p._avg+' <span style="color:#6b7fa8;font-size:.8em">('+p._count+' vote'+(p._count>1?'s':'')+')</span></td></tr>').join('')
     || '<tr><td colspan="2" style="color:#6b7fa8">Aucune note renseignée</td></tr>';
   const topViewedRowsHtml = topViewed.map(p=>'<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td><td>'+views[p.slug]+'</td><td>'+(p.series||'—')+'</td></tr>').join('');
   const topViewedHtml = topViewed.length
