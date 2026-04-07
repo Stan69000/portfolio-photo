@@ -145,12 +145,27 @@ function gitCommit(msg) {
 }
 
 function gitPush() {
+  const opts = { cwd: __dirname, stdio: 'pipe' };
   try {
-    execSync('git push origin main', { cwd: __dirname, stdio: 'pipe' });
-    return 'ok';
+    // 1. Récupérer les derniers commits de GitHub (code Mac)
+    execSync('git fetch origin main', opts);
+    // 2. Replacer nos commits YAML sur la dernière version Mac (sans toucher au code)
+    try {
+      execSync('git rebase origin/main', opts);
+    } catch(rebaseErr) {
+      // En cas de conflit inattendu : annuler le rebase et signaler
+      try { execSync('git rebase --abort', opts); } catch(_) {}
+      const msg = (rebaseErr.stderr||rebaseErr.stdout||Buffer.from('')).toString().trim()||rebaseErr.message;
+      console.error('gitPush rebase error:', msg);
+      return { ok: false, error: 'Conflit rebase : ' + msg };
+    }
+    // 3. Push normal (pas de --force : le rebase garantit qu'on est en avance)
+    execSync('git push origin HEAD:main', opts);
+    return { ok: true };
   } catch(e) {
-    console.error('gitPush error:', e.message);
-    return 'error';
+    const msg = (e.stderr||e.stdout||Buffer.from('')).toString().trim()||e.message;
+    console.error('gitPush error:', msg);
+    return { ok: false, error: msg };
   }
 }
 
@@ -565,8 +580,9 @@ function triggerDeploy(){
       btn.classList.remove('has-pending','deploying');
       setTimeout(()=>{btn.innerHTML='🚀 Déployer <span class="deploy-badge" id="deploy-badge" style="display:none">0</span>';updateDeployBadge();},3000);
     } else {
-      btn.textContent='❌ Erreur git push';
+      btn.textContent='❌ Erreur';
       btn.classList.remove('deploying');
+      alert('Erreur git push :\\n\\n' + (d.message || 'Erreur inconnue'));
       setTimeout(()=>{btn.innerHTML='🚀 Déployer <span class="deploy-badge" id="deploy-badge" style="display:none">' + n + '</span>';document.getElementById('deploy-badge').style.display='inline-block';updateDeployBadge();},3000);
     }
   }).catch(()=>{btn.classList.remove('deploying');});
@@ -1797,10 +1813,10 @@ updatePreview();
   // ── Deploy (git push)
   } else if (req.method==='POST' && p==='/deploy') {
     const result = gitPush();
-    if (result === 'ok') {
+    if (result.ok) {
       json({ ok: true, message: '🚀 GitHub Action déclenchée — site MAJ sur O2Switch (~2 min)' });
     } else {
-      json({ ok: false, message: 'Erreur lors du git push' }, 500);
+      json({ ok: false, message: result.error || 'Erreur lors du git push' }, 500);
     }
 
   } else {
