@@ -1,10 +1,10 @@
 ---
-import { getEntry } from 'astro:content';
+import { getEntry, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
 const entry = await getEntry('pages', 'about');
 if (!entry) return Astro.redirect('/');
-const { Content } = await entry.render();
+const { Content } = await render(entry);
 ---
 
 <Base title={`${entry.data.title} | Portfolio`} description={entry.data.description}>
