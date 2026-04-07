@@ -70,19 +70,40 @@ function readSettings() {
   try { return readYaml(CFG.settingsFile); } catch { return {}; }
 }
 
-function autoGitPush(msg) {
+function gitCommit(msg) {
   try {
     execSync('git add -A src/content/', { cwd: __dirname, stdio: 'pipe' });
-    // vérifie qu'il y a quelque chose à commiter
     const diff = execSync('git diff --cached --name-only', { cwd: __dirname }).toString().trim();
     if (!diff) return 'nothing';
     execSync(`git commit -m "${msg.replace(/"/g, "'")}"`, { cwd: __dirname, stdio: 'pipe' });
+    return 'ok';
+  } catch(e) {
+    console.error('gitCommit error:', e.message);
+    return 'error';
+  }
+}
+
+function gitPush() {
+  try {
     execSync('git push origin main', { cwd: __dirname, stdio: 'pipe' });
     return 'ok';
   } catch(e) {
-    console.error('autoGitPush error:', e.message);
+    console.error('gitPush error:', e.message);
     return 'error';
   }
+}
+
+function getPendingCount() {
+  try {
+    const out = execSync('git log origin/main..HEAD --oneline', { cwd: __dirname, stdio: 'pipe' }).toString().trim();
+    return out ? out.split('\n').length : 0;
+  } catch { return 0; }
+}
+
+// Alias pour compatibilité upload handler
+function autoGitPush(msg) {
+  const r = gitCommit(msg);
+  return r;
 }
 
 function readViews() {
@@ -247,9 +268,15 @@ body{font-family:-apple-system,sans-serif;background:#050b1a;color:#edf4ff;paddi
 a{color:inherit;text-decoration:none}
 h1{font-size:1.3rem;color:#748fff;margin-bottom:1.5rem}
 h2{font-size:1rem;color:#748fff;margin-bottom:1rem}
-.nav{display:flex;gap:.5rem;margin-bottom:2rem;flex-wrap:wrap}
+.nav{display:flex;gap:.5rem;margin-bottom:2rem;flex-wrap:wrap;align-items:center}
 .nav a{padding:.35rem 1rem;border-radius:999px;border:1px solid #243a65;font-size:.82rem;color:#9fb2d4}
 .nav a.active,.nav a:hover{background:#748fff22;border-color:#748fff55;color:#748fff}
+.deploy-btn{margin-left:auto;display:inline-flex;align-items:center;gap:.45rem;padding:.35rem 1.1rem;border-radius:999px;border:1px solid #2a7a4f;background:#0d2b1e;color:#4dbb80;font-size:.82rem;cursor:pointer;font-family:inherit;transition:background 150ms,border-color 150ms}
+.deploy-btn:hover{background:#14402a;border-color:#4dbb80}
+.deploy-btn.has-pending{border-color:#4dbb80;color:#4dbb80;animation:pulse-green 2s infinite}
+.deploy-btn.deploying{opacity:.6;cursor:wait}
+.deploy-badge{background:#4dbb80;color:#050b1a;border-radius:999px;padding:0 .45rem;font-size:.72rem;font-weight:700;min-width:1.2rem;text-align:center}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 #4dbb8055}50%{box-shadow:0 0 0 4px #4dbb8022}}
 .filters{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
 .filter-btn{padding:.3rem .85rem;border-radius:999px;border:1px solid #243a65;background:none;color:#9fb2d4;font-size:.78rem;cursor:pointer}
 .filter-btn.active,.filter-btn:hover{background:#748fff22;border-color:#748fff55;color:#748fff}
@@ -420,11 +447,12 @@ function layout(title, content, active = '') {
     ['/settings', 'settings', '⚙️ Réglages', false],
   ];
   const navLinks = nav.map(([href,id,label,ext]) => '<a href="' + href + '"' + (ext?' target="_blank"':'') + ' class="' + (active===id?'active':'') + '">' + label + '</a>').join('');
+  const deployBtn = `<button class="deploy-btn" id="deploy-btn" onclick="triggerDeploy()" title="Publier les modifications sur le site">🚀 Déployer <span class="deploy-badge" id="deploy-badge" style="display:none">0</span></button>`;
   return `<!doctype html><html lang="fr"><head>
 <meta charset="utf-8"><title>${title} — Admin</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${CSS}</style></head><body>
-<nav class="nav">${navLinks}</nav>
+<nav class="nav">${navLinks}${deployBtn}</nav>
 ${content}
 <div class="modal-overlay" id="modal"><div class="modal">
   <h3 id="modal-title"></h3><p id="modal-msg"></p>
@@ -441,6 +469,50 @@ function openModal(t,m,fn){
   document.getElementById('modal-confirm').onclick=fn;
   document.getElementById('modal').classList.add('open');
 }
+
+// ── Deploy badge ──────────────────────────────────────────────────────────────
+function updateDeployBadge(){
+  fetch('/deploy/status').then(r=>r.json()).then(d=>{
+    const btn=document.getElementById('deploy-btn');
+    const badge=document.getElementById('deploy-badge');
+    if(!btn||!badge)return;
+    if(d.pending>0){
+      badge.textContent=d.pending;
+      badge.style.display='inline-block';
+      btn.classList.add('has-pending');
+      btn.title='🚀 ' + d.pending + ' modification(s) à publier';
+    } else {
+      badge.style.display='none';
+      btn.classList.remove('has-pending');
+      btn.title='Aucune modification en attente';
+    }
+  }).catch(()=>{});
+}
+
+function triggerDeploy(){
+  const btn=document.getElementById('deploy-btn');
+  const badge=document.getElementById('deploy-badge');
+  const n=parseInt(badge?.textContent||'0');
+  if(n===0){alert('Aucune modification en attente.');return;}
+  if(!confirm('Publier ' + n + ' modification(s) sur le site ?'))return;
+  btn.classList.add('deploying');
+  btn.textContent='⏳ Déploiement…';
+  fetch('/deploy',{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      btn.textContent='✓ Publié !';
+      badge.style.display='none';
+      btn.classList.remove('has-pending','deploying');
+      setTimeout(()=>{btn.innerHTML='🚀 Déployer <span class="deploy-badge" id="deploy-badge" style="display:none">0</span>';updateDeployBadge();},3000);
+    } else {
+      btn.textContent='❌ Erreur git push';
+      btn.classList.remove('deploying');
+      setTimeout(()=>{btn.innerHTML='🚀 Déployer <span class="deploy-badge" id="deploy-badge" style="display:none">' + n + '</span>';document.getElementById('deploy-badge').style.display='inline-block';updateDeployBadge();},3000);
+    }
+  }).catch(()=>{btn.classList.remove('deploying');});
+}
+
+updateDeployBadge();
+setInterval(updateDeployBadge, 15000);
 </script></body></html>`;
 }
 
@@ -710,8 +782,8 @@ function doUpload(){
     sum.innerHTML=
       (ok ? '<span style="background:#1a3d1a;border:1px solid #2d6b2d;color:#7aff7a;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem;font-weight:600">✓ '+ok+' réussi'+(ok>1?'s':'')+'</span>' : '')+
       (fail ? '<span style="background:#3d0a0a;border:1px solid #6b1a1a;color:#ff7a7a;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem;font-weight:600">✗ '+fail+' échec'+(fail>1?'s':'')+'</span>' : '')+
-      (r.gitStatus==='deploy' ? '<span style="background:#0f1f3d;border:1px solid #243a65;color:#748fff;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">🚀 GitHub Action déclenchée — site MAJ sur O2Switch (~2 min)</span>' : '')+
-      (r.gitStatus==='git-error' ? '<span style="background:#3d2a00;border:1px solid #6b4a00;color:#ffb347;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">⚠️ Git push échoué</span>' : '');
+      (r.gitStatus==='committed' ? '<span style="background:#0d2b1e;border:1px solid #2a7a4f;color:#4dbb80;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">✓ Sauvegardé — clique sur 🚀 Déployer quand tu es prêt</span>' : '')+
+      (r.gitStatus==='git-error' ? '<span style="background:#3d2a00;border:1px solid #6b4a00;color:#ffb347;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">⚠️ Erreur git commit</span>' : '');
     const lines=r.results.map(x=>'<span style="color:'+(x.ok?'#9fb2d4':'#ff7a7a')+'">'+(x.ok?'✓':'✗')+' '+x.slug+(x.ok&&x.sftp===false?' <em style="color:#ffb347">(FTP: échec)</em>':'')+'</span>').join('<br>');
     document.getElementById('upload-log').innerHTML=lines;
     if(r.ok)document.getElementById('prog-bar').style.background='#7aff7a';
@@ -1407,13 +1479,13 @@ const server = http.createServer(async (req, res) => {
           results.push({slug:photoSlug,ok:true,sftp:sftpRes.ok});
         } catch(e){results.push({slug:photoSlug,ok:false,error:e.message});}
       }
-      // Auto git push — déclenche le rebuild du site sur O2Switch
+      // Commit local — le déploiement se fait via le bouton "Déployer" dans la nav
       const pushed = results.filter(r=>r.ok);
       let gitStatus = '';
       if (pushed.length) {
         const slugs = pushed.map(r=>r.slug).join(', ');
-        const res2 = autoGitPush(`photos: ajout ${slugs}`);
-        gitStatus = res2 === 'ok' ? 'deploy' : res2 === 'nothing' ? '' : 'git-error';
+        const res2 = gitCommit(`photos: ajout ${slugs}`);
+        gitStatus = res2 === 'ok' ? 'committed' : res2 === 'nothing' ? '' : 'git-error';
       }
       json({ok:true,results,gitStatus});
     } catch(e){json({ok:false,error:e.message},500);}
@@ -1606,6 +1678,19 @@ updatePreview();
     fs.writeFileSync(aboutFile, frontmatter+content+'\n');
     autoGitPush('page: mise à jour À propos');
     redirect('/about?saved=1');
+
+  // ── Deploy status
+  } else if (req.method==='GET' && p==='/deploy/status') {
+    json({ pending: getPendingCount() });
+
+  // ── Deploy (git push)
+  } else if (req.method==='POST' && p==='/deploy') {
+    const result = gitPush();
+    if (result === 'ok') {
+      json({ ok: true, message: '🚀 GitHub Action déclenchée — site MAJ sur O2Switch (~2 min)' });
+    } else {
+      json({ ok: false, message: 'Erreur lors du git push' }, 500);
+    }
 
   } else {
     res.writeHead(404); res.end('Not found');
