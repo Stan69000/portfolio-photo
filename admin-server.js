@@ -588,6 +588,7 @@ ${thumbHtml}
   <div class="field"><label>Titre</label><input name="title" value="${photo.title||''}"></div>
   <div class="field"><label>Slug</label><input name="slug" value="${photo.slug||''}"></div>
   <div class="field"><label>Série</label><select name="series">${seriesOptsHtml}</select></div>
+  <div class="field"><label>Date du reportage</label><input type="date" name="shoot_date" value="${photo.date||''}"></div>
   <div class="field"><label>Statut</label><select name="status">
     <option value="published"${(photo.status||'published')==='published'?' selected':''}>En ligne</option>
     <option value="draft"${photo.status==='draft'?' selected':''}>Brouillon</option>
@@ -1284,6 +1285,7 @@ const server = http.createServer(async (req, res) => {
     const tags=body.tags?body.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
     savePhoto(file,{
       title:body.title, slug:body.slug, series:body.series,
+      date:body.shoot_date||undefined,
       description:body.description||'', tags, status:body.status||'published',
       rating:body.rating?parseFloat(body.rating):undefined,
       price:body.price?parseFloat(body.price):undefined,
