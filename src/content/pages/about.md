@@ -5,16 +5,31 @@ description: Qui je suis, pourquoi la photographie.
 
 # À propos
 
-Bonjour, je suis **Stan Bouchet**, photographe amateur basé en France dans la campagne Lyonnaise.
+Cette galerie est un espace de photographie personnelle, construit au fil du temps, sans contrainte ni recherche de performance.
 
-## Ma passion
+Mise en ligne le **7 avril 2026**, elle a vocation à évoluer progressivement : de nouvelles images, de nouvelles séries et, avec le temps, une identité qui se précise.
 
-La photographie est pour moi un moyen de capturer l'instant, de raconter une histoire sans mots. Je photographie principalement la nature, les paysages et la vie quotidienne.
+Chaque image présentée ici est le résultat d’une attention portée à l’instant : une lumière particulière, un détail discret, une atmosphère qui mérite d’être conservée.  
+Rien d’exceptionnel en apparence, mais souvent quelque chose qui retient le regard quelques secondes de plus.
 
-## Mon matériel
+Les sujets sont simples et assumés :  
+la nature, les paysages, les scènes du quotidien, parfois une série née d’une idée ou d’une envie passagère.
 
-J'utilise un Canon D90 et iPhone 15.
+Le site évolue sans rythme défini. Certaines périodes sont plus riches, d’autres plus calmes — comme la photographie elle-même, qui dépend avant tout du moment.
+
+## Une galerie vivante
+
+Les visiteurs peuvent **voter pour leurs images préférées**, permettant de faire émerger celles qui résonnent le plus.
+
+Un [flux RSS](https://stan-bouchet.eu/rss.xml) est également disponible pour suivre les nouvelles publications.
+
+Aucune régularité n’est annoncée : les images arrivent lorsqu’elles existent.
+
+## Matériel
+
+Les photographies sont réalisées avec un **Canon 90D** et un **iPhone 15**.
 
 ## Contact
 
-Vous pouvez me retrouver sur [LinkedIn](https://www.linkedin.com/in/stanislas-bouchet/).
+Pour échanger ou en savoir plus :  
+👉 [LinkedIn](https://www.linkedin.com/in/stanislas-bouchet/)
