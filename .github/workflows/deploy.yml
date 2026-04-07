@@ -57,3 +57,18 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
+
+      - name: Restart Passenger via FTP (touch tmp/restart.txt)
+        run: |
+          mkdir -p ./restart-trigger/tmp
+          touch ./restart-trigger/tmp/restart.txt
+      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./restart-trigger/
+          server-dir: ${{ secrets.FTP_ADMIN_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
