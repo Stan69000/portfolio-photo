@@ -57,6 +57,12 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
     </main>
     <footer class="site-footer">
       <p>Site réalisé avec <span class="heart">❤️</span> par <a href="https://www.linkedin.com/in/stanislas-bouchet/" target="_blank" rel="noopener noreferrer">Stan BOUCHET</a></p>
+      <p class="footer-license">
+        © Stan Bouchet – Tous droits réservés.<br />
+        Les contenus de ce site sont protégés par la licence
+        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-ND 4.0</a>
+        — Attribution, Pas d'Utilisation Commerciale, Pas de Modification.
+      </p>
     </footer>
   </body>
 </html>
@@ -146,6 +152,13 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
     font-size: 0.78rem;
     color: var(--muted);
     letter-spacing: 0.03em;
+  }
+
+  .footer-license {
+    margin-top: 0.6rem !important;
+    font-size: 0.72rem !important;
+    opacity: 0.7;
+    line-height: 1.7;
   }
 
   .site-footer a {
