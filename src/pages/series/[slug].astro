@@ -88,9 +88,9 @@ const hero = photos[0];
       (function() {
         function initMap() {
           if (!window.L || !document.getElementById('series-map')) return;
-          const map = L.map('series-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], zoom);
-          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© <a href="https://www.esri.com/">Esri</a>, © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+          const map = L.map('series-map', { zoomControl: true, scrollWheelZoom: false, attributionControl: true }).setView([lat, lng], zoom);
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
             maxZoom: 19,
           }).addTo(map);
           const icon = L.divIcon({
@@ -360,13 +360,13 @@ const hero = photos[0];
 
   /* Override Leaflet popup */
   :global(.leaflet-popup-content-wrapper) {
-    background: rgba(10, 20, 40, 0.92);
-    color: #d2e1ff;
-    border: 1px solid #243a65;
+    background: #fff;
+    color: #1a2a4a;
+    border: 1px solid #d0d8e8;
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
   }
-  :global(.leaflet-popup-tip) { background: rgba(10, 20, 40, 0.92); }
+  :global(.leaflet-popup-tip) { background: #fff; }
   :global(.leaflet-popup-close-button) { color: #748fff !important; }
 
   /* Links */
