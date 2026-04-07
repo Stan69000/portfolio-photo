@@ -19,7 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const CFG = {
-  port: 3333,
+  port: process.env.PORT || 3333,
   photosDir:   path.join(__dirname, 'src/content/photos'),
   seriesDir:   path.join(__dirname, 'src/content/series'),
   settingsFile:path.join(__dirname, 'src/content/settings/site.yaml'),
@@ -1434,7 +1434,16 @@ const server = http.createServer(async (req, res) => {
   // ── Logout
   } else if (p === '/auth/logout') {
     clearSession(req, res);
-    redirect('/auth/github');
+    res.writeHead(200, {'Content-Type':'text/html;charset=utf-8'});
+    res.end(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Déconnecté</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#050b1a;color:#edf4ff;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}
+.card{background:#0a1628;border:1px solid #243a65;border-radius:1rem;padding:2.5rem 3rem;max-width:360px}
+h1{font-size:1.2rem;color:#9fb2d4;margin-bottom:.75rem}p{color:#5a7090;font-size:.88rem;margin-bottom:1.5rem}
+a{display:inline-block;padding:.55rem 1.4rem;background:#748fff22;border:1px solid #748fff55;border-radius:999px;color:#748fff;font-size:.88rem;text-decoration:none}
+a:hover{background:#748fff33}</style></head><body>
+<div class="card"><h1>✓ Déconnecté</h1><p>Session fermée avec succès.</p>
+<a href="/auth/github">Se reconnecter</a></div></body></html>`);
     return;
 
   // ── Auth check — toutes les autres routes
