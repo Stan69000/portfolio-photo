@@ -787,6 +787,8 @@ ${msgHtml}
 <div class="form-grid">
   <div class="field"><label>Nom</label><input name="name" value="${serie.name||''}" required oninput="autoSlug(this.value)"></div>
   <div class="field"><label>Slug</label><input name="slug" id="slug-field" value="${serie.slug||''}"></div>
+  <div class="field"><label>Date du reportage</label><input type="date" name="series_date" value="${serie.date||''}"></div>
+  <div class="field"></div>
   <div class="field full"><label>Description</label><textarea name="description">${serie.description||''}</textarea></div>
   <div class="field full">
     <label>Tags</label>
@@ -1376,11 +1378,13 @@ const server = http.createServer(async (req, res) => {
       const uploadTags=fields.tags?fields.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
       const results=[];
+      const seriesYamlPath=path.join(CFG.seriesDir,`${seriesSlug}.yaml`);
+      const seriesDateFallback=fs.existsSync(seriesYamlPath)?(readYaml(seriesYamlPath).date||null):null;
       const usedSlugs=new Set(readPhotos().map(p=>p.slug).filter(Boolean));
       for(const file of files){
         const origTitle=path.parse(file.filename).name.replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
         const exifDateStr=await readExifDate(file.path);
-        const dateStr=exifDateStr||new Date().toISOString().split('T')[0];
+        const dateStr=exifDateStr||seriesDateFallback||new Date().toISOString().split('T')[0];
         let base=`${seriesSlug}-${dateStr}`;
         let photoSlug=base;
         let n=2;
@@ -1445,7 +1449,8 @@ const server = http.createServer(async (req, res) => {
       const url=(body[`link_url_${i}`]||'').trim();
       if(label&&url)links.push({label,url});
     }
-    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft',tags:seriesTags,...(mapLat&&mapLng?{map_lat:mapLat,map_lng:mapLng,map_zoom:mapZoom}:{}),links};
+    const seriesDate=body.series_date||undefined;
+    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft',tags:seriesTags,...(seriesDate?{date:seriesDate}:{}),...(mapLat&&mapLng?{map_lat:mapLat,map_lng:mapLng,map_zoom:mapZoom}:{}),links};
     const outFile=isNew?`${slug}.yaml`:file;
     writeYaml(path.join(CFG.seriesDir,outFile),data);
     autoGitPush(`serie: ${isNew?'création':'modification'} ${slug}`);

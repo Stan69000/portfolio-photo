@@ -4,21 +4,24 @@ import Base from '../../layouts/Base.astro';
 
 export async function getStaticPaths() {
   const photos = (await getCollection('photos')).filter((p) => p.data.status === 'published');
-  const sorted = photos.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+  const sorted = photos.sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0));
   const seriesCollection = await getCollection('series');
   const seriesTagsBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.tags ?? []]));
+  const seriesDateBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.date ?? null]));
   return sorted.map((photo, index) => ({
     params: { slug: photo.data.slug },
     props: {
       photo,
       seriesTags: seriesTagsBySlug.get(photo.data.series) ?? [],
+      seriesDate: seriesDateBySlug.get(photo.data.series) ?? null,
       prev: sorted[index - 1] ?? null,
       next: sorted[index + 1] ?? null
     }
   }));
 }
 
-const { photo, seriesTags, prev, next } = Astro.props;
+const { photo, seriesTags, seriesDate, prev, next } = Astro.props;
+const effectiveDate: Date | null = photo.data.date ?? (seriesDate ? new Date(seriesDate) : null);
 
 const exif = photo.data.exif;
 const exifFields = exif
@@ -90,10 +93,12 @@ for (const tag of effectiveTags) {
       </div>
 
       <div class="meta-grid">
-        <div class="meta-item">
-          <span class="meta-label">Date du reportage</span>
-          <span class="meta-value">{photo.data.date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-        </div>
+        {effectiveDate && (
+          <div class="meta-item">
+            <span class="meta-label">Date du reportage</span>
+            <span class="meta-value">{effectiveDate.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+        )}
         {photo.data.series && (
           <div class="meta-item">
             <span class="meta-label">Série</span>
