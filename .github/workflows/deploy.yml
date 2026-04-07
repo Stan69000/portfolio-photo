@@ -61,7 +61,7 @@ jobs:
       - name: Restart Passenger via FTP (touch tmp/restart.txt)
         run: |
           mkdir -p ./restart-trigger/tmp
-          touch ./restart-trigger/tmp/restart.txt
+          echo "${{ github.run_id }}-${{ github.run_attempt }}" > ./restart-trigger/tmp/restart.txt
       - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
