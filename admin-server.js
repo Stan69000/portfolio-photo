@@ -416,6 +416,7 @@ function layout(title, content, active = '') {
     ['/upload', 'upload', '⬆️ Upload', false],
     ['/tags', 'tags', '🏷 Tags', false],
     ['/stats', 'stats', '📊 Stats', false],
+    ['/about', 'about', '👤 À propos', false],
     ['/settings', 'settings', '⚙️ Réglages', false],
   ];
   const navLinks = nav.map(([href,id,label,ext]) => '<a href="' + href + '"' + (ext?' target="_blank"':'') + ' class="' + (active===id?'active':'') + '">' + label + '</a>').join('');
@@ -1501,6 +1502,69 @@ const server = http.createServer(async (req, res) => {
     });
     autoGitPush('settings: mise à jour');
     redirect('/settings?saved=1');
+
+  // ── À propos — éditeur
+  } else if (req.method==='GET' && p==='/about') {
+    const aboutFile=path.join(__dirname,'src/content/pages/about.md');
+    let raw='';
+    try { raw=fs.readFileSync(aboutFile,'utf8'); } catch {}
+    // Retire le frontmatter pour n'afficher que le contenu MD
+    const bodyMd=raw.replace(/^---[\s\S]*?---\n?/,'').trim();
+    const saved=url.searchParams.get('saved')||'';
+    html(layout('À propos',`
+<h1>À propos <span style="color:#9fb2d4;font-size:.85rem;font-weight:400">page publique /a-propos</span></h1>
+${saved?'<div class="alert alert-success">✓ Page sauvegardée et déployée.</div>':''}
+<p style="color:#9fb2d4;font-size:.85rem;margin-bottom:1.5rem">Saisie en Markdown — aperçu en direct à droite.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
+  <div>
+    <label style="display:block;font-family:monospace;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#9fb2d4;margin-bottom:.5rem">Markdown</label>
+    <textarea id="md-input" style="width:100%;min-height:520px;background:#0a1628;border:1px solid #243a65;border-radius:.5rem;color:#d2e1ff;font-family:monospace;font-size:.85rem;padding:1rem;resize:vertical;line-height:1.6" oninput="updatePreview()">${bodyMd.replace(/</g,'&lt;')}</textarea>
+    <form method="POST" action="/about/save" id="about-form" style="margin-top:1rem">
+      <input type="hidden" id="md-hidden" name="content" value="">
+      <button type="submit" class="btn btn-primary" onclick="document.getElementById('md-hidden').value=document.getElementById('md-input').value">Sauvegarder</button>
+      <a href="https://stan-bouchet.eu/a-propos" target="_blank" class="btn btn-sm" style="margin-left:.5rem">Voir la page →</a>
+    </form>
+  </div>
+  <div>
+    <label style="display:block;font-family:monospace;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#9fb2d4;margin-bottom:.5rem">Aperçu</label>
+    <div id="md-preview" style="background:#0a1628;border:1px solid #243a65;border-radius:.5rem;padding:1.25rem;min-height:520px;color:#d2e1ff;font-size:.93rem;line-height:1.7;overflow-y:auto"></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+function updatePreview(){
+  const md=document.getElementById('md-input').value;
+  document.getElementById('md-preview').innerHTML=marked.parse(md);
+}
+updatePreview();
+</script>
+<style>
+#md-preview h1,#md-preview h2,#md-preview h3{font-family:serif;font-weight:400;margin:.5em 0 .25em}
+#md-preview h1{font-size:1.6rem}#md-preview h2{font-size:1.2rem}
+#md-preview p{margin:0 0 .75rem}
+#md-preview a{color:#748fff}
+#md-preview strong{color:#fff}
+#md-preview ul,#md-preview ol{padding-left:1.5rem;margin:0 0 .75rem}
+#md-preview blockquote{border-left:3px solid #748fff;padding-left:1rem;color:#9fb2d4;font-style:italic}
+#md-preview code{background:#0f1f3d;border:1px solid #243a65;border-radius:3px;padding:.1em .35em;font-size:.85em}
+#md-preview hr{border:none;border-top:1px solid #243a65;margin:1.5rem 0}
+</style>
+`,'settings'));
+
+  } else if (req.method==='POST' && p==='/about/save') {
+    const body=await parseBody(req);
+    const content=(body.content||'').trim();
+    const aboutFile=path.join(__dirname,'src/content/pages/about.md');
+    // Lit le frontmatter existant
+    let frontmatter='---\ntitle: À propos\ndescription: Qui je suis, pourquoi la photographie.\n---\n\n';
+    try {
+      const existing=fs.readFileSync(aboutFile,'utf8');
+      const fm=existing.match(/^(---[\s\S]*?---\n)/);
+      if(fm) frontmatter=fm[1]+'\n';
+    } catch {}
+    fs.writeFileSync(aboutFile, frontmatter+content+'\n');
+    autoGitPush('page: mise à jour À propos');
+    redirect('/about?saved=1');
 
   } else {
     res.writeHead(404); res.end('Not found');
