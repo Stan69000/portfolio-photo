@@ -164,7 +164,7 @@ function starsFill(rating: number) {
   )}
 
   <section class="panel reveal" id="coups-de-coeur" data-photos={JSON.stringify(clientPhotos)}>
-    <h2>Vos coups de c&oelig;ur</h2>
+    <h2>Vos notes</h2>
     <p class="panel-sub" id="votes-summary">Chargement&hellip;</p>
     <ol class="top-list" id="votes-list"></ol>
   </section>
@@ -402,32 +402,42 @@ function starsFill(rating: number) {
   const summary = document.querySelector('#votes-summary');
   const list = document.querySelector('#votes-list');
 
+  const STAR_LABELS = ['', 'Décevant', 'Moyen', 'Bien', 'Très bien', 'Excellent !'];
+  const STAR_COLORS = ['', '#ff7a7a', '#ffb347', '#f5c542', '#8cdc64', '#ffd700'];
+
+  function starsHtml(n) {
+    return [1,2,3,4,5].map(i => `<span style="color:${i <= n ? '#f5c542' : 'rgba(255,255,255,0.2)'}">★</span>`).join('');
+  }
+
   function renderVotes() {
-    if (!root || !window.PhotoVotes || !summary || !list) return;
+    if (!root || !summary || !list) return;
+    const pv = window.PhotoVotes;
+    if (!pv) { setTimeout(renderVotes, 200); return; }
+
     const photos = JSON.parse(root.dataset.photos || '[]');
 
     const scored = photos
-      .map((p) => ({ ...p, score: Number(window.PhotoVotes.getScore(p.slug) || 0) }))
-      .filter((p) => p.score > 0)
-      .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, 'fr'))
-      .slice(0, 8);
+      .map((p) => ({ ...p, rating: pv.getRating(p.slug) }))
+      .filter((p) => p.rating > 0)
+      .sort((a, b) => b.rating - a.rating || a.title.localeCompare(b.title, 'fr'))
+      .slice(0, 12);
 
     if (!scored.length) {
-      summary.textContent = 'Aucun coup de cœur enregistré sur ce navigateur pour l\'instant.';
+      summary.textContent = 'Aucune photo notée sur ce navigateur pour l\'instant.';
       list.innerHTML = '';
       return;
     }
 
-    summary.textContent = scored.length + ' photo' + (scored.length > 1 ? 's' : '') + ' dans vos favoris.';
+    summary.textContent = scored.length + ' photo' + (scored.length > 1 ? 's' : '') + ' notée' + (scored.length > 1 ? 's' : '') + ' sur ce navigateur.';
     list.innerHTML = scored.map((p) => {
       const img = p.thumb
         ? `<img src="${p.thumb}" alt="${p.title}" loading="lazy" style="width:60px;height:45px;object-fit:cover;border-radius:.4rem;flex-shrink:0;border:1px solid rgba(255,255,255,.1)">`
         : `<div style="width:60px;height:45px;background:rgba(10,22,48,.8);border-radius:.4rem;flex-shrink:0"></div>`;
-      return `<li><a href="/photo/${p.slug}/" class="top-item">${img}<div class="top-info"><strong>${p.title}</strong><span class="series-label">📁 ${p.series}</span></div><span class="rating-num" style="color:#ff8fa3">♥ ${p.score}</span></a></li>`;
+      return `<li><a href="/photo/${p.slug}/" class="top-item">${img}<div class="top-info"><strong>${p.title}</strong><span class="series-label">📁 ${p.series}</span></div><span class="rating-num" style="color:${STAR_COLORS[p.rating]}">${starsHtml(p.rating)} <em style="font-size:.75rem;font-style:normal">${STAR_LABELS[p.rating]}</em></span></a></li>`;
     }).join('');
   }
 
-  window.addEventListener('photo-votes:changed', renderVotes);
+  document.addEventListener('ratings-updated', renderVotes);
   document.addEventListener('DOMContentLoaded', renderVotes);
   renderVotes();
 </script>
