@@ -1877,6 +1877,11 @@ updatePreview();
       json({ ok: false, message: result.error || 'Erreur lors du git push' }, 500);
     }
 
+  // ── API ping (diagnostic version) ────────────────────────────────────────────
+  } else if (p === '/api/ping') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    json({ version: '3.0', time: Date.now(), ratingsCount: dbGetAll().length });
+
   // ── API publique ratings (CORS ouvert — lecture/écriture sans auth) ─────────
   } else if (p.startsWith('/api/ratings')) {
     res.setHeader('Access-Control-Allow-Origin', '*');
