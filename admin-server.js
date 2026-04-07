@@ -14,48 +14,39 @@ import Busboy from 'busboy';
 const require = createRequire(import.meta.url);
 const yaml  = require('js-yaml');
 const sharp = require('sharp');
-const Database = require('better-sqlite3');
 
-// ─── RATINGS DB ───────────────────────────────────────────────────────────────
-const dbPath = path.join(__dirname, 'ratings.db');
-const db = new Database(dbPath);
-db.exec(`
-  CREATE TABLE IF NOT EXISTS ratings (
-    slug    TEXT PRIMARY KEY,
-    total   INTEGER NOT NULL DEFAULT 0,
-    count   INTEGER NOT NULL DEFAULT 0,
-    updated INTEGER NOT NULL DEFAULT 0
-  )
-`);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const stmtUpsert = db.prepare(`
-  INSERT INTO ratings (slug, total, count, updated)
-  VALUES (?, ?, 1, ?)
-  ON CONFLICT(slug) DO UPDATE SET
-    total   = total + excluded.total,
-    count   = count + 1,
-    updated = excluded.updated
-`);
-const stmtGet    = db.prepare(`SELECT total, count FROM ratings WHERE slug = ?`);
-const stmtAll    = db.prepare(`SELECT slug, total, count FROM ratings ORDER BY (total * 1.0 / count) DESC`);
+// ─── RATINGS (fichier JSON — pas de dépendance native) ────────────────────────
+const RATINGS_FILE = path.join(__dirname, 'ratings.json');
 
+function ratingsRead() {
+  try { return JSON.parse(fs.readFileSync(RATINGS_FILE, 'utf8')); }
+  catch { return {}; }
+}
+function ratingsWrite(data) {
+  fs.writeFileSync(RATINGS_FILE, JSON.stringify(data), 'utf8');
+}
 function dbRate(slug, score) {
-  stmtUpsert.run(slug, score, Date.now());
+  const data = ratingsRead();
+  if (!data[slug]) data[slug] = { total: 0, count: 0 };
+  data[slug].total += score;
+  data[slug].count += 1;
+  ratingsWrite(data);
 }
 function dbGetRating(slug) {
-  const r = stmtGet.get(slug);
+  const data = ratingsRead();
+  const r = data[slug];
   if (!r || r.count === 0) return null;
   return { avg: Math.round((r.total / r.count) * 10) / 10, count: r.count };
 }
 function dbGetAll() {
-  return stmtAll.all().map(r => ({
-    slug: r.slug,
-    avg: Math.round((r.total / r.count) * 10) / 10,
-    count: r.count
-  }));
+  const data = ratingsRead();
+  return Object.entries(data)
+    .filter(([, r]) => r.count > 0)
+    .map(([slug, r]) => ({ slug, avg: Math.round((r.total / r.count) * 10) / 10, count: r.count }))
+    .sort((a, b) => b.avg - a.avg);
 }
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const CFG = {
