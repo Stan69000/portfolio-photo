@@ -768,13 +768,21 @@ function seriesEditPage(serie={}, file='', msg='') {
   const currentTags = Array.isArray(serie.tags) ? serie.tags : (serie.tags ? [serie.tags] : []);
   const allPhotoTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
   const tagsWidget = tagInputWidget('tags', currentTags, allPhotoTags, 'ti-serie');
+  const serieLinks = Array.isArray(serie.links) ? serie.links : [];
+  const linksHtml = Array.from({length:5},(_,i)=>{
+    const l=serieLinks[i]||{};
+    return `<div style="display:grid;grid-template-columns:1fr 2fr;gap:.5rem;align-items:center;margin-bottom:.5rem">
+  <input name="link_label_${i+1}" placeholder="Libellé (ex: AllTrails)" value="${(l.label||'').replace(/"/g,'&quot;')}" style="min-width:0">
+  <input name="link_url_${i+1}" placeholder="https://..." value="${(l.url||'').replace(/"/g,'&quot;')}" style="min-width:0">
+</div>`;
+  }).join('');
   return layout(pageTitle, `
 <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem">
   <a href="/series" class="btn">← Retour</a>
   <h1 style="margin:0">${isNew?'Nouvelle série':serie.name}</h1>
 </div>
 ${msgHtml}
-<form method="POST" action="/series/save/${file}" style="max-width:640px">
+<form method="POST" action="/series/save/${file}" style="max-width:700px">
 <div class="form-grid">
   <div class="field"><label>Nom</label><input name="name" value="${serie.name||''}" required oninput="autoSlug(this.value)"></div>
   <div class="field"><label>Slug</label><input name="slug" id="slug-field" value="${serie.slug||''}"></div>
@@ -789,6 +797,23 @@ ${msgHtml}
     <option value="draft"${serie.status==='draft'?' selected':''}>Brouillon</option>
   </select></div>
 </div>
+
+<div style="margin-top:2rem;border-top:1px solid #243a65;padding-top:1.5rem">
+  <h2 style="font-size:1rem;font-weight:600;margin:0 0 1rem;color:#d2e1ff">📍 Secteur de la randonnée <span style="font-weight:400;color:#5a7090;font-size:.85rem">(optionnel)</span></h2>
+  <p style="font-size:.82rem;color:#5a7090;margin:0 0 1rem">Coordonnées GPS du point de départ — <a href="https://www.google.com/maps" target="_blank" style="color:#748fff">Google Maps</a> → clic droit → "C'est ici" pour obtenir lat/lng.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:.75rem">
+    <div class="field"><label>Latitude</label><input name="map_lat" type="number" step="any" placeholder="45.8566" value="${serie.map_lat||''}"></div>
+    <div class="field"><label>Longitude</label><input name="map_lng" type="number" step="any" placeholder="4.8357" value="${serie.map_lng||''}"></div>
+    <div class="field"><label>Zoom (1–18)</label><input name="map_zoom" type="number" min="1" max="18" placeholder="13" value="${serie.map_zoom||13}"></div>
+  </div>
+</div>
+
+<div style="margin-top:2rem;border-top:1px solid #243a65;padding-top:1.5rem">
+  <h2 style="font-size:1rem;font-weight:600;margin:0 0 .5rem;color:#d2e1ff">🔗 Liens externes <span style="font-weight:400;color:#5a7090;font-size:.85rem">(jusqu'à 5, optionnel)</span></h2>
+  <p style="font-size:.82rem;color:#5a7090;margin:0 0 1rem">Libellé + URL. Les champs vides sont ignorés.</p>
+  ${linksHtml}
+</div>
+
 <div style="margin-top:1.5rem;display:flex;gap:.75rem">
   <button type="submit" class="btn btn-primary">${isNew?'Créer':'Sauvegarder'}</button>
   <a href="/series" class="btn">Annuler</a>
@@ -1409,7 +1434,16 @@ const server = http.createServer(async (req, res) => {
     const isNew=!file||file==='new';
     const slug=body.slug||slugify(body.name);
     const seriesTags=body.tags?body.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
-    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft',tags:seriesTags};
+    const mapLat=body.map_lat?parseFloat(body.map_lat):undefined;
+    const mapLng=body.map_lng?parseFloat(body.map_lng):undefined;
+    const mapZoom=body.map_zoom?parseInt(body.map_zoom):13;
+    const links=[];
+    for(let i=1;i<=5;i++){
+      const label=(body[`link_label_${i}`]||'').trim();
+      const url=(body[`link_url_${i}`]||'').trim();
+      if(label&&url)links.push({label,url});
+    }
+    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft',tags:seriesTags,...(mapLat&&mapLng?{map_lat:mapLat,map_lng:mapLng,map_zoom:mapZoom}:{}),links};
     const outFile=isNew?`${slug}.yaml`:file;
     writeYaml(path.join(CFG.seriesDir,outFile),data);
     autoGitPush(`serie: ${isNew?'création':'modification'} ${slug}`);

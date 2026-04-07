@@ -39,7 +39,14 @@ const series = defineCollection({
     cover_url: z.string(),
     published: z.boolean().default(true),
     status: z.enum(['published', 'draft']).default('published'),
-    tags: z.array(z.string()).default([])
+    tags: z.array(z.string()).default([]),
+    map_lat: z.number().optional(),
+    map_lng: z.number().optional(),
+    map_zoom: z.number().default(13).optional(),
+    links: z.array(z.object({
+      label: z.string(),
+      url: z.string(),
+    })).default([]),
   })
 });
 

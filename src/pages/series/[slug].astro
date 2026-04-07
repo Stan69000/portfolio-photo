@@ -57,6 +57,62 @@ const hero = photos[0];
     </div>
   </section>
 
+  {(series.data.map_lat && series.data.map_lng || (series.data.links ?? []).length > 0) && (
+    <section class="series-extras reveal">
+
+      {series.data.map_lat && series.data.map_lng && (
+        <div class="map-block">
+          <p class="extras-label">📍 Secteur</p>
+          <div id="series-map" class="series-map"></div>
+        </div>
+      )}
+
+      {(series.data.links ?? []).length > 0 && (
+        <div class="links-block">
+          <p class="extras-label">🔗 Liens utiles</p>
+          <div class="links-row">
+            {(series.data.links ?? []).map((link) => (
+              <a href={link.url} target="_blank" rel="noopener noreferrer" class="ext-link">
+                {link.label}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+    </section>
+  )}
+
+  {series.data.map_lat && series.data.map_lng && (
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script define:vars={{ lat: series.data.map_lat, lng: series.data.map_lng, zoom: series.data.map_zoom ?? 13, name: series.data.name }}>
+      (function() {
+        function initMap() {
+          if (!window.L || !document.getElementById('series-map')) return;
+          const map = L.map('series-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], zoom);
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+            maxZoom: 19,
+          }).addTo(map);
+          const icon = L.divIcon({
+            className: '',
+            html: '<div style="width:14px;height:14px;background:#748fff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(116,143,255,.7)"></div>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+          });
+          L.marker([lat, lng], { icon }).addTo(map).bindPopup(`<strong>${name}</strong>`).openPopup();
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initMap);
+        } else {
+          initMap();
+        }
+      })();
+    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  )}
+
   <section class="mosaic">
     {photos.map((photo, index) => (
       <button
@@ -267,5 +323,88 @@ const hero = photos[0];
     .mosaic {
       columns: 1;
     }
+  }
+
+  /* ── Extras (map + links) ── */
+  .series-extras {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .extras-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+  }
+
+  /* Map */
+  .map-block {
+    background: rgba(15, 31, 61, 0.6);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+  }
+
+  .series-map {
+    height: 340px;
+    border-radius: calc(var(--radius) - 4px);
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  /* Override Leaflet for dark theme */
+  :global(.leaflet-popup-content-wrapper) {
+    background: #0f1f3d;
+    color: #d2e1ff;
+    border: 1px solid #243a65;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  }
+  :global(.leaflet-popup-tip) { background: #0f1f3d; }
+  :global(.leaflet-popup-close-button) { color: #748fff !important; }
+
+  /* Links */
+  .links-block {
+    background: rgba(15, 31, 61, 0.6);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+  }
+
+  .links-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .ext-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text);
+    background: rgba(116, 143, 255, 0.08);
+    border: 1px solid rgba(116, 143, 255, 0.25);
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+    text-decoration: none;
+  }
+
+  .ext-link:hover {
+    background: rgba(116, 143, 255, 0.18);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .ext-link svg {
+    opacity: 0.6;
+    flex-shrink: 0;
   }
 </style>
