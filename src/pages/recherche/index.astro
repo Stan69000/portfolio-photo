@@ -19,8 +19,6 @@ const photos = (await getCollection('photos'))
       series:     p.data.series,
       seriesName: seriesBySlug.get(p.data.series) ?? p.data.series ?? '',
       url:        p.data.url_thumb || p.data.url,
-      urlWeb:     p.data.url_web || p.data.url,
-      urlFull:    p.data.url,
       tags,
       date:       p.data.date.getTime(),
     };
@@ -40,8 +38,6 @@ const seriesList = seriesCollection
   .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 
 const photosJson = JSON.stringify(photos);
-const buildSrcSet = (photo: { url: string; urlWeb: string; urlFull: string }) =>
-  [...new Set([`${photo.url} 480w`, `${photo.urlWeb} 1280w`, `${photo.urlFull} 2200w`])].join(', ');
 ---
 
 <Base title="Recherche | Portfolio" description="Rechercher dans la galerie par titre, tag ou série">
@@ -117,8 +113,6 @@ const buildSrcSet = (photo: { url: string; urlWeb: string; urlFull: string }) =>
       >
         <a href={`/photo/${photo.slug}/`} class="r-img-link">
           <img src={photo.url} alt={photo.title} loading="lazy" decoding="async"
-               srcset={buildSrcSet(photo)}
-               sizes="(max-width: 400px) 100vw, (max-width: 1100px) 33vw, 25vw"
                style={`view-transition-name: photo-${photo.slug};`} />
           <div class="r-overlay">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>

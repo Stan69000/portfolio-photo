@@ -24,13 +24,6 @@ const featured = featuredSlug
   : latestPhoto;
 
 const featuredLabel = featuredSlug ? 'Photo du jour' : 'Derni\u00e8re photo';
-const featuredSrcSet = featured
-  ? [...new Set([
-      featured.data.url_thumb ? `${featured.data.url_thumb} 480w` : '',
-      featured.data.url_web ? `${featured.data.url_web} 1280w` : '',
-      featured.data.url ? `${featured.data.url} 2200w` : ''
-    ].filter(Boolean))].join(', ')
-  : '';
 
 const cards = allSeries
   .map((series) => {
@@ -69,7 +62,7 @@ const cards = allSeries
 
     {featured && (
       <a href={featured.data.series ? `/series/${featured.data.series}/` : `/photo/${featured.data.slug}/`} class="hero-image">
-        <img src={featured.data.url} alt={featured.data.title} srcset={featuredSrcSet} sizes="(max-width: 980px) 100vw, 58vw" loading="eager" decoding="async" />
+        <img src={featured.data.url} alt={featured.data.title} loading="eager" decoding="async" />
         <div class="caption">
           <span>{featuredLabel}</span>
           <strong>{featured.data.title}</strong>
