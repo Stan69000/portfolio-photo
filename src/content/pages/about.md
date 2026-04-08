@@ -29,6 +29,20 @@ Aucune régularité n’est annoncée : les images arrivent lorsqu’elles exist
 
 Les photographies sont réalisées avec un **Canon 90D** et un **iPhone 15**.
 
+## Démarche
+
+Je photographie principalement en lumière naturelle, avec une approche simple :
+prendre le temps d’observer, cadrer proprement, puis garder une sélection courte et cohérente.
+
+Le but n’est pas l’accumulation, mais de proposer des séries lisibles et agréables à parcourir.
+
+## Droits d’usage
+
+Les images publiées ici sont protégées par la licence **CC BY-NC-ND 4.0** :
+attribution obligatoire, pas d’usage commercial, pas de modification.
+
+Pour toute demande spécifique (publication, autorisation, tirage), merci de me contacter.
+
 ## Contact
 
 Pour échanger ou en savoir plus :  

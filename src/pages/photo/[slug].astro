@@ -22,12 +22,19 @@ export async function getStaticPaths() {
 
 const { photo, seriesTags, seriesDate, prev, next } = Astro.props;
 const effectiveDate: Date | null = photo.data.date ?? (seriesDate ? new Date(seriesDate) : null);
+const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
+const canonicalPath = `/photo/${photo.data.slug}/`;
+const photoUrl = new URL(canonicalPath, siteBase).toString();
+const seriesPath = photo.data.series ? `/series/${photo.data.series}/` : '';
+const seriesUrl = seriesPath ? new URL(seriesPath, siteBase).toString() : '';
+const pageImage = photo.data.url_web || photo.data.url || '';
 
 const exif = photo.data.exif;
 const exifFields = exif
   ? [
       exif.camera && { label: 'Boîtier', value: exif.camera },
       exif.lens   && { label: 'Objectif', value: exif.lens },
+      exif.focal_length && { label: 'Focale', value: exif.focal_length },
       exif.settings && { label: 'Réglages', value: exif.settings },
       exif.iso    && { label: 'ISO', value: String(exif.iso) }
     ].filter(Boolean)
@@ -42,15 +49,106 @@ for (const tag of effectiveTags) {
   if (!tagGroups[cat]) tagGroups[cat] = [];
   tagGroups[cat].push(val);
 }
+
+const allSeries = await getCollection('series', ({ data }) => data.status === 'published' || data.published);
+const seriesBySlug = new Map(allSeries.map((s) => [s.data.slug, s.data.name]));
+const seriesName = seriesBySlug.get(photo.data.series) ?? photo.data.series.replace(/-/g, ' ');
+
+const allPublished = (await getCollection('photos'))
+  .filter((p) => p.data.status === 'published' && p.data.slug !== photo.data.slug)
+  .map((p) => {
+    const tags = new Set(p.data.tags ?? []);
+    const sharedTags = effectiveTags.filter((t) => tags.has(t)).length;
+    const sameSeries = p.data.series === photo.data.series;
+    const score = (sameSeries ? 5 : 0) + sharedTags * 2;
+    return {
+      slug: p.data.slug,
+      title: p.data.title,
+      series: p.data.series,
+      seriesName: seriesBySlug.get(p.data.series) ?? p.data.series.replace(/-/g, ' '),
+      url: p.data.url_thumb || p.data.url,
+      urlLarge: p.data.url_web || p.data.url,
+      score,
+      date: p.data.date?.getTime() ?? 0
+    };
+  });
+
+const relatedPhotos = allPublished
+  .filter((p) => p.score > 0)
+  .sort((a, b) => b.score - a.score || b.date - a.date)
+  .slice(0, 6);
+
+function buildSrcSet(data: { url: string; url_web?: string; url_thumb?: string }) {
+  const candidates = [
+    data.url_thumb ? { url: data.url_thumb, width: 480 } : null,
+    data.url_web ? { url: data.url_web, width: 1280 } : null,
+    data.url ? { url: data.url, width: 2200 } : null
+  ].filter(Boolean) as { url: string; width: number }[];
+
+  const dedup = candidates.filter((item, index, arr) => arr.findIndex((x) => x.url === item.url) === index);
+  return dedup.length > 1 ? dedup.map((item) => `${item.url} ${item.width}w`).join(', ') : undefined;
+}
+
+const mainSrcSet = buildSrcSet(photo.data);
+
+const imageJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ImageObject',
+  name: photo.data.title,
+  description: photo.data.description || photo.data.title,
+  contentUrl: pageImage,
+  url: photoUrl,
+  ...(effectiveDate ? { datePublished: effectiveDate.toISOString() } : {}),
+  ...(photo.data.exif?.camera ? { model: photo.data.exif.camera } : {}),
+  ...(effectiveTags.length > 0 ? { keywords: effectiveTags.join(', ') } : {})
+};
+
+const breadcrumbItems = [
+  { '@type': 'ListItem', position: 1, name: 'Accueil', item: new URL('/', siteBase).toString() },
+  { '@type': 'ListItem', position: 2, name: 'Photos', item: new URL('/photos/', siteBase).toString() }
+];
+
+if (seriesUrl) {
+  breadcrumbItems.push({
+    '@type': 'ListItem',
+    position: breadcrumbItems.length + 1,
+    name: seriesName,
+    item: seriesUrl
+  });
+}
+
+breadcrumbItems.push({
+  '@type': 'ListItem',
+  position: breadcrumbItems.length + 1,
+  name: photo.data.title,
+  item: photoUrl
+});
+
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: breadcrumbItems
+};
 ---
 
-<Base title={`${photo.data.title} | Portfolio`} description={photo.data.description}>
+<Base
+  title={`${photo.data.title} | Portfolio`}
+  description={photo.data.description || photo.data.title}
+  image={pageImage}
+  type="article"
+  canonicalPath={canonicalPath}
+  jsonLd={[imageJsonLd, breadcrumbJsonLd]}
+>
   <article class="photo-detail">
 
     <div class="image-frame">
       <img
         src={photo.data.url}
         alt={photo.data.title}
+        srcset={mainSrcSet}
+        sizes="(max-width: 900px) 100vw, 88vw"
+        loading="eager"
+        decoding="async"
         style={`view-transition-name: photo-${photo.data.slug};`}
       />
     </div>
@@ -81,6 +179,10 @@ for (const tag of effectiveTags) {
           </div>
           <span class="star-label"></span>
         </div>
+        <div class="share-group">
+          <button type="button" class="share-btn" id="share-copy-btn">Copier le lien</button>
+          <button type="button" class="share-btn" id="share-native-btn">Partager</button>
+        </div>
         {photo.data.for_sale && (
           <span class="for-sale">
             {photo.data.price ? `${photo.data.price} € — tirage` : 'Tirage sur demande'}
@@ -99,7 +201,7 @@ for (const tag of effectiveTags) {
           <div class="meta-item">
             <span class="meta-label">Série</span>
             <a href={`/series/${photo.data.series}/`} class="meta-value meta-link">
-              {photo.data.series.replace(/-/g, ' ')}
+              {seriesName}
             </a>
           </div>
         )}
@@ -137,10 +239,30 @@ for (const tag of effectiveTags) {
 
     </div>
 
+    {relatedPhotos.length > 0 && (
+      <section class="related-photos">
+        <header class="related-head">
+          <h2>Photos similaires</h2>
+          <p>Même univers de série ou tags proches.</p>
+        </header>
+        <div class="related-grid">
+          {relatedPhotos.map((item) => (
+            <a href={`/photo/${item.slug}/`} class="related-card">
+              <img src={item.url} alt={item.title} loading="lazy" decoding="async" />
+              <div class="related-body">
+                <strong>{item.title}</strong>
+                <span>{item.seriesName}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
     <nav class="photo-nav">
       {prev ? (
         <a href={`/photo/${prev.data.slug}/`} class="photo-nav-item photo-nav-prev">
-          <img src={prev.data.url} alt={prev.data.title} />
+          <img src={prev.data.url_thumb || prev.data.url} alt={prev.data.title} loading="lazy" decoding="async" />
           <div class="photo-nav-label">
             <span>← Précédente</span>
             <strong>{prev.data.title}</strong>
@@ -153,7 +275,7 @@ for (const tag of effectiveTags) {
             <span>Suivante →</span>
             <strong>{next.data.title}</strong>
           </div>
-          <img src={next.data.url} alt={next.data.title} />
+          <img src={next.data.url_thumb || next.data.url} alt={next.data.title} loading="lazy" decoding="async" />
         </a>
       ) : <span />}
     </nav>
@@ -273,6 +395,30 @@ for (const tag of effectiveTags) {
     padding: 0.3rem 0.75rem;
   }
 
+  .share-group {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .share-btn {
+    border: 1px solid var(--line);
+    background: rgba(15, 31, 61, 0.3);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .share-btn:hover {
+    color: var(--text);
+    border-color: rgba(116, 143, 255, 0.35);
+    background: rgba(116, 143, 255, 0.1);
+  }
+
   /* Meta grid */
   .meta-grid {
     display: flex;
@@ -389,6 +535,73 @@ for (const tag of effectiveTags) {
     color: var(--text);
   }
 
+  .related-photos {
+    display: grid;
+    gap: 0.8rem;
+    border-top: 1px solid var(--line);
+    padding-top: 1rem;
+  }
+
+  .related-head {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .related-head h2 {
+    font-size: 1.35rem;
+  }
+
+  .related-head p {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+
+  .related-card {
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: rgba(15, 31, 61, 0.4);
+    transition: border-color 180ms ease, transform 180ms ease;
+  }
+
+  .related-card:hover {
+    border-color: rgba(116, 143, 255, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .related-card img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    display: block;
+  }
+
+  .related-body {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.6rem 0.7rem 0.75rem;
+  }
+
+  .related-body strong {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  .related-body span {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
   /* Prev / Next navigation */
   .photo-nav {
     display: grid;
@@ -457,8 +670,59 @@ for (const tag of effectiveTags) {
   }
 
   @media (max-width: 680px) {
+    .related-grid {
+      grid-template-columns: 1fr;
+    }
+
     .photo-nav {
       grid-template-columns: 1fr;
     }
   }
 </style>
+
+<script
+  is:inline
+  define:vars={{
+    slug: photo.data.slug,
+    title: photo.data.title,
+    thumb: photo.data.url_thumb || photo.data.url
+  }}
+>
+  const RECENT_KEY = 'stan-photo-recent-v1';
+
+  try {
+    const currentUrl = `${location.origin}/photo/${slug}/`;
+    const parsed = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    const list = Array.isArray(parsed) ? parsed : [];
+    const updated = [
+      { slug, title, thumb, url: currentUrl, viewedAt: Date.now() },
+      ...list.filter((item) => item?.slug !== slug)
+    ].slice(0, 15);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  } catch {}
+
+  const copyBtn = document.getElementById('share-copy-btn');
+  const nativeBtn = document.getElementById('share-native-btn');
+
+  copyBtn?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      copyBtn.textContent = 'Lien copié';
+      setTimeout(() => { copyBtn.textContent = 'Copier le lien'; }, 1400);
+    } catch {
+      copyBtn.textContent = 'Impossible';
+      setTimeout(() => { copyBtn.textContent = 'Copier le lien'; }, 1400);
+    }
+  });
+
+  nativeBtn?.addEventListener('click', async () => {
+    if (!navigator.share) return;
+    try {
+      await navigator.share({ title, text: title, url: location.href });
+    } catch {}
+  });
+
+  if (!navigator.share && nativeBtn) {
+    nativeBtn.style.display = 'none';
+  }
+</script>
