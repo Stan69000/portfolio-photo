@@ -50,9 +50,6 @@ const breadcrumbJsonLd = {
   ]
 };
 
-function buildSrcSet(url: string) {
-  return `${url} 1280w`;
-}
 ---
 
 <Base
@@ -71,7 +68,7 @@ function buildSrcSet(url: string) {
         data-lightbox-index="0"
         aria-label={`Ouvrir ${hero.title} en plein écran`}
       >
-        <img src={hero.url} alt={hero.title} srcset={buildSrcSet(hero.url)} sizes="(max-width: 980px) 100vw, 65vw" loading="eager" decoding="async" style={`view-transition-name: photo-${hero.slug};`} />
+        <img src={hero.url} alt={hero.title} loading="eager" decoding="async" style={`view-transition-name: photo-${hero.slug};`} />
       </button>
     )}
     <div class="hero-copy">
@@ -154,7 +151,7 @@ function buildSrcSet(url: string) {
         aria-label={`Ouvrir ${photo.title} en plein écran`}
         style={`animation-delay: ${Math.min(index * 40, 400)}ms`}
       >
-        <img src={photo.url} alt={photo.title} srcset={buildSrcSet(photo.url)} sizes="(max-width: 520px) 100vw, (max-width: 980px) 50vw, 33vw" loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
+        <img src={photo.url} alt={photo.title} loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
         <div class="caption">
           <strong>{photo.title}</strong>
           {photo.description && <span>{photo.description}</span>}

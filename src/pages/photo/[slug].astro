@@ -78,18 +78,6 @@ const relatedPhotos = allPublished
   .sort((a, b) => b.score - a.score || b.date - a.date)
   .slice(0, 6);
 
-function buildSrcSet(data: { url: string; url_web?: string; url_thumb?: string }) {
-  const candidates = [
-    data.url_thumb ? { url: data.url_thumb, width: 480 } : null,
-    data.url_web ? { url: data.url_web, width: 1280 } : null,
-    data.url ? { url: data.url, width: 2200 } : null
-  ].filter(Boolean) as { url: string; width: number }[];
-
-  const dedup = candidates.filter((item, index, arr) => arr.findIndex((x) => x.url === item.url) === index);
-  return dedup.length > 1 ? dedup.map((item) => `${item.url} ${item.width}w`).join(', ') : undefined;
-}
-
-const mainSrcSet = buildSrcSet(photo.data);
 
 const imageJsonLd = {
   '@context': 'https://schema.org',
@@ -145,8 +133,6 @@ const breadcrumbJsonLd = {
       <img
         src={photo.data.url}
         alt={photo.data.title}
-        srcset={mainSrcSet}
-        sizes="(max-width: 900px) 100vw, 88vw"
         loading="eager"
         decoding="async"
         style={`view-transition-name: photo-${photo.data.slug};`}

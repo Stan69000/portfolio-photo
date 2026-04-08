@@ -20,8 +20,6 @@ const photos = (await getCollection('photos'))
       series: photo.data.series,
       seriesName: seriesBySlug.get(photo.data.series) ?? photo.data.series,
       url: photo.data.url,
-      urlThumb: photo.data.url_thumb || photo.data.url,
-      urlWeb: photo.data.url_web || photo.data.url,
       description: photo.data.description,
       tags,
       rating: photo.data.rating ?? 0,
@@ -31,15 +29,6 @@ const photos = (await getCollection('photos'))
 
 const seriesList = [...new Set(photos.map((photo) => photo.seriesName))].sort();
 const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b) => a.localeCompare(b, 'fr'));
-
-const buildSrcSet = (photo: { urlThumb: string; urlWeb: string; url: string }) => {
-  const entries = [
-    `${photo.urlThumb} 480w`,
-    `${photo.urlWeb} 1280w`,
-    `${photo.url} 2200w`
-  ];
-  return [...new Set(entries)].join(', ');
-};
 ---
 
 <Base title="Photos | Portfolio" description="Recherche photos par titre, série et tag">
@@ -122,8 +111,6 @@ const buildSrcSet = (photo: { urlThumb: string; urlWeb: string; url: string }) =
           <img
             src={photo.url}
             alt={photo.title}
-            srcset={buildSrcSet(photo)}
-            sizes="(max-width: 400px) 100vw, (max-width: 980px) 50vw, (max-width: 1100px) 33vw, 25vw"
             loading="lazy"
             decoding="async"
             style={`view-transition-name: photo-${photo.slug};`}
