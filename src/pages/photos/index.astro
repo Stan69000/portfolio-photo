@@ -20,6 +20,8 @@ const photos = (await getCollection('photos'))
       series: photo.data.series,
       seriesName: seriesBySlug.get(photo.data.series) ?? photo.data.series,
       url: photo.data.url,
+      urlThumb: photo.data.url_thumb || photo.data.url,
+      urlWeb: photo.data.url_web || photo.data.url,
       description: photo.data.description,
       tags,
       rating: photo.data.rating ?? 0,
@@ -29,6 +31,15 @@ const photos = (await getCollection('photos'))
 
 const seriesList = [...new Set(photos.map((photo) => photo.seriesName))].sort();
 const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b) => a.localeCompare(b, 'fr'));
+
+const buildSrcSet = (photo: { urlThumb: string; urlWeb: string; url: string }) => {
+  const entries = [
+    `${photo.urlThumb} 480w`,
+    `${photo.urlWeb} 1280w`,
+    `${photo.url} 2200w`
+  ];
+  return [...new Set(entries)].join(', ');
+};
 ---
 
 <Base title="Photos | Portfolio" description="Recherche photos par titre, série et tag">
@@ -36,6 +47,14 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   <section class="page-header reveal">
     <h1>Photos</h1>
     <p>Filtrez par série, tag ou titre. Votez, ajoutez en favoris.</p>
+  </section>
+
+  <section class="recent-strip reveal" id="recent-strip" hidden>
+    <div class="recent-head">
+      <h2>Continuer la visite</h2>
+      <button type="button" id="recent-clear">Effacer</button>
+    </div>
+    <div class="recent-list" id="recent-list"></div>
   </section>
 
   <section class="filters reveal">
@@ -103,6 +122,8 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
           <img
             src={photo.url}
             alt={photo.title}
+            srcset={buildSrcSet(photo)}
+            sizes="(max-width: 400px) 100vw, (max-width: 980px) 50vw, (max-width: 1100px) 33vw, 25vw"
             loading="lazy"
             decoding="async"
             style={`view-transition-name: photo-${photo.slug};`}
@@ -156,6 +177,70 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     gap: 0.75rem;
     margin-bottom: 0.5rem;
     align-items: end;
+  }
+
+  .recent-strip {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(10, 22, 48, 0.72);
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .recent-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .recent-head h2 {
+    font-size: 1rem;
+  }
+
+  .recent-head button {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+
+  .recent-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .recent-item {
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    overflow: hidden;
+    display: block;
+    background: rgba(15, 31, 61, 0.45);
+  }
+
+  .recent-item img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  .recent-item span {
+    display: block;
+    padding: 0.35rem 0.45rem 0.4rem;
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
   }
 
   .filters label {
@@ -361,6 +446,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   @media (max-width: 980px) {
     .filters { grid-template-columns: 1fr 1fr; }
     .results-grid { columns: 2; }
+    .recent-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 
   @media (max-width: 620px) {
@@ -377,10 +463,12 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
 
   @media (max-width: 400px) {
     .results-grid { columns: 1; }
+    .recent-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 
 <script is:inline>
+  const RECENT_KEY = 'stan-photo-recent-v1';
   const qInput = document.querySelector('#search-query');
   const sSelect = document.querySelector('#search-series');
   const tSelect = document.querySelector('#search-tag');
@@ -389,12 +477,18 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   const grid = document.querySelector('#search-results');
   const cards = Array.from(document.querySelectorAll('.result-card'));
   const count = document.querySelector('#search-count');
+  const recentStrip = document.querySelector('#recent-strip');
+  const recentList = document.querySelector('#recent-list');
+  const recentClear = document.querySelector('#recent-clear');
 
   const normalize = (v) => (v || '').trim().toLowerCase();
 
   const getVoteScore = (slug) => {
     if (!window.PhotoVotes) return 0;
-    return Number(window.PhotoVotes.getScore(slug) || 0);
+    if (typeof window.PhotoVotes.getScore === 'function') {
+      return Number(window.PhotoVotes.getScore(slug) || 0);
+    }
+    return Number(window.PhotoVotes.getRating?.(slug) || 0);
   };
 
   const runFilter = () => {
@@ -453,5 +547,33 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   window.addEventListener('photo-votes:changed', runFilter);
   window.addEventListener('photo-favorites:changed', runFilter);
 
+  const renderRecent = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+      const recents = Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+      if (!recentStrip || !recentList) return;
+      if (recents.length === 0) {
+        recentStrip.hidden = true;
+        recentList.innerHTML = '';
+        return;
+      }
+      recentStrip.hidden = false;
+      recentList.innerHTML = recents.map((item) => `
+        <a class="recent-item" href="/photo/${item.slug}/">
+          <img src="${item.thumb || ''}" alt="${item.title || ''}" loading="lazy" decoding="async" />
+          <span>${item.title || item.slug}</span>
+        </a>
+      `).join('');
+    } catch {
+      if (recentStrip) recentStrip.hidden = true;
+    }
+  };
+
+  recentClear?.addEventListener('click', () => {
+    localStorage.removeItem(RECENT_KEY);
+    renderRecent();
+  });
+
+  renderRecent();
   runFilter();
 </script>

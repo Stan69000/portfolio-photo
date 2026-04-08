@@ -21,6 +21,7 @@ const photos = defineCollection({
       .object({
         camera: z.string().optional(),
         lens: z.string().optional(),
+        focal_length: z.string().optional(),
         settings: z.string().optional(),
         iso: z.union([z.string(), z.number()]).optional()
       })

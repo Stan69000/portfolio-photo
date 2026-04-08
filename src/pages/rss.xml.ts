@@ -3,6 +3,9 @@ import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
 
 export async function GET(context: APIContext) {
+  const seriesEntries = await getCollection('series');
+  const seriesBySlug = new Map(seriesEntries.map((s) => [s.data.slug, s.data.name]));
+
   const allPhotos = (await getCollection('photos')).filter(
     (p) => p.data.status === 'published' && p.data.date
   );
@@ -14,7 +17,10 @@ export async function GET(context: APIContext) {
   const photoItems = allPhotos.map((p) => ({
     title: p.data.title,
     pubDate: new Date(p.data.date as string),
-    description: p.data.description || p.data.title,
+    description: [
+      `<strong>Série :</strong> ${seriesBySlug.get(p.data.series) || p.data.series}`,
+      p.data.description || p.data.title
+    ].join('<br/>'),
     link: `/photo/${p.data.slug}/`,
     categories: p.data.tags ?? [],
     ...(p.data.url_web

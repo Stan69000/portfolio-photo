@@ -26,9 +26,43 @@ const photos = (await getCollection('photos'))
 
 const allTags = (series.data.tags ?? []).slice(0, 10);
 const hero = photos[0];
+const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
+const canonicalPath = `/series/${series.data.slug}/`;
+const pageUrl = new URL(canonicalPath, siteBase).toString();
+const pageImage = hero?.url || series.data.cover_url || '';
+
+const collectionJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: series.data.name,
+  description: series.data.description,
+  url: pageUrl,
+  ...(pageImage ? { image: pageImage } : {})
+};
+
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Accueil', item: new URL('/', siteBase).toString() },
+    { '@type': 'ListItem', position: 2, name: 'Séries', item: new URL('/series/', siteBase).toString() },
+    { '@type': 'ListItem', position: 3, name: series.data.name, item: pageUrl }
+  ]
+};
+
+function buildSrcSet(url: string) {
+  return `${url} 1280w`;
+}
 ---
 
-<Base title={`${series.data.name} | Portfolio`} description={series.data.description}>
+<Base
+  title={`${series.data.name} | Portfolio`}
+  description={series.data.description}
+  image={pageImage}
+  type="article"
+  canonicalPath={canonicalPath}
+  jsonLd={[collectionJsonLd, breadcrumbJsonLd]}
+>
   <section class="hero reveal">
     {hero && (
       <button
@@ -37,7 +71,7 @@ const hero = photos[0];
         data-lightbox-index="0"
         aria-label={`Ouvrir ${hero.title} en plein écran`}
       >
-        <img src={hero.url} alt={hero.title} loading="eager" decoding="async" style={`view-transition-name: photo-${hero.slug};`} />
+        <img src={hero.url} alt={hero.title} srcset={buildSrcSet(hero.url)} sizes="(max-width: 980px) 100vw, 65vw" loading="eager" decoding="async" style={`view-transition-name: photo-${hero.slug};`} />
       </button>
     )}
     <div class="hero-copy">
@@ -120,7 +154,7 @@ const hero = photos[0];
         aria-label={`Ouvrir ${photo.title} en plein écran`}
         style={`animation-delay: ${Math.min(index * 40, 400)}ms`}
       >
-        <img src={photo.url} alt={photo.title} loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
+        <img src={photo.url} alt={photo.title} srcset={buildSrcSet(photo.url)} sizes="(max-width: 520px) 100vw, (max-width: 980px) 50vw, 33vw" loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
         <div class="caption">
           <strong>{photo.title}</strong>
           {photo.description && <span>{photo.description}</span>}

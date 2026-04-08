@@ -5,11 +5,21 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  canonicalPath?: string;
 }
 
 const {
   title = 'Portfolio Photo',
-  description = 'Portfolio photo personnel'
+  description = 'Portfolio photo personnel',
+  image = '',
+  type = 'website',
+  noindex = false,
+  jsonLd,
+  canonicalPath
 } = Astro.props;
 
 const { pathname } = Astro.url;
@@ -18,6 +28,14 @@ const isActive = (href: string) =>
 
 const settingsEntries = await getCollection('settings');
 const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
+const baseSiteUrl = Astro.site ?? new URL('https://stan-bouchet.eu');
+const canonicalUrl = new URL(canonicalPath ?? pathname, baseSiteUrl).toString();
+const ogImage = image
+  ? (image.startsWith('http://') || image.startsWith('https://')
+    ? image
+    : new URL(image, baseSiteUrl).toString())
+  : '';
+const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---
 
 <!doctype html>
@@ -26,6 +44,21 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <meta name="robots" content={noindex ? 'noindex,nofollow' : 'index,follow'} />
+    <link rel="canonical" href={canonicalUrl} />
+
+    <meta property="og:site_name" content={wordmark} />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+
+    <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
     <title>{title}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,6 +68,9 @@ const wordmark = settingsEntries[0]?.data?.site_title || 'Stan';
     />
     <script type="module" src="/scripts/votes.js"></script>
     <link rel="alternate" type="application/rss+xml" title="Stan Bouchet — Photographie" href="/rss.xml" />
+    {jsonLdList.map((item) => (
+      <script type="application/ld+json" set:html={JSON.stringify(item)} />
+    ))}
   </head>
   <body>
     <header class="site-header">

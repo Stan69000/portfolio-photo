@@ -13,7 +13,7 @@ interface Props {
 const { photos } = Astro.props;
 ---
 
-<div id="lightbox" class="lightbox" aria-hidden="true" hidden>
+<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Visionneuse photo" aria-hidden="true" tabindex="-1" hidden>
   <div class="lb-backdrop"></div>
 
   <div class="lb-toolbar">
@@ -54,7 +54,7 @@ const { photos } = Astro.props;
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
 
-  <div class="lb-counter"></div>
+  <div class="lb-counter" aria-live="polite"></div>
 </div>
 
 <style>
@@ -124,6 +124,13 @@ const { photos } = Astro.props;
   .lb-btn:hover {
     background: rgba(255, 255, 255, 0.14);
     color: #fff;
+  }
+
+  .lb-btn:focus-visible,
+  .lb-nav:focus-visible,
+  .lb-star:focus-visible {
+    outline: 2px solid #8da8ff;
+    outline-offset: 2px;
   }
 
   /* Nav arrows */
@@ -343,6 +350,7 @@ const { photos } = Astro.props;
   let isPanning = false;
   let panAnchorX = 0;
   let panAnchorY = 0;
+  let lastFocused = null;
 
   const applyTransform = () => {
     wrap.style.transform = zoom > 1
@@ -418,6 +426,7 @@ const { photos } = Astro.props;
   };
 
   const open = (nextIndex) => {
+    lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     index = (nextIndex + items.length) % items.length;
     zoom = 1; panX = 0; panY = 0;
     sync();
@@ -425,12 +434,14 @@ const { photos } = Astro.props;
     root.hidden = false;
     root.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    (closeBtn || root).focus();
   };
 
   const close = () => {
     root.hidden = true;
     root.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+    if (lastFocused) lastFocused.focus();
   };
 
   const navigate = (step) => {
@@ -485,6 +496,20 @@ const { photos } = Astro.props;
   // ── Keyboard ──────────────────────────────────────────────────────────────
   document.addEventListener('keydown', (event) => {
     if (root.hidden) return;
+    if (event.key === 'Tab') {
+      const focusables = Array.from(root.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])'))
+        .filter((el) => !el.hasAttribute('disabled'));
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
     if (event.key === 'Escape') close();
     if (event.key === 'ArrowRight' && zoom <= 1) navigate(1);
     if (event.key === 'ArrowLeft' && zoom <= 1) navigate(-1);

@@ -46,7 +46,7 @@ const cards = seriesEntries
         <a href={`/series/${s.slug}/`} class="s-card reveal">
           <div class="s-img-wrap">
             {s.cover
-              ? <img src={s.cover} alt={s.name} loading="lazy" />
+              ? <img src={s.cover} alt={s.name} sizes="(max-width: 640px) 100vw, 33vw" loading="lazy" decoding="async" />
               : <div class="s-placeholder" aria-hidden="true" />}
             <div class="s-overlay">
               <span class="s-cta">Voir la série →</span>
