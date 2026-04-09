@@ -92,6 +92,7 @@ const SKIP_AUTH            = process.env.SKIP_AUTH            === 'true'; // tru
 const sessions    = new Map(); // id → { user, expires }
 const oauthStates = new Map(); // state → expiry timestamp
 const rateBuckets = new Map();
+let deployInProgress = false;
 
 function signVal(v)  { return crypto.createHmac('sha256', SESSION_SECRET).update(v).digest('base64url'); }
 
@@ -246,43 +247,36 @@ function gitCommit(msg) {
 
 function gitPush() {
   const opts = { cwd: __dirname, stdio: 'pipe' };
-  const stashLabel = `admin-autostash-${Date.now()}`;
-  let didStash = false;
   try {
-    const dirty = execFileSync('git', ['status', '--porcelain'], opts).toString().trim();
-    if (dirty) {
-      execFileSync('git', ['stash', 'push', '--include-untracked', '-m', stashLabel], opts);
-      didStash = true;
-    }
     // 1. Récupérer les derniers commits de GitHub (code Mac)
     execFileSync('git', ['fetch', 'origin', 'main'], opts);
     // 2. Replacer nos commits YAML sur la dernière version Mac (sans toucher au code)
     try {
-      execFileSync('git', ['rebase', 'origin/main'], opts);
+      execFileSync('git', ['rebase', '--autostash', 'origin/main'], opts);
     } catch(rebaseErr) {
-      // En cas de conflit inattendu : annuler le rebase et signaler
-      try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
-      const msg = (rebaseErr.stderr||rebaseErr.stdout||Buffer.from('')).toString().trim()||rebaseErr.message;
-      console.error('gitPush rebase error:', msg);
-      return { ok: false, error: 'Conflit rebase : ' + msg };
+      const firstMsg = (rebaseErr.stderr||rebaseErr.stdout||Buffer.from('')).toString().trim()||rebaseErr.message;
+      const nonIndexed = /modifications non index/i.test(firstMsg) || /cannot rebase: you have unstaged changes/i.test(firstMsg);
+      if (nonIndexed) {
+        try {
+          execFileSync('git', ['stash', 'push', '--include-untracked', '-m', `admin-retry-${Date.now()}`], opts);
+          execFileSync('git', ['rebase', '--autostash', 'origin/main'], opts);
+        } catch (retryErr) {
+          try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
+          const retryMsg = (retryErr.stderr||retryErr.stdout||Buffer.from('')).toString().trim()||retryErr.message;
+          console.error('gitPush rebase retry error:', retryMsg);
+          return { ok: false, error: 'Conflit rebase : ' + retryMsg };
+        }
+      } else {
+        try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
+        console.error('gitPush rebase error:', firstMsg);
+        return { ok: false, error: 'Conflit rebase : ' + firstMsg };
+      }
     }
     // 3. Push normal (pas de --force : le rebase garantit qu'on est en avance)
     execFileSync('git', ['push', 'origin', 'HEAD:main'], opts);
-    if (didStash) {
-      try {
-        execFileSync('git', ['stash', 'pop'], opts);
-      } catch (stashErr) {
-        const msg = (stashErr.stderr || stashErr.stdout || Buffer.from('')).toString().trim() || stashErr.message;
-        console.error('gitPush stash pop error:', msg);
-        return { ok: false, error: 'Push effectué, mais restauration du stash échouée: ' + msg };
-      }
-    }
     return { ok: true };
   } catch(e) {
-    if (didStash) {
-      try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
-      try { execFileSync('git', ['stash', 'pop'], opts); } catch(_) {}
-    }
+    try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
     const msg = (e.stderr||e.stdout||Buffer.from('')).toString().trim()||e.message;
     console.error('gitPush error:', msg);
     return { ok: false, error: msg };
@@ -1916,6 +1910,7 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── API: increment view
   } else if (req.method==='POST' && p.startsWith('/api/view/')) {
+    if (deployInProgress) { json({ ok: false, error: 'deploiement en cours' }, 503); return; }
     const slug=p.slice(10);
     if (!isValidSlug(slug)) { json({ ok: false, error: 'slug invalide' }, 400); return; }
     if (!getKnownPhotoSlugs().has(slug)) { json({ ok: false, error: 'photo inconnue' }, 404); return; }
@@ -2023,7 +2018,13 @@ updatePreview();
 
   // ── Deploy (git push)
   } else if (req.method==='POST' && p==='/deploy') {
+    if (deployInProgress) {
+      json({ ok: false, message: 'Déploiement déjà en cours' }, 409);
+      return;
+    }
+    deployInProgress = true;
     const result = gitPush();
+    deployInProgress = false;
     if (result.ok) {
       json({ ok: true, message: '🚀 GitHub Action déclenchée — site MAJ sur O2Switch (~2 min)' });
     } else {
@@ -2059,6 +2060,7 @@ updatePreview();
 
     // POST /api/ratings/:slug  body: { score: 1-5 }
     } else if (req.method === 'POST' && p.startsWith('/api/ratings/')) {
+      if (deployInProgress) { json({ ok: false, error: 'deploiement en cours' }, 503); return; }
       const slug = decodeURIComponent(p.slice('/api/ratings/'.length));
       if (!isValidSlug(slug)) { json({ ok: false, error: 'slug invalide' }, 400); return; }
       if (!getKnownPhotoSlugs().has(slug)) { json({ ok: false, error: 'photo inconnue' }, 404); return; }
