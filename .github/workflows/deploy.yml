@@ -72,13 +72,31 @@ jobs:
             */) ;;
             *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
           esac
+          ADMIN_GRANDPARENT="$(dirname "${ADMIN_PARENT%/}")"
+          case "$ADMIN_GRANDPARENT" in
+            .|/) ADMIN_GRANDPARENT="/" ;;
+            */) ;;
+            *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
+          esac
 
-          for TARGET_DIR in "$ADMIN_DIR" "$ADMIN_PARENT"; do
-            echo "Restart marker in ${TARGET_DIR}tmp/restart.txt"
+          TARGET_DIRS="$ADMIN_DIR
+$ADMIN_PARENT
+${ADMIN_DIR}public/
+${ADMIN_PARENT}public/
+${ADMIN_GRANDPARENT}public/"
+
+          echo "$TARGET_DIRS" | while IFS= read -r TARGET_DIR; do
+            [ -z "$TARGET_DIR" ] && continue
+            echo "Passenger markers in ${TARGET_DIR}tmp/"
             echo "${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
               --ftp-create-dirs \
               -T - \
               "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}tmp/restart.txt" \
+              --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
+            echo "force-restart-${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
+              --ftp-create-dirs \
+              -T - \
+              "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}tmp/always_restart.txt" \
               --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
           done
 
