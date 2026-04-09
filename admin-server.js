@@ -6,7 +6,16 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { readFileSync } from "fs";
 // charge .env manuellement (pas de dep dotenv)
-try { const envLines = readFileSync(new URL(".env", import.meta.url)).toString().split("\n"); for (const l of envLines) { const [k,...v]=l.split("="); if(k&&v.length) process.env[k.trim()]=v.join("=").trim(); } } catch {}
+try {
+  const envLines = readFileSync(new URL(".env", import.meta.url)).toString().split("\n");
+  for (const l of envLines) {
+    const [k, ...v] = l.split("=");
+    if (!k || !v.length) continue;
+    const key = k.trim();
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = v.join("=").trim();
+  }
+} catch {}
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import Busboy from 'busboy';
@@ -217,7 +226,15 @@ const writeYaml = (f, d) => fs.writeFileSync(f, yaml.dump(d, { lineWidth: -1 }))
 
 function readPhotos() {
   return fs.readdirSync(CFG.photosDir).filter(f => f.endsWith('.yaml'))
-    .map(file => { try { return { file, ...readYaml(path.join(CFG.photosDir, file)) }; } catch { return null; } })
+    .map(file => {
+      try {
+        const abs = path.join(CFG.photosDir, file);
+        const stat = fs.statSync(abs);
+        return { file, _createdAt: stat.birthtimeMs || stat.ctimeMs || stat.mtimeMs, ...readYaml(abs) };
+      } catch {
+        return null;
+      }
+    })
     .filter(Boolean)
     .sort((a,b) => (b.date||'').toString().localeCompare((a.date||'').toString()));
 }
@@ -226,6 +243,49 @@ function readSeries() {
   return fs.readdirSync(CFG.seriesDir).filter(f => f.endsWith('.yaml'))
     .map(file => { try { return { file, ...readYaml(path.join(CFG.seriesDir, file)) }; } catch { return null; } })
     .filter(Boolean);
+}
+
+function normalizeStatus(status) {
+  return ['published', 'draft', 'trash', 'archived'].includes(status) ? status : 'published';
+}
+
+function parseTagsString(raw) {
+  if (!raw) return [];
+  return raw.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
+function normalizeTags(tags) {
+  const seen = new Set();
+  const out = [];
+  for (const tag of Array.isArray(tags) ? tags : []) {
+    const t = String(tag || '').trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
+function getTagCatalog() {
+  return [...new Set(readPhotos().flatMap((p) => Array.isArray(p.tags) ? p.tags : []))].sort((a, b) => a.localeCompare(b));
+}
+
+function filterKnownTags(inputTags, strict = false) {
+  const tags = normalizeTags(inputTags);
+  if (!strict) return { tags, rejected: [] };
+  const catalog = getTagCatalog();
+  if (!catalog.length) return { tags, rejected: [] };
+  const map = new Map(catalog.map((t) => [t.toLowerCase(), t]));
+  const kept = [];
+  const rejected = [];
+  for (const t of tags) {
+    const normalized = map.get(t.toLowerCase());
+    if (normalized) kept.push(normalized);
+    else rejected.push(t);
+  }
+  return { tags: normalizeTags(kept), rejected };
 }
 
 function readSettings() {
@@ -311,6 +371,8 @@ function saveViews(v) {
 function savePhoto(file, updates) {
   const fp = path.join(CFG.photosDir, file);
   const data = { ...readYaml(fp), ...updates };
+  if ('status' in data) data.status = normalizeStatus(data.status);
+  if ('tags' in data) data.tags = normalizeTags(data.tags);
   if (data.exif && !Object.values(data.exif).some(Boolean)) delete data.exif;
   writeYaml(fp, data);
 }
@@ -540,7 +602,22 @@ h2{font-size:1rem;color:#748fff;margin-bottom:1rem}
 .filter-btn.active,.filter-btn:hover{background:#748fff22;border-color:#748fff55;color:#748fff}
 .search{background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.35rem .75rem;font-size:.82rem;width:220px}
 .search:focus{outline:none;border-color:#748fff}
+.toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem;margin:.25rem 0 1rem}
+.toolbar label{font-size:.72rem;color:#9fb2d4;margin-bottom:.2rem;display:block}
+.toolbar select{padding:.38rem .65rem;font-size:.8rem}
+.view-toggle{display:flex;gap:.4rem;justify-content:flex-end;align-items:end}
+.meta-warn{background:#3d1a00;border:1px solid #ff7a4a44;border-radius:999px;padding:.1rem .45rem;font-size:.65rem;color:#ff9a6a}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.grid.compact{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.6rem}
+.grid.compact .card-img{aspect-ratio:1/1}
+.grid.compact .card-body{padding:.55rem}
+.grid.compact .card-actions{display:none}
+.list{display:flex;flex-direction:column;gap:.5rem}
+.list .card{display:grid;grid-template-columns:96px 1fr;align-items:stretch}
+.list .card-img{aspect-ratio:auto;height:100%;min-height:96px}
+.list .card-body{padding:.55rem .7rem}
+.list .card-title{white-space:normal}
+.list .card-actions{margin-top:.45rem}
 .card{background:#0f1f3d;border:1px solid #243a65;border-radius:.8rem;overflow:hidden;transition:border-color .2s;position:relative}
 .card:hover{border-color:#748fff44}
 .card-check{position:absolute;top:.6rem;left:.6rem;z-index:2;width:1.2rem;height:1.2rem;cursor:pointer;accent-color:#748fff}
@@ -553,6 +630,7 @@ h2{font-size:1rem;color:#748fff;margin-bottom:1rem}
 .status-badge{border-radius:999px;padding:.1rem .55rem;font-size:.7rem;font-weight:600}
 .status-published{background:#1a3d1a;color:#7aff7a}
 .status-draft{background:#3d2a00;color:#ffb347}
+.status-archived{background:#1d2d3d;color:#8bc9ff}
 .status-trash{background:#3d0a0a;color:#ff7a7a}
 .card-actions{display:flex;gap:.5rem;flex-wrap:wrap}
 .btn{padding:.3rem .8rem;border-radius:999px;border:1px solid #243a65;background:none;color:#9fb2d4;font-size:.75rem;cursor:pointer;display:inline-block}
@@ -776,90 +854,242 @@ setInterval(updateDeployBadge, 15000);
 }
 
 // ─── PHOTOS PAGE ──────────────────────────────────────────────────────────────
-function photosPage(photos, filter='all', search='', msg='') {
+function photosPage(photos, params = {}, msg = '') {
+  const {
+    filter = 'all',
+    search = '',
+    series = '',
+    year = '',
+    location = '',
+    tag = '',
+    sort = 'date_desc',
+    view = 'grid',
+  } = params;
+
+  const safeFilter = ['all', 'published', 'draft', 'archived', 'trash', 'notags'].includes(filter) ? filter : 'all';
+  const safeSort = ['date_desc', 'date_asc', 'created_desc', 'created_asc', 'title_asc', 'title_desc', 'series_asc'].includes(sort) ? sort : 'date_desc';
+  const safeView = ['grid', 'compact', 'list'].includes(view) ? view : 'grid';
+  const allSeries = readSeries();
+  const seriesMap = Object.fromEntries(allSeries.map((s) => [s.slug, s.name]));
+  const catalogTags = getTagCatalog();
+
   const counts = {
-    all: photos.filter(p=>p.status!=='trash').length,
-    published: photos.filter(p=>p.status==='published').length,
-    draft: photos.filter(p=>p.status==='draft').length,
-    trash: photos.filter(p=>p.status==='trash').length,
-    notags: photos.filter(p=>p.status!=='trash'&&(!p.tags||p.tags.length===0)).length,
+    all: photos.filter((p) => normalizeStatus(p.status) !== 'trash').length,
+    published: photos.filter((p) => normalizeStatus(p.status) === 'published').length,
+    draft: photos.filter((p) => normalizeStatus(p.status) === 'draft').length,
+    archived: photos.filter((p) => normalizeStatus(p.status) === 'archived').length,
+    trash: photos.filter((p) => normalizeStatus(p.status) === 'trash').length,
+    notags: photos.filter((p) => normalizeStatus(p.status) !== 'trash' && (!p.tags || p.tags.length === 0)).length,
   };
-  let list = filter==='trash' ? photos.filter(p=>p.status==='trash')
-    : filter==='notags' ? photos.filter(p=>p.status!=='trash'&&(!p.tags||p.tags.length===0))
-    : filter!=='all' ? photos.filter(p=>p.status===filter)
-    : photos.filter(p=>p.status!=='trash');
-  if (search) {
-    const q=search.toLowerCase();
-    list=list.filter(p=>p.title?.toLowerCase().includes(q)||p.tags?.some(t=>t.toLowerCase().includes(q))||p.series?.toLowerCase().includes(q));
-  }
+
+  const seriesOpts = allSeries
+    .map((s) => '<option value="' + s.slug + '"' + (series === s.slug ? ' selected' : '') + '>' + s.name + '</option>')
+    .join('');
+  const years = [...new Set(photos.map((p) => (p.date || '').toString().slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))].sort((a, b) => b.localeCompare(a));
+  const yearsOpts = years.map((y) => '<option value="' + y + '"' + (year === y ? ' selected' : '') + '>' + y + '</option>').join('');
+
+  const locationSet = new Set();
+  photos.forEach((p) => (p.tags || []).forEach((t) => {
+    const i = t.indexOf(':');
+    if (i <= 0) return;
+    const cat = t.slice(0, i).trim().toLowerCase();
+    const val = t.slice(i + 1).trim();
+    if (cat === 'lieu' && val) locationSet.add(val);
+  }));
+  const locations = [...locationSet].sort((a, b) => a.localeCompare(b, 'fr'));
+  const locationOpts = locations.map((l) => '<option value="' + l.replace(/"/g, '&quot;') + '"' + (location === l ? ' selected' : '') + '>' + l + '</option>').join('');
+  const tagOpts = catalogTags.map((t) => '<option value="' + t.replace(/"/g, '&quot;') + '"' + (tag === t ? ' selected' : '') + '>' + t + '</option>').join('');
+
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
-  const cardsHtml = list.map(p=>{
-    const img=p.url_thumb||p.url_web||p.url||'';
-    const st=p.status||'published';
-    const imgHtml = img ? '<img class="card-img" src="' + img + '" alt="' + p.title + '" loading="lazy">' : '<div class="card-img"></div>';
-    const stLabel = st==='published'?'En ligne':st==='draft'?'Brouillon':'Corbeille';
-    const seriesHtml = p.series ? '<span>📁 ' + p.series + '</span>' : '';
-    const hasTags = p.tags&&p.tags.length>0;
-    const noTagBadge = !hasTags&&st!=='trash' ? '<span style="background:#3d1a00;border:1px solid #ff7a4a44;border-radius:999px;padding:.1rem .45rem;font-size:.65rem;color:#ff9a6a">sans tags</span>' : '';
-    const tagsHtml = (p.tags||[]).slice(0,2).map(t=>{const pTag=parseTag(t);const col=catColor(pTag.cat);return '<span class="tag" style="border-color:'+col+'33;color:'+col+'" onclick="window.location=\'/?filter='+filter+'&search='+encodeURIComponent(t)+'\'">'+t+'</span>';}).join('');
-    const safeTitle = p.title.replace(/'/g,"\\'");
-    const actionsHtml = st!=='trash'
-      ? '<button type="button" class="btn btn-sm btn-danger" onclick="moveToTrash(\'' + p.file + '\',\'' + safeTitle + '\')">Corbeille</button>'
-      : '<button type="button" class="btn btn-sm" onclick="restore(\'' + p.file + '\')">Restaurer</button>\n          <button type="button" class="btn btn-sm btn-danger" onclick="hardDelete(\'' + p.file + '\',\'' + safeTitle + '\')">Supprimer</button>';
-    return `<div class="card">
-  <input type="checkbox" class="card-check" name="sel" value="${p.file}">
-  ${imgHtml}
-  <div class="card-body">
-    <div class="card-title" title="${p.title}">${p.title}</div>
-    <div class="card-meta">
-      <span class="status-badge status-${st}">${stLabel}</span>
-      ${seriesHtml}
-      ${noTagBadge}
-      ${tagsHtml}
-    </div>
-    <div class="card-actions">
-      <a href="/edit/${p.file}" class="btn btn-sm">Modifier</a>
-      ${actionsHtml}
-    </div>
-  </div></div>`;
-  }).join('');
+  const photosPayload = photos.map((p) => ({
+    file: p.file,
+    title: p.title || '',
+    slug: p.slug || '',
+    series: p.series || '',
+    seriesName: seriesMap[p.series] || p.series || '',
+    date: p.date || '',
+    createdAt: p._createdAt || 0,
+    status: normalizeStatus(p.status),
+    tags: Array.isArray(p.tags) ? p.tags : [],
+    img: p.url_thumb || p.url_web || p.url || '',
+  }));
+  const payloadJson = JSON.stringify(photosPayload);
+  const catalogJson = JSON.stringify(catalogTags);
+  const seriesNamesJson = JSON.stringify(seriesMap);
+
   return layout('Photos', `
-<h1>Photos <span style="color:#9fb2d4;font-size:.85rem;font-weight:400">${list.length} affiché${list.length>1?'s':''}</span></h1>
-${limitBar(counts.all, LIMITS.photos.recommended, LIMITS.photos.max, 'Photos (publiées + brouillons, hors corbeille)')}
+<h1>Photos <span id="photos-count" style="color:#9fb2d4;font-size:.85rem;font-weight:400"></span></h1>
+${limitBar(counts.all, LIMITS.photos.recommended, LIMITS.photos.max, 'Photos (publiées + brouillons + archivées, hors corbeille)')}
 ${msgHtml}
 <div class="filters">
-  <a href="/?filter=all" class="filter-btn ${filter==='all'?'active':''}">Tous (${counts.all})</a>
-  <a href="/?filter=published" class="filter-btn ${filter==='published'?'active':''}">En ligne (${counts.published})</a>
-  <a href="/?filter=draft" class="filter-btn ${filter==='draft'?'active':''}">Brouillons (${counts.draft})</a>
-  <a href="/?filter=trash" class="filter-btn ${filter==='trash'?'active':''}">Corbeille (${counts.trash})</a>
-  <a href="/?filter=notags" class="filter-btn ${filter==='notags'?'active':''}" style="${counts.notags>0?'border-color:#ff7a4a55;color:#ff9a6a':''}">🏷 Sans tags (${counts.notags})</a>
-  <form method="GET" style="margin-left:auto">
-    <input type="hidden" name="filter" value="${filter}">
-    <input class="search" type="search" name="search" placeholder="Rechercher…" value="${search}" oninput="this.form.submit()">
-  </form>
+  <button type="button" data-filter="all" class="filter-btn ${safeFilter==='all'?'active':''}">Tous (${counts.all})</button>
+  <button type="button" data-filter="published" class="filter-btn ${safeFilter==='published'?'active':''}">En ligne (${counts.published})</button>
+  <button type="button" data-filter="draft" class="filter-btn ${safeFilter==='draft'?'active':''}">Brouillons (${counts.draft})</button>
+  <button type="button" data-filter="archived" class="filter-btn ${safeFilter==='archived'?'active':''}">Archivées (${counts.archived})</button>
+  <button type="button" data-filter="trash" class="filter-btn ${safeFilter==='trash'?'active':''}">Corbeille (${counts.trash})</button>
+  <button type="button" data-filter="notags" class="filter-btn ${safeFilter==='notags'?'active':''}" style="${counts.notags>0?'border-color:#ff7a4a55;color:#ff9a6a':''}">🏷 Sans tags (${counts.notags})</button>
+  <input id="search-input" class="search" type="search" placeholder="Rechercher…" value="${search.replace(/"/g, '&quot;')}" style="margin-left:auto">
 </div>
+<div class="toolbar">
+  <div><label>Série</label><select id="series-filter"><option value="">Toutes</option>${seriesOpts}</select></div>
+  <div><label>Année</label><select id="year-filter"><option value="">Toutes</option>${yearsOpts}</select></div>
+  <div><label>Lieu (tag Lieu:)</label><select id="location-filter"><option value="">Tous</option>${locationOpts}</select></div>
+  <div><label>Tag</label><select id="tag-filter"><option value="">Tous</option>${tagOpts}</select></div>
+  <div><label>Trier par</label><select id="sort-select">
+    <option value="date_desc"${safeSort==='date_desc'?' selected':''}>Date prise (récent → ancien)</option>
+    <option value="date_asc"${safeSort==='date_asc'?' selected':''}>Date prise (ancien → récent)</option>
+    <option value="created_desc"${safeSort==='created_desc'?' selected':''}>Date d'ajout (récent → ancien)</option>
+    <option value="created_asc"${safeSort==='created_asc'?' selected':''}>Date d'ajout (ancien → récent)</option>
+    <option value="title_asc"${safeSort==='title_asc'?' selected':''}>Nom (A → Z)</option>
+    <option value="title_desc"${safeSort==='title_desc'?' selected':''}>Nom (Z → A)</option>
+    <option value="series_asc"${safeSort==='series_asc'?' selected':''}>Série (A → Z)</option>
+  </select></div>
+  <div class="view-toggle">
+    <button type="button" class="btn btn-sm" data-view="grid">Grille</button>
+    <button type="button" class="btn btn-sm" data-view="compact">Compacte</button>
+    <button type="button" class="btn btn-sm" data-view="list">Liste</button>
+  </div>
+</div>
+
 <form id="batch-form">
 <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
   <button type="button" class="btn btn-sm" onclick="selectAll()">Tout sélectionner</button>
   <button type="button" class="btn btn-sm" onclick="selectNone()">Désélectionner</button>
   <button type="button" class="btn btn-sm" onclick="batchAction('publish')">→ En ligne</button>
   <button type="button" class="btn btn-sm" onclick="batchAction('draft')">→ Brouillon</button>
+  <button type="button" class="btn btn-sm" onclick="batchAction('archived')">→ Archiver</button>
   <button type="button" class="btn btn-sm btn-danger" onclick="batchAction('trash')">→ Corbeille</button>
   <button type="button" class="btn btn-sm" onclick="batchTagModal()" style="border-color:#748fff55;color:#748fff">🏷 Ajouter des tags</button>
-  ${filter==='trash' ? '<button type="button" class="btn btn-sm btn-danger" onclick="batchDelete()">🗑 Supprimer définitivement</button>' : ''}
+  <button type="button" class="btn btn-sm" onclick="batchSeriesModal()" style="border-color:#748fff55;color:#748fff">📁 Assigner série</button>
+  <button type="button" class="btn btn-sm btn-danger" id="batch-delete-btn" onclick="batchDelete()" style="display:none">🗑 Supprimer définitivement</button>
   <a href="/batch" class="btn btn-sm">Renommer par lot</a>
 </div>
-<div class="grid">
-${cardsHtml}
-</div></form>
+<div id="photos-grid" class="grid"></div>
+</form>
+<datalist id="known-tags">${catalogTags.map((t) => '<option value="' + t.replace(/"/g, '&quot;') + '">').join('')}</datalist>
 <script>
+const allPhotos=${payloadJson};
+const knownTags=${catalogJson};
+const seriesNames=${seriesNamesJson};
+const state={
+  filter:'${safeFilter}',
+  search:'${search.replace(/'/g, "\\'")}',
+  series:'${series.replace(/'/g, "\\'")}',
+  year:'${year.replace(/'/g, "\\'")}',
+  location:'${location.replace(/'/g, "\\'")}',
+  tag:'${tag.replace(/'/g, "\\'")}',
+  sort:'${safeSort}',
+  view:'${safeView}',
+};
+const debounced = (()=>{ let t; return (fn)=>{ clearTimeout(t); t=setTimeout(fn,220); }; })();
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function buildParams(){
+  const p=new URLSearchParams();
+  for(const k of ['filter','search','series','year','location','tag','sort','view']){
+    if(state[k]) p.set(k,state[k]);
+  }
+  return p;
+}
+function syncUrl(){ history.replaceState({},'', '/?'+buildParams().toString()); }
+function hasLocation(photo, wanted){
+  if(!wanted) return true;
+  return (photo.tags||[]).some((t)=>{
+    const i=t.indexOf(':');
+    if(i<=0) return false;
+    const cat=t.slice(0,i).trim().toLowerCase();
+    const val=t.slice(i+1).trim();
+    return cat==='lieu' && val===wanted;
+  });
+}
+function applyFilters(){
+  let list=allPhotos.slice();
+  if(state.filter==='trash') list=list.filter((p)=>p.status==='trash');
+  else if(state.filter==='notags') list=list.filter((p)=>p.status!=='trash'&&(!p.tags||p.tags.length===0));
+  else if(state.filter!=='all') list=list.filter((p)=>p.status===state.filter);
+  else list=list.filter((p)=>p.status!=='trash');
+
+  if(state.search){
+    const q=state.search.toLowerCase();
+    list=list.filter((p)=>p.title.toLowerCase().includes(q)||p.series.toLowerCase().includes(q)||(p.seriesName||'').toLowerCase().includes(q)||(p.tags||[]).some((t)=>t.toLowerCase().includes(q)));
+  }
+  if(state.series) list=list.filter((p)=>p.series===state.series);
+  if(state.year) list=list.filter((p)=>(p.date||'').slice(0,4)===state.year);
+  if(state.location) list=list.filter((p)=>hasLocation(p,state.location));
+  if(state.tag) list=list.filter((p)=>(p.tags||[]).includes(state.tag));
+
+  const cmp=(a,b)=>String(a||'').localeCompare(String(b||''), 'fr', { sensitivity:'base' });
+  if(state.sort==='date_desc') list.sort((a,b)=>cmp(b.date,a.date));
+  if(state.sort==='date_asc') list.sort((a,b)=>cmp(a.date,b.date));
+  if(state.sort==='created_desc') list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(state.sort==='created_asc') list.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  if(state.sort==='title_asc') list.sort((a,b)=>cmp(a.title,b.title));
+  if(state.sort==='title_desc') list.sort((a,b)=>cmp(b.title,a.title));
+  if(state.sort==='series_asc') list.sort((a,b)=>cmp(a.seriesName,b.seriesName)||cmp(a.title,b.title));
+  return list;
+}
+function cardHtml(p){
+  const st=p.status||'published';
+  const stLabel=st==='published'?'En ligne':st==='draft'?'Brouillon':st==='archived'?'Archivée':'Corbeille';
+  const metaMissing=[];
+  if(!p.title) metaMissing.push('titre');
+  if(!p.series) metaMissing.push('série');
+  if(!p.tags||!p.tags.length) metaMissing.push('tags');
+  if(!p.date) metaMissing.push('date');
+  const warn = st!=='trash' && metaMissing.length
+    ? '<span class="meta-warn">⚠︎ incomplet: '+metaMissing.join(', ')+'</span>'
+    : '';
+  const img = p.img ? '<img class="card-img" src="'+esc(p.img)+'" alt="'+esc(p.title)+'" loading="lazy">' : '<div class="card-img"></div>';
+  const tags=(p.tags||[]).slice(0,3).map((t)=>'<span class="tag" onclick="quickTag(\\''+esc(t)+'\\')">'+esc(t)+'</span>').join('');
+  const safeTitle = esc(p.title);
+  const actions = st!=='trash'
+    ? '<button type="button" class="btn btn-sm btn-danger" onclick="moveToTrash(\\''+p.file+'\\',\\''+safeTitle+'\\')">Corbeille</button>'
+    : '<button type="button" class="btn btn-sm" onclick="restore(\\''+p.file+'\\')">Restaurer</button><button type="button" class="btn btn-sm btn-danger" onclick="hardDelete(\\''+p.file+'\\',\\''+safeTitle+'\\')">Supprimer</button>';
+  return '<div class="card">'
+  +'<input type="checkbox" class="card-check" name="sel" value="'+p.file+'">'
+  +img
+  +'<div class="card-body">'
+  +'<div class="card-title" title="'+safeTitle+'">'+safeTitle+'</div>'
+  +'<div class="card-meta"><span class="status-badge status-'+st+'">'+stLabel+'</span>'
+  +(p.series?'<span>📁 '+esc(seriesNames[p.series]||p.series)+'</span>':'')
+  +warn+tags+'</div>'
+  +'<div class="card-actions"><a href="/edit/'+p.file+'" class="btn btn-sm">Modifier</a>'+actions+'</div>'
+  +'</div></div>';
+}
+function render(){
+  const list=applyFilters();
+  const grid=document.getElementById('photos-grid');
+  grid.className = state.view==='list' ? 'list' : ('grid '+(state.view==='compact'?'compact':''));
+  grid.innerHTML = list.map(cardHtml).join('') || '<div style="color:#6b7fa8;padding:1rem 0">Aucune photo pour ces filtres.</div>';
+  document.getElementById('photos-count').textContent=list.length+' affichée'+(list.length>1?'s':'');
+  document.getElementById('batch-delete-btn').style.display = state.filter==='trash' ? 'inline-block' : 'none';
+  document.querySelectorAll('[data-filter]').forEach((b)=>b.classList.toggle('active', b.dataset.filter===state.filter));
+  document.querySelectorAll('[data-view]').forEach((b)=>b.classList.toggle('btn-primary', b.dataset.view===state.view));
+  syncUrl();
+}
+function wire(){
+  document.querySelectorAll('[data-filter]').forEach((b)=>b.onclick=()=>{state.filter=b.dataset.filter;render();});
+  document.querySelectorAll('[data-view]').forEach((b)=>b.onclick=()=>{state.view=b.dataset.view;render();});
+  const search=document.getElementById('search-input');
+  search.addEventListener('input',()=>debounced(()=>{state.search=search.value.trim();render();}));
+  document.getElementById('series-filter').addEventListener('change',(e)=>{state.series=e.target.value;render();});
+  document.getElementById('year-filter').addEventListener('change',(e)=>{state.year=e.target.value;render();});
+  document.getElementById('location-filter').addEventListener('change',(e)=>{state.location=e.target.value;render();});
+  document.getElementById('tag-filter').addEventListener('change',(e)=>{state.tag=e.target.value;render();});
+  document.getElementById('sort-select').addEventListener('change',(e)=>{state.sort=e.target.value;render();});
+}
+function quickTag(t){
+  state.tag=t;
+  document.getElementById('tag-filter').value=t;
+  render();
+}
 function selectAll(){document.querySelectorAll('.card-check').forEach(c=>c.checked=true)}
 function selectNone(){document.querySelectorAll('.card-check').forEach(c=>c.checked=false)}
 function getSelected(){return[...document.querySelectorAll('.card-check:checked')].map(c=>c.value)}
 function batchAction(action){
   const sel=getSelected();
   if(!sel.length){alert('Sélectionne au moins une photo.');return;}
-  const labels={publish:'passer en ligne',draft:'mettre en brouillon',trash:'mettre à la corbeille'};
+  const labels={publish:'passer en ligne',draft:'mettre en brouillon',archived:'archiver',trash:'mettre à la corbeille'};
   openModal('Action par lot',sel.length+' photo(s) vont '+labels[action]+'.',()=>{
     fetch('/batch/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel,status:action==='publish'?'published':action})})
     .then(()=>location.reload());
@@ -876,31 +1106,52 @@ function batchDelete(){
     .then(()=>location.reload());
   });
 }
+function batchSeriesModal(){
+  const sel=getSelected();
+  if(!sel.length){alert('Sélectionne au moins une photo.');return;}
+  const opts=['<option value="">Aucune série</option>',...Object.entries(seriesNames).map(([slug,name])=>'<option value="'+slug+'">'+name+'</option>')].join('');
+  document.getElementById('modal-title').textContent='Assigner une série — '+sel.length+' photo(s)';
+  document.getElementById('modal-msg').innerHTML='<select id="batch-series-input" style="width:100%;background:#050b1a;border:1px solid #748fff;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">'+opts+'</select>';
+  document.getElementById('modal-confirm').onclick=()=>{
+    const series=document.getElementById('batch-series-input').value;
+    fetch('/batch/series',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel,series})})
+    .then(()=>{closeModal();location.reload();});
+  };
+  document.getElementById('modal').classList.add('open');
+}
 function batchTagModal(){
   const sel=getSelected();
   if(!sel.length){alert('Sélectionne au moins une photo.');return;}
   document.getElementById('modal-title').textContent='Ajouter des tags — '+sel.length+' photo(s)';
   document.getElementById('modal-msg').innerHTML=
-    '<div style="margin-bottom:.75rem;font-size:.82rem;color:#9fb2d4">Les tags seront ajoutés sans écraser les existants.</div>'+
-    '<input id="batch-tag-input" placeholder="tag1, Lieu:Lyon, Style:Nuit…" style="width:100%;background:#050b1a;border:1px solid #748fff;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">';
+    '<div style="margin-bottom:.75rem;font-size:.82rem;color:#9fb2d4">Tags contrôlés: seuls les tags existants sont acceptés.</div>'+
+    '<input id="batch-tag-input" list="known-tags" placeholder="tag1, Lieu:Lyon, Style:Nuit…" style="width:100%;background:#050b1a;border:1px solid #748fff;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">';
   document.getElementById('modal-confirm').onclick=()=>{
     const raw=document.getElementById('batch-tag-input').value;
     const tags=raw.split(',').map(t=>t.trim()).filter(Boolean);
     if(!tags.length){closeModal();return;}
-    fetch('/batch/tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel,tags})})
-    .then(()=>{closeModal();location.reload();});
+    fetch('/batch/tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:sel,tags,strict:true})})
+    .then(r=>r.json()).then(r=>{
+      if(!r.ok){alert(r.error || 'Aucun tag valide');return;}
+      if(r.rejected && r.rejected.length){alert('Tags ignorés (non contrôlés): '+r.rejected.join(', '));}
+      closeModal();location.reload();
+    });
   };
   document.getElementById('modal').classList.add('open');
   setTimeout(()=>document.getElementById('batch-tag-input')?.focus(),80);
 }
+wire();
+render();
 </script>`, 'photos');
 }
 
 // ─── EDIT PAGE ────────────────────────────────────────────────────────────────
 function editPage(photo, file, saved=false) {
+  const st = normalizeStatus(photo.status);
+  const stLabel = st==='published' ? 'En ligne' : st==='draft' ? 'Brouillon' : st==='archived' ? 'Archivée' : 'Corbeille';
   const currentTags = Array.isArray(photo.tags) ? photo.tags : (photo.tags ? [photo.tags] : []);
   const series = readSeries();
-  const allTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
+  const allTags = getTagCatalog();
   const savedHtml = saved ? '<div class="alert alert-success">✓ Sauvegardé.</div>' : '';
   const thumbUrl = photo.url_thumb||photo.url_web;
   const thumbHtml = thumbUrl ? '<img src="' + thumbUrl + '" style="max-width:360px;border-radius:.5rem;margin-bottom:1.5rem;display:block">' : '';
@@ -910,7 +1161,7 @@ function editPage(photo, file, saved=false) {
 <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
   <a href="/" class="btn">← Retour</a>
   <h1 style="margin:0">${photo.title}</h1>
-  <span class="status-badge status-${photo.status||'published'}">${photo.status==='draft'?'Brouillon':'En ligne'}</span>
+  <span class="status-badge status-${st}">${stLabel}</span>
 </div>
 ${savedHtml}
 ${thumbHtml}
@@ -921,8 +1172,9 @@ ${thumbHtml}
   <div class="field"><label>Série</label><select name="series">${seriesOptsHtml}</select></div>
   <div class="field"><label>Date du reportage</label><input type="date" name="shoot_date" value="${photo.date||''}"></div>
   <div class="field"><label>Statut</label><select name="status">
-    <option value="published"${(photo.status||'published')==='published'?' selected':''}>En ligne</option>
-    <option value="draft"${photo.status==='draft'?' selected':''}>Brouillon</option>
+    <option value="published"${st==='published'?' selected':''}>En ligne</option>
+    <option value="draft"${st==='draft'?' selected':''}>Brouillon</option>
+    <option value="archived"${st==='archived'?' selected':''}>Archivée</option>
   </select></div>
   <div class="field full"><label>Description</label><textarea name="description">${photo.description||''}</textarea></div>
   <div class="field full">
@@ -951,9 +1203,11 @@ ${thumbHtml}
 // ─── UPLOAD PAGE ──────────────────────────────────────────────────────────────
 function uploadPage(msg='', err='') {
   const series = readSeries();
+  const knownTags = getTagCatalog();
   const msgHtml = msg ? '<div class="alert alert-success">' + msg + '</div>' : '';
   const errHtml = err ? '<div class="alert alert-error">' + err + '</div>' : '';
   const seriesOptsHtml = series.map(s=>'<option value="' + s.slug + '">' + s.name + '</option>').join('');
+  const tagsDatalistHtml = knownTags.map((t) => '<option value="' + t.replace(/"/g, '&quot;') + '">').join('');
   return layout('Upload', `
 <h1>Importer des photos</h1>
 ${msgHtml}
@@ -972,12 +1226,14 @@ ${errHtml}
     <select name="status" id="status-sel" style="width:100%">
       <option value="draft">Brouillon</option>
       <option value="published">En ligne</option>
+      <option value="archived">Archivée</option>
     </select>
   </div>
   <div style="margin-bottom:1.5rem">
     <label style="display:block;margin-bottom:.5rem">Tags <span style="color:#6b7fa8;font-size:.78rem">optionnel — appliqués à toutes les photos uploadées</span></label>
-    <input id="upload-tags" placeholder="Lieu:Lyon, Style:Nuit, paysage…" style="width:100%;background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">
-    <div style="font-size:.72rem;color:#6b7fa8;margin-top:.3rem">Syntaxe : <code>Catégorie:valeur</code> ou tag simple. Sépare par des virgules.</div>
+    <input id="upload-tags" list="upload-tags-dl" placeholder="Lieu:Lyon, Style:Nuit, paysage…" style="width:100%;background:#0f1f3d;border:1px solid #243a65;border-radius:.5rem;color:#edf4ff;padding:.5rem .75rem;font-size:.88rem">
+    <datalist id="upload-tags-dl">${tagsDatalistHtml}</datalist>
+    <div style="font-size:.72rem;color:#6b7fa8;margin-top:.3rem">Tags contrôlés recommandés via suggestions. Syntaxe : <code>Catégorie:valeur</code> ou tag simple, séparés par virgules.</div>
   </div>
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/tiff,image/webp">
@@ -1366,6 +1622,7 @@ function applyRename(){
 function statsPage(photos, series, views) {
   const pub=photos.filter(p=>p.status==='published').length;
   const draft=photos.filter(p=>p.status==='draft').length;
+  const archived=photos.filter(p=>p.status==='archived').length;
   const trash=photos.filter(p=>p.status==='trash').length;
   const totalViews=Object.values(views).reduce((a,b)=>a+b,0);
   const topViewed=photos.filter(p=>views[p.slug]).sort((a,b)=>(views[b.slug]||0)-(views[a.slug]||0)).slice(0,10);
@@ -1383,7 +1640,7 @@ function statsPage(photos, series, views) {
     const safeName=s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return '<tr style="cursor:pointer" onclick="showPhotos({series:\''+s.slug+'\'},\''+safeName+'\')">'+
       '<td><span style="color:#748fff">'+s.name+'</span></td><td>'+s.count+'</td>'+
-      '<td><span class="status-badge status-'+(s.status||'published')+'">'+(s.status==='draft'?'Brouillon':'En ligne')+'</span></td></tr>';
+      '<td><span class="status-badge status-'+(s.status||'published')+'">'+((s.status||'published')==='draft'?'Brouillon':(s.status||'published')==='archived'?'Archivée':'En ligne')+'</span></td></tr>';
   }).join('');
   const topRatedRowsHtml = topRated.map(p=>'<tr><td><a href="/edit/'+p.file+'" style="color:#748fff">'+p.title+'</a></td><td>⭐ '+p._avg+' <span style="color:#6b7fa8;font-size:.8em">('+p._count+' vote'+(p._count>1?'s':'')+')</span></td></tr>').join('')
     || '<tr><td colspan="2" style="color:#6b7fa8">Aucune note renseignée</td></tr>';
@@ -1411,6 +1668,9 @@ function statsPage(photos, series, views) {
   </div>
   <div class="stat-card clickable" onclick="showPhotos({status:'draft'},'Brouillons')">
     <div class="stat-num" style="color:#ffb347">${draft}</div><div class="stat-label">Brouillons ↗</div>
+  </div>
+  <div class="stat-card clickable" onclick="showPhotos({status:'archived'},'Archivées')">
+    <div class="stat-num" style="color:#8bc9ff">${archived}</div><div class="stat-label">Archivées ↗</div>
   </div>
   <div class="stat-card clickable" onclick="showPhotos({status:'trash'},'Corbeille')">
     <div class="stat-num" style="color:#ff7a7a">${trash}</div><div class="stat-label">Corbeille ↗</div>
@@ -1515,8 +1775,8 @@ function renderGrid(){
     const img=p.thumb
       ?'<img src="'+p.thumb+'" style="width:72px;height:54px;object-fit:cover;border-radius:.35rem;flex-shrink:0">'
       :'<div style="width:72px;height:54px;background:#0f1f3d;border-radius:.35rem;flex-shrink:0"></div>';
-    const sc=p.status==='published'?'#7aff7a':p.status==='draft'?'#ffb347':'#ff7a7a';
-    const stLbl=p.status==='published'?'En ligne':p.status==='draft'?'Brouillon':'Corbeille';
+    const sc=p.status==='published'?'#7aff7a':p.status==='draft'?'#ffb347':p.status==='archived'?'#8bc9ff':'#ff7a7a';
+    const stLbl=p.status==='published'?'En ligne':p.status==='draft'?'Brouillon':p.status==='archived'?'Archivée':'Corbeille';
     const tags=(p.tags||[]).slice(0,3).map(t=>'<span class="tag">'+t+'</span>').join('');
     return '<div style="display:flex;gap:.75rem;align-items:center;padding:.5rem 0;border-bottom:1px solid #1a2e52">'+
       img+
@@ -1680,7 +1940,16 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── Photos list
   if (req.method==='GET' && p==='/') {
-    html(photosPage(readPhotos(), url.searchParams.get('filter')||'all', url.searchParams.get('search')||'', url.searchParams.get('saved')||''));
+    html(photosPage(readPhotos(), {
+      filter: url.searchParams.get('filter') || 'all',
+      search: url.searchParams.get('search') || '',
+      series: url.searchParams.get('series') || '',
+      year: url.searchParams.get('year') || '',
+      location: url.searchParams.get('location') || '',
+      tag: url.searchParams.get('tag') || '',
+      sort: url.searchParams.get('sort') || 'date_desc',
+      view: url.searchParams.get('view') || 'grid',
+    }, url.searchParams.get('saved')||''));
 
   // ── Edit photo
   } else if (req.method==='GET' && p.startsWith('/edit/')) {
@@ -1693,11 +1962,11 @@ a:hover{background:#748fff33}</style></head><body>
   } else if (req.method==='POST' && p.startsWith('/save/')) {
     const file=path.basename(p.slice(6));
     const body=await parseBody(req);
-    const tags=body.tags?body.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
+    const { tags } = filterKnownTags(parseTagsString(body.tags), false);
     savePhoto(file,{
       title:body.title, slug:body.slug, series:body.series,
       date:body.shoot_date||undefined,
-      description:body.description||'', tags, status:body.status||'published',
+      description:body.description||'', tags, status:normalizeStatus(body.status||'published'),
       rating:body.rating?parseFloat(body.rating):undefined,
       price:body.price?parseFloat(body.price):undefined,
       for_sale:body.for_sale==='true',
@@ -1729,9 +1998,9 @@ a:hover{background:#748fff33}</style></head><body>
     catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     for(const file of body.files){
       const fp=path.join(CFG.photosDir,file);
-      if(fs.existsSync(fp)) savePhoto(file,{status:body.status});
+      if(fs.existsSync(fp)) savePhoto(file,{status:normalizeStatus(body.status)});
     }
-    autoGitPush(`batch: statut → ${body.status} (${body.files.length} photo(s))`);
+    autoGitPush(`batch: statut → ${normalizeStatus(body.status)} (${body.files.length} photo(s))`);
     json({ok:true});
 
   // ── Batch rename
@@ -1757,15 +2026,37 @@ a:hover{background:#748fff33}</style></head><body>
     let body;
     try { body = await parseJsonBody(req); }
     catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
+    const strict = Boolean(body.strict);
+    const { tags, rejected } = filterKnownTags(body.tags || [], strict);
+    if (strict && !tags.length) {
+      json({ ok: false, error: 'Aucun tag valide', rejected }, 400);
+      return;
+    }
     for(const file of body.files) {
       const fp=path.join(CFG.photosDir,path.basename(file));
       if(!fs.existsSync(fp)) continue;
       const photo=readYaml(fp);
       const existing=Array.isArray(photo.tags)?photo.tags:[];
-      const merged=[...new Set([...existing,...(body.tags||[])])];
+      const merged=[...new Set([...existing,...tags])];
       savePhoto(path.basename(file),{tags:merged});
     }
     autoGitPush(`tags: ajout en masse sur ${body.files.length} photo(s)`);
+    json({ok:true, rejected});
+
+  // ── Batch assign series
+  } else if (req.method==='POST' && p==='/batch/series') {
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
+    const targetSeries = String(body.series || '').trim();
+    const seriesExists = !targetSeries || fs.existsSync(path.join(CFG.seriesDir, `${targetSeries}.yaml`));
+    if (!seriesExists) { json({ ok: false, error: 'Série inconnue' }, 400); return; }
+    for(const file of body.files || []) {
+      const fp=path.join(CFG.photosDir,path.basename(file));
+      if(!fs.existsSync(fp)) continue;
+      savePhoto(path.basename(file),{series:targetSeries});
+    }
+    autoGitPush(`batch: série → ${targetSeries || '(aucune)'} (${(body.files||[]).length} photo(s))`);
     json({ok:true});
 
   // ── Batch delete (suppression définitive)
@@ -1791,8 +2082,8 @@ a:hover{background:#748fff33}</style></head><body>
   } else if (req.method==='POST' && p==='/upload') {
     try {
       const {fields,files}=await parseUpload(req);
-      const seriesSlug=fields.series, status=fields.status||'draft';
-      const uploadTags=fields.tags?fields.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
+      const seriesSlug=fields.series, status=normalizeStatus(fields.status||'draft');
+      const { tags: uploadTags } = filterKnownTags(parseTagsString(fields.tags), false);
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
       if(!fs.existsSync(path.join(CFG.seriesDir, `${seriesSlug}.yaml`))){res.writeHead(400);res.end('Série invalide');return;}
       const results=[];
@@ -1908,7 +2199,8 @@ a:hover{background:#748fff33}</style></head><body>
     catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     const fp=path.join(CFG.photosDir,path.basename(body.file||''));
     if(!fs.existsSync(fp)){json({ok:false,error:'Not found'},404);return;}
-    savePhoto(path.basename(body.file),{tags:Array.isArray(body.tags)?body.tags:[]});
+    const { tags } = filterKnownTags(Array.isArray(body.tags)?body.tags:[], false);
+    savePhoto(path.basename(body.file),{tags});
     autoGitPush(`tags: mise à jour ${path.basename(body.file)}`);
     json({ok:true});
 
