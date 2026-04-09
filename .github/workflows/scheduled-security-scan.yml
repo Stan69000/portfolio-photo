@@ -1,0 +1,106 @@
+name: Scheduled Security Scan
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: NPM audit (high/critical)
+        id: npm_audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high > npm-audit.txt
+
+      - name: Trivy filesystem scan (high/critical)
+        id: trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "table"
+          output: "trivy.txt"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Gitleaks scan
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build incident report
+        if: always()
+        run: |
+          {
+            echo "# Security scan report"
+            echo
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Date (UTC): $(date -u +"%Y-%m-%d %H:%M:%S")"
+            echo "- npm audit: ${{ steps.npm_audit.outcome }}"
+            echo "- trivy: ${{ steps.trivy.outcome }}"
+            echo "- gitleaks: ${{ steps.gitleaks.outcome }}"
+            echo
+            echo "## npm audit output"
+            if [ -f npm-audit.txt ]; then
+              sed -n '1,200p' npm-audit.txt
+            else
+              echo "No npm-audit.txt generated."
+            fi
+            echo
+            echo "## trivy output"
+            if [ -f trivy.txt ]; then
+              sed -n '1,200p' trivy.txt
+            else
+              echo "No trivy.txt generated."
+            fi
+          } > security-report.md
+
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-report
+          path: |
+            security-report.md
+            npm-audit.txt
+            trivy.txt
+            results.sarif
+          if-no-files-found: ignore
+
+      - name: Create or update security incident issue
+        if: |
+          steps.npm_audit.outcome == 'failure' ||
+          steps.trivy.outcome == 'failure' ||
+          steps.gitleaks.outcome == 'failure'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Security scan alert"
+          content-filepath: security-report.md
+          labels: |
+            security
+            automated
+          search-existing-open-issue-title: "Security scan alert"
