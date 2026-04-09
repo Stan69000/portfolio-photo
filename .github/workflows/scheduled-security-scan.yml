@@ -96,7 +96,7 @@ jobs:
           steps.npm_audit.outcome == 'failure' ||
           steps.trivy.outcome == 'failure' ||
           steps.gitleaks.outcome == 'failure'
-        uses: peter-evans/create-issue-from-file@v5
+        uses: peter-evans/create-issue-from-file@v6
         with:
           title: "Security scan alert"
           content-filepath: security-report.md
