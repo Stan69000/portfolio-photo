@@ -158,25 +158,15 @@ jobs:
       - name: Verify deployed admin build id
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
-          LAST_CODE="000"
-          LAST_BODY=""
-          for i in {1..36}; do
-            tmp_body="$(mktemp)"
-            code="$(curl -sS -o "$tmp_body" -w "%{http_code}" https://admin.stan-bouchet.eu/api/ping || echo "000")"
-            body="$(cat "$tmp_body" 2>/dev/null || true)"
-            rm -f "$tmp_body"
+          tmp_body="$(mktemp)"
+          code="$(curl -sS -o "$tmp_body" -w "%{http_code}" https://admin.stan-bouchet.eu/api/ping || echo "000")"
+          body="$(cat "$tmp_body" 2>/dev/null || true)"
+          rm -f "$tmp_body"
 
-            LAST_CODE="$code"
-            LAST_BODY="$body"
-
-            if [ "$code" = "200" ] && echo "$body" | grep -q "\"build\":\"${SHORT_SHA}"; then
-              echo "Admin updated: HTTP $code — $body"
-              exit 0
-            fi
-
-            echo "Waiting for admin restart ($i/36)… HTTP $code"
-            sleep 5
-          done
-          echo "::warning::admin build id does not match ${SHORT_SHA}"
-          echo "Last ping HTTP: ${LAST_CODE}"
-          echo "Last ping body: ${LAST_BODY}"
+          if [ "$code" = "200" ] && echo "$body" | grep -q "\"build\":\"${SHORT_SHA}"; then
+            echo "Admin updated: HTTP $code — $body"
+          else
+            echo "::warning::admin build id does not match ${SHORT_SHA}"
+            echo "Ping HTTP: ${code}"
+            echo "Ping body: ${body}"
+          fi
