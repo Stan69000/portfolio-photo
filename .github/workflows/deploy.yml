@@ -42,6 +42,7 @@ jobs:
         run: |
           mkdir -p ./admin-deploy
           cp admin-server.js ./admin-deploy/
+          cp admin-server.js ./admin-deploy/app.js
           cp package.json ./admin-deploy/
           cp package-lock.json ./admin-deploy/
           echo "${{ github.sha }}" > ./admin-deploy/build.txt
@@ -84,7 +85,7 @@ jobs:
             listing="$(curl -sS --list-only "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || true)"
             if echo "$listing" | grep -Eq '(^|[[:space:]])(app\.js|passenger_wsgi\.py)$'; then
               echo "Passenger root detected: ${TARGET_DIR}"
-              for f in admin-server.js package.json package-lock.json build.txt; do
+              for f in admin-server.js app.js package.json package-lock.json build.txt; do
                 curl --fail --show-error --silent \
                   -T "./admin-deploy/${f}" \
                   "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}${f}" \
