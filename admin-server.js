@@ -3,7 +3,7 @@ import https from 'https';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { readFileSync } from "fs";
 // charge .env manuellement (pas de dep dotenv)
 try { const envLines = readFileSync(new URL(".env", import.meta.url)).toString().split("\n"); for (const l of envLines) { const [k,...v]=l.split("="); if(k&&v.length) process.env[k.trim()]=v.join("=").trim(); } } catch {}
@@ -16,6 +16,13 @@ const yaml  = require('js-yaml');
 const sharp = require('sharp');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MAX_BODY_BYTES = 1024 * 1024; // 1MB
+const ALLOWED_UPLOAD_MIME = new Set(['image/jpeg', 'image/png', 'image/tiff', 'image/webp']);
+const PUBLIC_SITE_ORIGIN = process.env.PUBLIC_SITE_ORIGIN || 'https://stan-bouchet.eu';
+const CORS_ALLOWED_ORIGINS = new Set([
+  PUBLIC_SITE_ORIGIN,
+  'https://www.stan-bouchet.eu',
+]);
 
 // ─── RATINGS (fichier JSON — pas de dépendance native) ────────────────────────
 const RATINGS_FILE = path.join(__dirname, 'ratings.json');
@@ -59,12 +66,11 @@ const CFG = {
   processDir:  path.join(__dirname, '.processed'),
   domain:      'http://photos.bost7423.odns.fr',  // URL temporaire O2Switch
   ftp: {
-    host:       'ftp.bost7423.odns.fr',
-    port:       21,
-    username:   'photo@stan-bouchet.eu',
-    password:   process.env.FTP_PASSWORD || '',  // défini dans .env
-    remotePath: '/',                    // racine du compte FTP photo@stan-bouchet.eu
-    secure:     false,                           // passer à true si TLS disponible
+    host:       process.env.SFTP_HOST || '',
+    port:       Number(process.env.SFTP_PORT || 22),
+    username:   process.env.SFTP_USERNAME || '',
+    password:   process.env.SFTP_PASSWORD || '',
+    remotePath: process.env.SFTP_REMOTE_PATH || '/',
   },
   sharp: {
     thumb: { width: 500,  quality: 80 },
@@ -77,13 +83,15 @@ const CFG = {
 const GITHUB_CLIENT_ID     = process.env.GITHUB_CLIENT_ID     || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const GITHUB_ALLOWED_USER  = process.env.GITHUB_ALLOWED_USER  || '';
-const SESSION_SECRET       = process.env.SESSION_SECRET       || crypto.randomBytes(32).toString('hex');
+const SESSION_SECRET_ENV   = process.env.SESSION_SECRET       || '';
+const SESSION_SECRET       = SESSION_SECRET_ENV || crypto.randomBytes(32).toString('hex');
 const ADMIN_BASE_URL       = process.env.ADMIN_BASE_URL       || `http://localhost:3333`;
 const SKIP_AUTH            = process.env.SKIP_AUTH            === 'true'; // true en local si pas encore configuré
 
 // ─── SESSION ──────────────────────────────────────────────────────────────────
 const sessions    = new Map(); // id → { user, expires }
 const oauthStates = new Map(); // state → expiry timestamp
+const rateBuckets = new Map();
 
 function signVal(v)  { return crypto.createHmac('sha256', SESSION_SECRET).update(v).digest('base64url'); }
 
@@ -111,6 +119,67 @@ function clearSession(req, res) {
   const raw = (req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('sid='));
   if (raw) { const signed=raw.slice(4); sessions.delete(signed.slice(0, signed.lastIndexOf('.'))); }
   res.setHeader('Set-Cookie', 'sid=; HttpOnly; Max-Age=0; Path=/');
+}
+
+function requestIsSecure(req) {
+  const proto = (req.headers['x-forwarded-proto'] || '').toString().split(',')[0].trim().toLowerCase();
+  return proto === 'https' || Boolean(req.socket?.encrypted);
+}
+
+function applySecurityHeaders(req, res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
+    "img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+    "connect-src 'self' https://admin.stan-bouchet.eu;"
+  );
+  if (requestIsSecure(req)) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+}
+
+function applyPublicApiCors(req, res) {
+  const origin = (req.headers.origin || '').toString();
+  if (origin && CORS_ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function isCorsOriginAllowed(req) {
+  const origin = (req.headers.origin || '').toString();
+  return !origin || CORS_ALLOWED_ORIGINS.has(origin);
+}
+
+function getClientIp(req) {
+  const forwarded = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
+  return forwarded || req.socket.remoteAddress || 'unknown';
+}
+
+function consumeRateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (bucket.count >= limit) return false;
+  bucket.count += 1;
+  return true;
+}
+
+function isValidSlug(slug) {
+  return typeof slug === 'string' && /^[a-z0-9][a-z0-9-]{0,120}$/.test(slug);
+}
+
+function getKnownPhotoSlugs() {
+  return new Set(readPhotos().map((p) => p.slug).filter((s) => typeof s === 'string' && s));
 }
 
 // ─── GITHUB OAUTH HELPERS ─────────────────────────────────────────────────────
@@ -164,10 +233,10 @@ function readSettings() {
 
 function gitCommit(msg) {
   try {
-    execSync('git add -A src/content/', { cwd: __dirname, stdio: 'pipe' });
-    const diff = execSync('git diff --cached --name-only', { cwd: __dirname }).toString().trim();
+    execFileSync('git', ['add', '-A', 'src/content/'], { cwd: __dirname, stdio: 'pipe' });
+    const diff = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: __dirname, stdio: 'pipe' }).toString().trim();
     if (!diff) return 'nothing';
-    execSync(`git commit -m "${msg.replace(/"/g, "'")}"`, { cwd: __dirname, stdio: 'pipe' });
+    execFileSync('git', ['commit', '-m', msg], { cwd: __dirname, stdio: 'pipe' });
     return 'ok';
   } catch(e) {
     console.error('gitCommit error:', e.message);
@@ -179,19 +248,19 @@ function gitPush() {
   const opts = { cwd: __dirname, stdio: 'pipe' };
   try {
     // 1. Récupérer les derniers commits de GitHub (code Mac)
-    execSync('git fetch origin main', opts);
+    execFileSync('git', ['fetch', 'origin', 'main'], opts);
     // 2. Replacer nos commits YAML sur la dernière version Mac (sans toucher au code)
     try {
-      execSync('git rebase origin/main', opts);
+      execFileSync('git', ['rebase', 'origin/main'], opts);
     } catch(rebaseErr) {
       // En cas de conflit inattendu : annuler le rebase et signaler
-      try { execSync('git rebase --abort', opts); } catch(_) {}
+      try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
       const msg = (rebaseErr.stderr||rebaseErr.stdout||Buffer.from('')).toString().trim()||rebaseErr.message;
       console.error('gitPush rebase error:', msg);
       return { ok: false, error: 'Conflit rebase : ' + msg };
     }
     // 3. Push normal (pas de --force : le rebase garantit qu'on est en avance)
-    execSync('git push origin HEAD:main', opts);
+    execFileSync('git', ['push', 'origin', 'HEAD:main'], opts);
     return { ok: true };
   } catch(e) {
     const msg = (e.stderr||e.stdout||Buffer.from('')).toString().trim()||e.message;
@@ -202,7 +271,7 @@ function gitPush() {
 
 function getPendingCount() {
   try {
-    const out = execSync('git log origin/main..HEAD --oneline', { cwd: __dirname, stdio: 'pipe' }).toString().trim();
+    const out = execFileSync('git', ['log', 'origin/main..HEAD', '--oneline'], { cwd: __dirname, stdio: 'pipe' }).toString().trim();
     return out ? out.split('\n').length : 0;
   } catch { return 0; }
 }
@@ -233,22 +302,59 @@ function savePhoto(file, updates) {
 }
 
 function parseBody(req) {
-  return new Promise(r => {
+  return new Promise((resolve) => {
     let b = '';
-    req.on('data', c => b += c);
-    req.on('end', () => { const p = new URLSearchParams(b); const o = {}; for(const[k,v] of p) o[k]=v; r(o); });
+    let tooLarge = false;
+    req.on('data', c => {
+      if (tooLarge) return;
+      b += c;
+      if (Buffer.byteLength(b) > MAX_BODY_BYTES) {
+        tooLarge = true;
+      }
+    });
+    req.on('end', () => {
+      if (tooLarge) { resolve({}); return; }
+      const p = new URLSearchParams(b);
+      const o = {};
+      for (const [k, v] of p) o[k] = v;
+      resolve(o);
+    });
+    req.on('error', () => resolve({}));
+  });
+}
+
+function parseJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let b = '';
+    req.on('data', c => {
+      b += c;
+      if (Buffer.byteLength(b) > MAX_BODY_BYTES) {
+        reject(new Error('Payload JSON trop volumineux'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      try { resolve(JSON.parse(b || '{}')); }
+      catch { reject(new Error('JSON invalide')); }
+    });
+    req.on('error', reject);
   });
 }
 
 function parseUpload(req) {
   return new Promise((resolve, reject) => {
-    const bb = Busboy({ headers: req.headers, limits: { fileSize: 300*1024*1024 } });
+    const bb = Busboy({ headers: req.headers, limits: { fileSize: 300*1024*1024, files: 100, parts: 200 } });
     const fields = {}, files = [];
     const pending = [];
     fs.mkdirSync(CFG.tmpDir, { recursive: true });
     bb.on('field', (k,v) => { fields[k]=v; });
     bb.on('file', (name, stream, info) => {
-      const tmp = path.join(CFG.tmpDir, `${Date.now()}-${info.filename}`);
+      if (!ALLOWED_UPLOAD_MIME.has(info.mimeType)) {
+        stream.resume();
+        return;
+      }
+      const safeName = path.basename(info.filename || 'upload');
+      const tmp = path.join(CFG.tmpDir, `${Date.now()}-${safeName}`);
       const ws = fs.createWriteStream(tmp);
       stream.pipe(ws);
       const done = new Promise((res, rej) => {
@@ -319,42 +425,44 @@ function limitBar(current, recommended, max, label) {
 }
 
 // ─── FTP ──────────────────────────────────────────────────────────────────────
-async function getFtp() {
-  const { Client } = await import('basic-ftp');
-  const client = new Client();
-  await client.access({
-    host:     CFG.ftp.host,
-    port:     CFG.ftp.port,
-    user:     CFG.ftp.username,
-    password: CFG.ftp.password,
-    secure:   CFG.ftp.secure,
+async function getSftp() {
+  const { default: SftpClient } = await import('ssh2-sftp-client');
+  const sftp = new SftpClient();
+  await sftp.connect({
+    host: process.env.SFTP_HOST || CFG.ftp.host,
+    port: Number(process.env.SFTP_PORT || 22),
+    username: process.env.SFTP_USERNAME || CFG.ftp.username,
+    password: process.env.SFTP_PASSWORD || CFG.ftp.password,
+    readyTimeout: 20000,
   });
-  return client;
+  return sftp;
 }
 
-async function uploadViaFTP(versions, seriesSlug, photoSlug) {
-  if (!CFG.ftp.password) return { ok: false, error: 'Mot de passe FTP non configuré' };
+async function uploadViaSFTP(versions, seriesSlug, photoSlug) {
+  const password = process.env.SFTP_PASSWORD || CFG.ftp.password;
+  if (!password) return { ok: false, error: 'Mot de passe SFTP non configuré' };
   try {
-    const ftp = await getFtp();
+    const sftp = await getSftp();
     for (const [name, lp] of Object.entries(versions)) {
-      const remoteDir = `${CFG.ftp.remotePath}/${seriesSlug}/${name}`;
-      await ftp.ensureDir(remoteDir);
-      await ftp.uploadFrom(lp, `${remoteDir}/${photoSlug}.webp`);
+      const remoteDir = `${CFG.ftp.remotePath}/${seriesSlug}/${name}`.replace(/\/+/g, '/');
+      await sftp.mkdir(remoteDir, true);
+      await sftp.put(lp, `${remoteDir}/${photoSlug}.webp`);
     }
-    ftp.close();
+    await sftp.end();
     return { ok: true };
   } catch(e) { return { ok: false, error: e.message }; }
 }
 
-async function deleteViaFTP(seriesSlug, photoSlug) {
-  if (!CFG.ftp.password) return { ok: false };
+async function deleteViaSFTP(seriesSlug, photoSlug) {
+  const password = process.env.SFTP_PASSWORD || CFG.ftp.password;
+  if (!password) return { ok: false };
   try {
-    const ftp = await getFtp();
+    const sftp = await getSftp();
     for (const name of ['thumb','web','zoom']) {
       const rp = `${CFG.ftp.remotePath}/${seriesSlug}/${name}/${photoSlug}.webp`;
-      await ftp.remove(rp).catch(()=>{});
+      await sftp.delete(rp).catch(()=>{});
     }
-    ftp.close();
+    await sftp.end();
     return { ok: true };
   } catch(e) { return { ok: false, error: e.message }; }
 }
@@ -1471,6 +1579,7 @@ function updatePreview(){
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${CFG.port}`);
   const p = url.pathname;
+  applySecurityHeaders(req, res);
 
   const html = (content) => { res.writeHead(200,{'Content-Type':'text/html;charset=utf-8'}); res.end(content); };
   const json = (data, code=200) => { res.writeHead(code,{'Content-Type':'application/json'}); res.end(JSON.stringify(data)); };
@@ -1521,7 +1630,7 @@ a:hover{background:#748fff33}</style></head><body>
     return;
 
   // ── Auth check — toutes les autres routes (sauf API publique)
-  } else if (!SKIP_AUTH && GITHUB_CLIENT_ID && !p.startsWith('/api/')) {
+  } else if (!SKIP_AUTH && !p.startsWith('/api/')) {
     const user = getSessionUser(req);
     if (!user) { redirect('/auth/github'); return; }
   }
@@ -1565,14 +1674,16 @@ a:hover{background:#748fff33}</style></head><body>
     else if(action==='delete') {
       const photo=readYaml(fp);
       fs.unlinkSync(fp);
-      if(photo.slug&&photo.series) deleteViaFTP(photo.series,photo.slug).catch(()=>{});
+      if(photo.slug&&photo.series) deleteViaSFTP(photo.series,photo.slug).catch(()=>{});
     }
     autoGitPush(`${action}: ${file}`);
     json({ok:true});
 
   // ── Batch status
   } else if (req.method==='POST' && p==='/batch/status') {
-    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     for(const file of body.files){
       const fp=path.join(CFG.photosDir,file);
       if(fs.existsSync(fp)) savePhoto(file,{status:body.status});
@@ -1582,7 +1693,9 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── Batch rename
   } else if (req.method==='POST' && p==='/batch/rename') {
-    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     for(const {file,newSlug} of body.renames) {
       const fp=path.join(CFG.photosDir,file);
       if(!fs.existsSync(fp)) continue;
@@ -1598,7 +1711,9 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── Batch add tags
   } else if (req.method==='POST' && p==='/batch/tags') {
-    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     for(const file of body.files) {
       const fp=path.join(CFG.photosDir,path.basename(file));
       if(!fs.existsSync(fp)) continue;
@@ -1612,13 +1727,15 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── Batch delete (suppression définitive)
   } else if (req.method==='POST' && p==='/batch/delete') {
-    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     for(const file of body.files) {
       const fp=path.join(CFG.photosDir,path.basename(file));
       if(!fs.existsSync(fp)) continue;
       const photo=readYaml(fp);
       fs.unlinkSync(fp);
-      if(photo.slug&&photo.series) deleteViaFTP(photo.series,photo.slug).catch(()=>{});
+        if(photo.slug&&photo.series) deleteViaSFTP(photo.series,photo.slug).catch(()=>{});
     }
     autoGitPush(`batch: suppression définitive (${body.files.length} photo(s))`);
     json({ok:true});
@@ -1634,6 +1751,7 @@ a:hover{background:#748fff33}</style></head><body>
       const seriesSlug=fields.series, status=fields.status||'draft';
       const uploadTags=fields.tags?fields.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
+      if(!fs.existsSync(path.join(CFG.seriesDir, `${seriesSlug}.yaml`))){res.writeHead(400);res.end('Série invalide');return;}
       const results=[];
       const seriesYamlPath=path.join(CFG.seriesDir,`${seriesSlug}.yaml`);
       const seriesDateFallback=fs.existsSync(seriesYamlPath)?(readYaml(seriesYamlPath).date||null):null;
@@ -1649,7 +1767,7 @@ a:hover{background:#748fff33}</style></head><body>
         usedSlugs.add(photoSlug);
         try{
           const [versions, exif]=await Promise.all([processImage(file.path,seriesSlug,photoSlug), readExif(file.path)]);
-          const sftpRes=await uploadViaFTP(versions,seriesSlug,photoSlug);
+          const sftpRes=await uploadViaSFTP(versions,seriesSlug,photoSlug);
           const urls=buildUrls(seriesSlug,photoSlug);
           const yamlFile=`${photoSlug}.yaml`;
           writeYaml(path.join(CFG.photosDir,yamlFile),{
@@ -1716,7 +1834,9 @@ a:hover{background:#748fff33}</style></head><body>
   // ── Delete series
   } else if (req.method==='POST' && p.startsWith('/series/delete/')) {
     const file=path.basename(p.slice(15));
-    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     const fp=path.join(CFG.seriesDir,file);
     if(!fs.existsSync(fp)){json({ok:false},404);return;}
     const serie=readYaml(fp);
@@ -1724,7 +1844,7 @@ a:hover{background:#748fff33}</style></head><body>
       const photos=readPhotos().filter(p=>p.series===serie.slug);
       for(const photo of photos){
         fs.unlinkSync(path.join(CFG.photosDir,photo.file));
-        if(photo.slug) deleteViaFTP(serie.slug,photo.slug).catch(()=>{});
+        if(photo.slug) deleteViaSFTP(serie.slug,photo.slug).catch(()=>{});
       }
     } else {
       const photos=readPhotos().filter(p=>p.series===serie.slug);
@@ -1740,7 +1860,9 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── Save tags for a single photo (inline editor)
   } else if (req.method==='POST' && p==='/tags/photo-save') {
-    const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(JSON.parse(b)));});
+    let body;
+    try { body = await parseJsonBody(req); }
+    catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
     const fp=path.join(CFG.photosDir,path.basename(body.file||''));
     if(!fs.existsSync(fp)){json({ok:false,error:'Not found'},404);return;}
     savePhoto(path.basename(body.file),{tags:Array.isArray(body.tags)?body.tags:[]});
@@ -1775,6 +1897,10 @@ a:hover{background:#748fff33}</style></head><body>
   // ── API: increment view
   } else if (req.method==='POST' && p.startsWith('/api/view/')) {
     const slug=p.slice(10);
+    if (!isValidSlug(slug)) { json({ ok: false, error: 'slug invalide' }, 400); return; }
+    if (!getKnownPhotoSlugs().has(slug)) { json({ ok: false, error: 'photo inconnue' }, 404); return; }
+    const ip = getClientIp(req);
+    if (!consumeRateLimit(`view:${ip}`, 180, 60_000)) { json({ ok: false, error: 'rate limit' }, 429); return; }
     const views=readViews();
     views[slug]=(views[slug]||0)+1;
     saveViews(views);
@@ -1828,11 +1954,18 @@ ${saved?'<div class="alert alert-success">✓ Page sauvegardée et déployée.</
     <div id="md-preview" style="background:#0a1628;border:1px solid #243a65;border-radius:.5rem;padding:1.25rem;min-height:520px;color:#d2e1ff;font-size:.93rem;line-height:1.7;overflow-y:auto"></div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
+function escapeHtml(s){
+  return s
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
 function updatePreview(){
   const md=document.getElementById('md-input').value;
-  document.getElementById('md-preview').innerHTML=marked.parse(md);
+  document.getElementById('md-preview').innerHTML='<pre style="white-space:pre-wrap;font-family:inherit">'+escapeHtml(md)+'</pre>';
 }
 updatePreview();
 </script>
@@ -1879,14 +2012,14 @@ updatePreview();
 
   // ── API ping (diagnostic version) ────────────────────────────────────────────
   } else if (p === '/api/ping') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    applyPublicApiCors(req, res);
+    if (!isCorsOriginAllowed(req)) { json({ ok: false, error: 'origin non autorisée' }, 403); return; }
     json({ version: '3.0', time: Date.now(), ratingsCount: dbGetAll().length });
 
   // ── API publique ratings (CORS ouvert — lecture/écriture sans auth) ─────────
   } else if (p.startsWith('/api/ratings')) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    applyPublicApiCors(req, res);
+    if (!isCorsOriginAllowed(req)) { json({ ok: false, error: 'origin non autorisée' }, 403); return; }
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204); res.end(); return;
@@ -1899,27 +2032,27 @@ updatePreview();
     // GET /api/ratings/:slug → moyenne d'une photo
     } else if (req.method === 'GET' && p.startsWith('/api/ratings/')) {
       const slug = decodeURIComponent(p.slice('/api/ratings/'.length));
+      if (!isValidSlug(slug)) { json({ ok: false, error: 'slug invalide' }, 400); return; }
+      if (!getKnownPhotoSlugs().has(slug)) { json({ ok: false, error: 'photo inconnue' }, 404); return; }
       const r = dbGetRating(slug);
       json(r || { avg: 0, count: 0 });
 
     // POST /api/ratings/:slug  body: { score: 1-5 }
     } else if (req.method === 'POST' && p.startsWith('/api/ratings/')) {
       const slug = decodeURIComponent(p.slice('/api/ratings/'.length));
-      let body = '';
-      req.on('data', c => body += c);
-      req.on('end', () => {
-        try {
-          const { score } = JSON.parse(body);
-          const n = Number(score);
-          if (!slug || n < 1 || n > 5 || !Number.isInteger(n)) {
-            json({ ok: false, error: 'score invalide (1-5 requis)' }, 400); return;
-          }
-          dbRate(slug, n);
-          json({ ok: true, ...dbGetRating(slug) });
-        } catch {
-          json({ ok: false, error: 'JSON invalide' }, 400);
-        }
-      });
+      if (!isValidSlug(slug)) { json({ ok: false, error: 'slug invalide' }, 400); return; }
+      if (!getKnownPhotoSlugs().has(slug)) { json({ ok: false, error: 'photo inconnue' }, 404); return; }
+      const ip = getClientIp(req);
+      if (!consumeRateLimit(`rate:${ip}:${slug}`, 30, 60_000)) { json({ ok: false, error: 'rate limit' }, 429); return; }
+      let payload;
+      try { payload = await parseJsonBody(req); }
+      catch { json({ ok: false, error: 'JSON invalide' }, 400); return; }
+      const n = Number(payload.score);
+      if (!slug || n < 1 || n > 5 || !Number.isInteger(n)) {
+        json({ ok: false, error: 'score invalide (1-5 requis)' }, 400); return;
+      }
+      dbRate(slug, n);
+      json({ ok: true, ...dbGetRating(slug) });
     } else {
       json({ ok: false, error: 'Route inconnue' }, 404);
     }
@@ -1930,6 +2063,30 @@ updatePreview();
 });
 
 [CFG.tmpDir,CFG.processDir].forEach(d=>fs.mkdirSync(d,{recursive:true}));
+
+function validateSecurityConfig() {
+  if (SKIP_AUTH) return;
+  const missing = [];
+  if (!GITHUB_CLIENT_ID) missing.push('GITHUB_CLIENT_ID');
+  if (!GITHUB_CLIENT_SECRET) missing.push('GITHUB_CLIENT_SECRET');
+  if (!GITHUB_ALLOWED_USER) missing.push('GITHUB_ALLOWED_USER');
+  if (!SESSION_SECRET_ENV) missing.push('SESSION_SECRET');
+  if (missing.length) {
+    throw new Error(`Configuration auth incomplète (fail-close): ${missing.join(', ')}`);
+  }
+  if (!ADMIN_BASE_URL.startsWith('https://')) {
+    throw new Error('ADMIN_BASE_URL doit être en https quand l’auth est activée.');
+  }
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateBuckets.entries()) {
+    if (v.resetAt <= now) rateBuckets.delete(k);
+  }
+}, 60_000).unref();
+
+validateSecurityConfig();
 
 server.listen(CFG.port,()=>{
   console.log(`\n  ┌──────────────────────────────────────┐`);
