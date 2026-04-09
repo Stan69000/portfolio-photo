@@ -79,14 +79,13 @@ jobs:
             *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
           esac
 
-          TARGET_DIRS="$ADMIN_DIR
-$ADMIN_PARENT
-${ADMIN_DIR}public/
-${ADMIN_PARENT}public/
-${ADMIN_GRANDPARENT}public/"
-
-          echo "$TARGET_DIRS" | while IFS= read -r TARGET_DIR; do
-            [ -z "$TARGET_DIR" ] && continue
+          for TARGET_DIR in \
+            "$ADMIN_DIR" \
+            "$ADMIN_PARENT" \
+            "${ADMIN_DIR}public/" \
+            "${ADMIN_PARENT}public/" \
+            "${ADMIN_GRANDPARENT}public/"
+          do
             echo "Passenger markers in ${TARGET_DIR}tmp/"
             echo "${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
               --ftp-create-dirs \
