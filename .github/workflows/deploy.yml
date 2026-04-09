@@ -59,6 +59,40 @@ jobs:
             **/.git*/**
             **/node_modules/**
 
+      - name: Fallback deploy to detected Passenger roots
+        run: |
+          ADMIN_DIR="${{ secrets.FTP_ADMIN_DIR }}"
+          case "$ADMIN_DIR" in
+            */) ;;
+            *) ADMIN_DIR="${ADMIN_DIR}/" ;;
+          esac
+          ADMIN_PARENT="$(dirname "${ADMIN_DIR%/}")"
+          case "$ADMIN_PARENT" in
+            .|/) ADMIN_PARENT="/" ;;
+            */) ;;
+            *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
+          esac
+          ADMIN_GRANDPARENT="$(dirname "${ADMIN_PARENT%/}")"
+          case "$ADMIN_GRANDPARENT" in
+            .|/) ADMIN_GRANDPARENT="/" ;;
+            */) ;;
+            *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
+          esac
+
+          for TARGET_DIR in "$ADMIN_DIR" "$ADMIN_PARENT" "$ADMIN_GRANDPARENT" "${ADMIN_PARENT}public/" "${ADMIN_GRANDPARENT}public/"; do
+            [ "$TARGET_DIR" = "/" ] && continue
+            listing="$(curl -sS --list-only "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || true)"
+            if echo "$listing" | grep -Eq '(^|[[:space:]])(app\.js|passenger_wsgi\.py)$'; then
+              echo "Passenger root detected: ${TARGET_DIR}"
+              for f in admin-server.js package.json package-lock.json build.txt; do
+                curl --fail --show-error --silent \
+                  -T "./admin-deploy/${f}" \
+                  "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}${f}" \
+                  --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
+              done
+            fi
+          done
+
       - name: Restart Passenger (curl FTP → tmp/restart.txt)
         run: |
           ADMIN_DIR="${{ secrets.FTP_ADMIN_DIR }}"
