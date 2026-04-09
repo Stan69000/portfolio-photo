@@ -246,7 +246,14 @@ function gitCommit(msg) {
 
 function gitPush() {
   const opts = { cwd: __dirname, stdio: 'pipe' };
+  const stashLabel = `admin-autostash-${Date.now()}`;
+  let didStash = false;
   try {
+    const dirty = execFileSync('git', ['status', '--porcelain'], opts).toString().trim();
+    if (dirty) {
+      execFileSync('git', ['stash', 'push', '--include-untracked', '-m', stashLabel], opts);
+      didStash = true;
+    }
     // 1. Récupérer les derniers commits de GitHub (code Mac)
     execFileSync('git', ['fetch', 'origin', 'main'], opts);
     // 2. Replacer nos commits YAML sur la dernière version Mac (sans toucher au code)
@@ -261,8 +268,21 @@ function gitPush() {
     }
     // 3. Push normal (pas de --force : le rebase garantit qu'on est en avance)
     execFileSync('git', ['push', 'origin', 'HEAD:main'], opts);
+    if (didStash) {
+      try {
+        execFileSync('git', ['stash', 'pop'], opts);
+      } catch (stashErr) {
+        const msg = (stashErr.stderr || stashErr.stdout || Buffer.from('')).toString().trim() || stashErr.message;
+        console.error('gitPush stash pop error:', msg);
+        return { ok: false, error: 'Push effectué, mais restauration du stash échouée: ' + msg };
+      }
+    }
     return { ok: true };
   } catch(e) {
+    if (didStash) {
+      try { execFileSync('git', ['rebase', '--abort'], opts); } catch(_) {}
+      try { execFileSync('git', ['stash', 'pop'], opts); } catch(_) {}
+    }
     const msg = (e.stderr||e.stdout||Buffer.from('')).toString().trim()||e.message;
     console.error('gitPush error:', msg);
     return { ok: false, error: msg };
