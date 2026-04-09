@@ -355,6 +355,34 @@ function parseJsonBody(req) {
   });
 }
 
+function decodeUploadFilename(name) {
+  const raw = String(name || 'upload');
+  try {
+    const utf8 = Buffer.from(raw, 'latin1').toString('utf8');
+    const hasMojibake = /[ÃÂÐÑØÅ]|�/.test(raw);
+    if (hasMojibake && utf8 && /[\p{L}\p{N}]/u.test(utf8)) {
+      return utf8.normalize('NFC');
+    }
+  } catch {}
+  return raw.normalize('NFC');
+}
+
+function buildPhotoTitleFromFilename(filename) {
+  const base = path.parse(String(filename || '')).name.normalize('NFC');
+  const cleaned = base
+    .replace(/[_-]+/g, ' ')
+    .replace(/([\p{L}])(\d)/gu, '$1 $2')
+    .replace(/(\d)([\p{L}])/gu, '$1 $2')
+    .replace(/[^\p{L}\p{N}\s'’]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return 'Sans titre';
+  return cleaned
+    .split(' ')
+    .map((w) => w ? w.charAt(0).toLocaleUpperCase('fr-FR') + w.slice(1) : '')
+    .join(' ');
+}
+
 function parseUpload(req) {
   return new Promise((resolve, reject) => {
     const bb = Busboy({ headers: req.headers, limits: { fileSize: 300*1024*1024, files: 100, parts: 200 } });
@@ -367,12 +395,13 @@ function parseUpload(req) {
         stream.resume();
         return;
       }
-      const safeName = path.basename(info.filename || 'upload');
+      const decodedName = decodeUploadFilename(info.filename || 'upload');
+      const safeName = path.basename(decodedName).replace(/[^\p{L}\p{N}._-]/gu, '_');
       const tmp = path.join(CFG.tmpDir, `${Date.now()}-${safeName}`);
       const ws = fs.createWriteStream(tmp);
       stream.pipe(ws);
       const done = new Promise((res, rej) => {
-        ws.on('finish', () => { files.push({ path: tmp, filename: info.filename, mime: info.mimeType }); res(); });
+        ws.on('finish', () => { files.push({ path: tmp, filename: decodedName, mime: info.mimeType }); res(); });
         ws.on('error', rej);
       });
       pending.push(done);
@@ -1771,7 +1800,7 @@ a:hover{background:#748fff33}</style></head><body>
       const seriesDateFallback=fs.existsSync(seriesYamlPath)?(readYaml(seriesYamlPath).date||null):null;
       const usedSlugs=new Set(readPhotos().map(p=>p.slug).filter(Boolean));
       for(const file of files){
-        const origTitle=path.parse(file.filename).name.replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+        const origTitle=buildPhotoTitleFromFilename(file.filename);
         const exifDateStr=await readExifDate(file.path);
         const dateStr=exifDateStr||seriesDateFallback||new Date().toISOString().split('T')[0];
         let base=`${seriesSlug}-${dateStr}`;
