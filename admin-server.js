@@ -32,6 +32,15 @@ const CORS_ALLOWED_ORIGINS = new Set([
   PUBLIC_SITE_ORIGIN,
   'https://www.stan-bouchet.eu',
 ]);
+const BUILD_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'build.txt');
+const BUILD_ID = (() => {
+  try {
+    const v = fs.readFileSync(BUILD_FILE, 'utf8').trim();
+    return v || 'dev';
+  } catch {
+    return process.env.ADMIN_BUILD_ID || 'dev';
+  }
+})();
 
 // ─── RATINGS (fichier JSON — pas de dépendance native) ────────────────────────
 const RATINGS_FILE = path.join(__dirname, 'ratings.json');
@@ -2356,7 +2365,7 @@ updatePreview();
   } else if (p === '/api/ping') {
     applyPublicApiCors(req, res);
     if (!isCorsOriginAllowed(req)) { json({ ok: false, error: 'origin non autorisée' }, 403); return; }
-    json({ version: '3.0', time: Date.now(), ratingsCount: dbGetAll().length });
+    json({ version: '3.1', build: BUILD_ID, time: Date.now(), ratingsCount: dbGetAll().length });
 
   // ── API publique ratings (CORS ouvert — lecture/écriture sans auth) ─────────
   } else if (p.startsWith('/api/ratings')) {
