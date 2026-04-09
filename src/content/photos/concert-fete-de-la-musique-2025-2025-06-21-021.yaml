@@ -8,9 +8,10 @@ url_web: http://stan-bouchet.eu/concert-fete-de-la-musique-2025/web/concert-fete
 url_zoom: http://stan-bouchet.eu/concert-fete-de-la-musique-2025/zoom/concert-fete-de-la-musique-2025-2025-06-21-021.webp
 date: '2025-06-21'
 description: ''
-tags: []
+tags:
+  - Jean François FLAME
 exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/8 1/640s
-  iso: ''
+for_sale: false
