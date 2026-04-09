@@ -134,7 +134,7 @@ function applySecurityHeaders(req, res) {
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
-    "img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
     "connect-src 'self' https://admin.stan-bouchet.eu;"
   );
