@@ -66,11 +66,42 @@ jobs:
             */) ;;
             *) ADMIN_DIR="${ADMIN_DIR}/" ;;
           esac
-          echo "${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
-            --ftp-create-dirs \
-            -T - \
-            "ftp://${{ secrets.FTP_SERVER }}${ADMIN_DIR}tmp/restart.txt" \
-            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
+          ADMIN_PARENT="$(dirname "${ADMIN_DIR%/}")"
+          case "$ADMIN_PARENT" in
+            .|/) ADMIN_PARENT="/" ;;
+            */) ;;
+            *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
+          esac
+
+          for TARGET_DIR in "$ADMIN_DIR" "$ADMIN_PARENT"; do
+            echo "Restart marker in ${TARGET_DIR}tmp/restart.txt"
+            echo "${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
+              --ftp-create-dirs \
+              -T - \
+              "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}tmp/restart.txt" \
+              --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
+          done
+
+      - name: Verify uploaded admin build.txt over FTP
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          ADMIN_DIR="${{ secrets.FTP_ADMIN_DIR }}"
+          case "$ADMIN_DIR" in
+            */) ;;
+            *) ADMIN_DIR="${ADMIN_DIR}/" ;;
+          esac
+          REMOTE_BUILD="$(curl -sS --fail \
+            "ftp://${{ secrets.FTP_SERVER }}${ADMIN_DIR}build.txt" \
+            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" | tr -d '\r\n' || true)"
+          if [ -z "$REMOTE_BUILD" ]; then
+            echo "ERROR: unable to read uploaded build.txt in ${ADMIN_DIR}"
+            exit 1
+          fi
+          echo "Remote build.txt: ${REMOTE_BUILD}"
+          if [ "${REMOTE_BUILD}" != "${GITHUB_SHA}" ] && [ "${REMOTE_BUILD}" != "${SHORT_SHA}" ]; then
+            echo "ERROR: uploaded build.txt mismatch (expected ${GITHUB_SHA} or ${SHORT_SHA})"
+            exit 1
+          fi
 
       - name: Verify deployed admin build id
         run: |
