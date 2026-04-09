@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Lightbox from '../../components/Lightbox.astro';
 
-const seriesCollection = await getCollection('series');
+const seriesCollection = await getCollection('series', ({ data }) => data.published);
 const seriesBySlug = new Map(seriesCollection.map((item) => [item.data.slug, item.data.name]));
 const seriesTagsBySlug = new Map(seriesCollection.map((item) => [item.data.slug, item.data.tags ?? []]));
 
@@ -27,7 +27,9 @@ const photos = (await getCollection('photos'))
     };
   });
 
-const seriesList = [...new Set(photos.map((photo) => photo.seriesName))].sort();
+const seriesList = seriesCollection
+  .map((series) => ({ slug: series.data.slug, name: series.data.name }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b) => a.localeCompare(b, 'fr'));
 ---
 
@@ -57,7 +59,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
       <select id="search-series">
         <option value="">Toutes</option>
         {seriesList.map((series) => (
-          <option value={series.toLowerCase()}>{series}</option>
+          <option value={series.slug}>{series.name}</option>
         ))}
       </select>
     </label>
@@ -67,7 +69,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
       <select id="search-tag">
         <option value="">Tous</option>
         {tagsList.map((tag) => (
-          <option value={tag}>{tag}</option>
+          <option value={tag.toLowerCase()}>{tag}</option>
         ))}
       </select>
     </label>
@@ -97,7 +99,8 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
         data-slug={photo.slug}
         data-search={photo.title.toLowerCase()}
         data-title={photo.title.toLowerCase()}
-        data-series={photo.seriesName.toLowerCase()}
+        data-series={photo.series}
+        data-series-name={photo.seriesName.toLowerCase()}
         data-tags={photo.tags.join(' ').toLowerCase()}
         data-rating={photo.rating}
         data-timestamp={photo.timestamp}
@@ -469,6 +472,49 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   const recentClear = document.querySelector('#recent-clear');
 
   const normalize = (v) => (v || '').trim().toLowerCase();
+  const allowedSorts = new Set(['newest', 'votes', 'rating', 'title']);
+
+  const setSelectIfOptionExists = (select, value) => {
+    if (!select || !value) return;
+    const options = Array.from(select.options || []);
+    if (options.some((opt) => normalize(opt.value) === value)) {
+      select.value = value;
+    }
+  };
+
+  const applyInitialSearchParams = () => {
+    const params = new URLSearchParams(location.search);
+    const q = normalize(params.get('q'));
+    const series = normalize(params.get('series'));
+    const tag = normalize(params.get('tag'));
+    const sort = normalize(params.get('sort'));
+    const fav = normalize(params.get('fav'));
+
+    if (qInput && q) qInput.value = q;
+    setSelectIfOptionExists(sSelect, series);
+    setSelectIfOptionExists(tSelect, tag);
+    if (sortSelect && allowedSorts.has(sort)) sortSelect.value = sort;
+    if (onlyFav) onlyFav.checked = fav === '1' || fav === 'true';
+  };
+
+  const syncSearchParams = () => {
+    const params = new URLSearchParams();
+    const q = normalize(qInput?.value);
+    const series = normalize(sSelect?.value);
+    const tag = normalize(tSelect?.value);
+    const sortBy = normalize(sortSelect?.value || 'newest');
+    const favOnly = Boolean(onlyFav?.checked);
+
+    if (q) params.set('q', q);
+    if (series) params.set('series', series);
+    if (tag) params.set('tag', tag);
+    if (sortBy && sortBy !== 'newest') params.set('sort', sortBy);
+    if (favOnly) params.set('fav', '1');
+
+    const query = params.toString();
+    const nextUrl = query ? `${location.pathname}?${query}` : location.pathname;
+    history.replaceState(null, '', nextUrl);
+  };
 
   const getVoteScore = (slug) => {
     if (!window.PhotoVotes) return 0;
@@ -491,9 +537,10 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
       const slug = card.dataset.slug || '';
       const hayTitle = card.dataset.search || '';
       const haySeries = card.dataset.series || '';
+      const haySeriesName = card.dataset.seriesName || '';
       const hayTags = card.dataset.tags || '';
 
-      const textMatch = !query || hayTitle.includes(query) || haySeries.includes(query) || hayTags.includes(query);
+      const textMatch = !query || hayTitle.includes(query) || haySeriesName.includes(query) || hayTags.includes(query);
       const seriesMatch = !series || haySeries === series;
       const tagMatch = !tag || hayTags.split(' ').includes(tag);
       const favMatch = !favOnly || (window.PhotoVotes && window.PhotoVotes.isFavorite(slug));
@@ -524,6 +571,8 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
       const n = visibleCards.length;
       count.textContent = `${n} résultat${n > 1 ? 's' : ''}`;
     }
+
+    syncSearchParams();
   };
 
   qInput?.addEventListener('input', runFilter);
@@ -562,5 +611,6 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   });
 
   renderRecent();
+  applyInitialSearchParams();
   runFilter();
 </script>

@@ -37,7 +37,6 @@ const seriesList = seriesCollection
   .map((s) => ({ slug: s.data.slug, name: s.data.name }))
   .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 
-const photosJson = JSON.stringify(photos);
 ---
 
 <Base title="Recherche | Portfolio" description="Rechercher dans la galerie par titre, tag ou série">
@@ -449,8 +448,8 @@ const photosJson = JSON.stringify(photos);
   @media (max-width: 400px)  { .results-grid { columns: 1; } }
 </style>
 
-<script is:inline define:vars={{ photosJson }}>
-  const ALL = JSON.parse(photosJson);
+<script is:inline>
+  const normalize = (v) => (v || '').trim().toLowerCase();
 
   let activeTag    = '';
   let activeSeries = '';
@@ -464,16 +463,17 @@ const photosJson = JSON.stringify(photos);
   const cards    = Array.from(document.querySelectorAll('.r-card'));
 
   /* ── URL param ?tag= au chargement ───── */
-  const urlTag = new URLSearchParams(location.search).get('tag') || '';
+  const urlTag = normalize(new URLSearchParams(location.search).get('tag') || '');
   if (urlTag) {
     activeTag = urlTag;
-    const btn = document.querySelector(`.tag-pill[data-tag="${CSS.escape(urlTag)}"]`);
-    if (btn) btn.classList.add('active');
+    document.querySelectorAll('.tag-pill').forEach((pill) => {
+      pill.classList.toggle('active', normalize(pill.dataset.tag) === activeTag);
+    });
   }
 
   /* ── Filtre + tri ─────────────────────────────────────── */
   function run() {
-    const q      = (qEl.value || '').trim().toLowerCase();
+    const q      = normalize(qEl.value);
     const sortBy = sortEl.value;
 
     let visible = cards.filter((card) => {
@@ -514,7 +514,7 @@ const photosJson = JSON.stringify(photos);
 
     /* r-tag active highlight */
     document.querySelectorAll('.r-tag').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.tagFilter === activeTag);
+      btn.classList.toggle('active', normalize(btn.dataset.tagFilter) === activeTag);
     });
   }
 
@@ -531,7 +531,7 @@ const photosJson = JSON.stringify(photos);
   /* ── Tag cloud ────────────────────────────────────────── */
   document.querySelectorAll('.tag-pill').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const t = btn.dataset.tag || '';
+      const t = normalize(btn.dataset.tag);
       if (activeTag === t) {
         activeTag = '';
         btn.classList.remove('active');
@@ -547,13 +547,13 @@ const photosJson = JSON.stringify(photos);
   /* ── Tags sur les cards ───────────────────────────────── */
   document.querySelectorAll('.r-tag').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const t = btn.dataset.tagFilter || '';
+      const t = normalize(btn.dataset.tagFilter);
       if (activeTag === t) {
         activeTag = '';
       } else {
         activeTag = t;
         document.querySelectorAll('.tag-pill').forEach((b) => {
-          b.classList.toggle('active', b.dataset.tag === activeTag);
+          b.classList.toggle('active', normalize(b.dataset.tag) === activeTag);
         });
       }
       run();
