@@ -9,6 +9,8 @@ tags:
   - Nuit
   - Fleurieux sur l'Arbresle
   - Canon 90D
+map_input_type: coords
+map_public_visibility: approx
 map_lat: 45.8369
 map_lng: 4.6533
 map_zoom: 13
