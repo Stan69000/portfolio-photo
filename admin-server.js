@@ -1622,6 +1622,7 @@ function deleteSeries(f,n){
 }
 
 function seriesEditPage(serie={}, file='', msg='') {
+  const escAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const isNew = !file;
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
   const pageTitle = isNew ? 'Nouvelle série' : 'Modifier — ' + serie.name;
@@ -1629,6 +1630,12 @@ function seriesEditPage(serie={}, file='', msg='') {
   const allPhotoTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
   const tagsWidget = tagInputWidget('tags', currentTags, allPhotoTags, 'ti-serie');
   const serieLinks = Array.isArray(serie.links) ? serie.links : [];
+  const mapInputType = serie.map_input_type === 'address' ? 'address' : 'coords';
+  const mapAddress = escAttr(serie.map_address || '');
+  const mapLabel = escAttr(serie.map_label || '');
+  const mapLat = Number.isFinite(Number(serie.map_lat)) ? Number(serie.map_lat) : '';
+  const mapLng = Number.isFinite(Number(serie.map_lng)) ? Number(serie.map_lng) : '';
+  const mapZoom = Number.isFinite(Number(serie.map_zoom)) ? Number(serie.map_zoom) : 13;
   const linksHtml = Array.from({length:5},(_,i)=>{
     const l=serieLinks[i]||{};
     return `<div style="display:grid;grid-template-columns:1fr 2fr;gap:.5rem;align-items:center;margin-bottom:.5rem">
@@ -1643,6 +1650,7 @@ function seriesEditPage(serie={}, file='', msg='') {
 </div>
 ${msgHtml}
 <form method="POST" action="/series/save/${file}" style="max-width:700px">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <div class="form-grid">
   <div class="field"><label>Nom</label><input name="name" value="${serie.name||''}" required oninput="autoSlug(this.value)"></div>
   <div class="field"><label>Slug</label><input name="slug" id="slug-field" value="${serie.slug||''}"></div>
@@ -1662,11 +1670,35 @@ ${msgHtml}
 
 <div style="margin-top:2rem;border-top:1px solid #243a65;padding-top:1.5rem">
   <h2 style="font-size:1rem;font-weight:600;margin:0 0 1rem;color:#d2e1ff">📍 Secteur de la randonnée <span style="font-weight:400;color:#5a7090;font-size:.85rem">(optionnel)</span></h2>
-  <p style="font-size:.82rem;color:#5a7090;margin:0 0 1rem">Coordonnées GPS du point de départ — <a href="https://www.google.com/maps" target="_blank" style="color:#748fff">Google Maps</a> → clic droit → "C'est ici" pour obtenir lat/lng.</p>
-  <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:.75rem">
-    <div class="field"><label>Latitude</label><input name="map_lat" type="number" step="any" placeholder="45.8566" value="${serie.map_lat||''}"></div>
-    <div class="field"><label>Longitude</label><input name="map_lng" type="number" step="any" placeholder="4.8357" value="${serie.map_lng||''}"></div>
-    <div class="field"><label>Zoom (1–18)</label><input name="map_zoom" type="number" min="1" max="18" placeholder="13" value="${serie.map_zoom||13}"></div>
+  <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin:.2rem 0 .8rem">
+    <label style="display:flex;gap:.35rem;align-items:center;cursor:pointer">
+      <input type="radio" name="map_input_type" value="address"${mapInputType==='address' ? ' checked' : ''}> Adresse
+    </label>
+    <label style="display:flex;gap:.35rem;align-items:center;cursor:pointer">
+      <input type="radio" name="map_input_type" value="coords"${mapInputType==='coords' ? ' checked' : ''}> Coordonnées GPS
+    </label>
+  </div>
+  <div id="series-map-address-wrap" style="display:grid;gap:.5rem;margin-bottom:.75rem">
+    <label>Adresse du lieu</label>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <input id="series-map-address" name="map_address" value="${mapAddress}" placeholder="Ex: Chasselay, Rhône" style="flex:1;min-width:280px">
+      <button type="button" class="btn btn-sm" id="series-map-geocode-btn">Géocoder</button>
+    </div>
+    <div id="series-map-geocode-results" style="display:none;max-height:180px;overflow:auto;border:1px solid #243a65;border-radius:.5rem"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 120px auto;gap:.75rem;align-items:end">
+    <div class="field"><label>Latitude</label><input id="series-map-lat" name="map_lat" type="number" step="any" placeholder="45.8566" value="${mapLat}"></div>
+    <div class="field"><label>Longitude</label><input id="series-map-lng" name="map_lng" type="number" step="any" placeholder="4.8357" value="${mapLng}"></div>
+    <div class="field"><label>Zoom (1–18)</label><input id="series-map-zoom" name="map_zoom" type="number" min="1" max="18" placeholder="13" value="${mapZoom}"></div>
+    <button type="button" class="btn btn-sm" id="series-map-reverse-btn" style="height:2.1rem">Adresse ← GPS</button>
+  </div>
+  <div class="field" style="margin-top:.75rem">
+    <label>Libellé du lieu (optionnel)</label>
+    <input id="series-map-label" name="map_label" value="${mapLabel}" placeholder="Ex: Café de la mairie, Chasselay">
+  </div>
+  <div style="margin-top:.8rem">
+    <div id="series-map-preview" style="height:230px;border:1px solid #243a65;border-radius:.6rem;overflow:hidden"></div>
+    <div style="font-size:.72rem;color:#6b7fa8;margin-top:.35rem">Astuce : clique sur la carte ou déplace le marqueur pour ajuster le lieu.</div>
   </div>
 </div>
 
@@ -1681,12 +1713,124 @@ ${msgHtml}
   <a href="/series" class="btn">Annuler</a>
 </div>
 </form>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 function autoSlug(v){
   if(document.getElementById('slug-field').dataset.manual)return;
   document.getElementById('slug-field').value=v.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
 document.getElementById('slug-field').addEventListener('input',()=>document.getElementById('slug-field').dataset.manual='1');
+
+(function(){
+  const modeRadios=[...document.querySelectorAll('input[name="map_input_type"]')];
+  const addressWrap=document.getElementById('series-map-address-wrap');
+  const addressInput=document.getElementById('series-map-address');
+  const labelInput=document.getElementById('series-map-label');
+  const latInput=document.getElementById('series-map-lat');
+  const lngInput=document.getElementById('series-map-lng');
+  const zoomInput=document.getElementById('series-map-zoom');
+  const geocodeBtn=document.getElementById('series-map-geocode-btn');
+  const reverseBtn=document.getElementById('series-map-reverse-btn');
+  const results=document.getElementById('series-map-geocode-results');
+  const initMode='${mapInputType}';
+
+  function currentMode(){ return (modeRadios.find((r)=>r.checked)?.value)||'coords'; }
+  function syncModeUi(){ addressWrap.style.display=currentMode()==='address'?'grid':'none'; }
+  modeRadios.forEach((r)=>r.addEventListener('change',syncModeUi));
+  syncModeUi();
+
+  let map;
+  let marker;
+  function readLatLng(){
+    const lat=Number(latInput.value);
+    const lng=Number(lngInput.value);
+    if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+    if(lat<-90||lat>90||lng<-180||lng>180) return null;
+    return {lat,lng};
+  }
+  function setLatLng(lat,lng,updateView=true){
+    latInput.value=String(lat);
+    lngInput.value=String(lng);
+    const ll=[lat,lng];
+    if(!marker){
+      marker=L.marker(ll,{draggable:true}).addTo(map);
+      marker.on('dragend',()=>{
+        const p=marker.getLatLng();
+        latInput.value=p.lat.toFixed(6);
+        lngInput.value=p.lng.toFixed(6);
+      });
+    } else marker.setLatLng(ll);
+    if(updateView) map.setView(ll, Number(zoomInput.value)||13);
+  }
+  function initMap(){
+    map=L.map('series-map-preview',{zoomControl:true,scrollWheelZoom:false}).setView([46.2276,2.2137],5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(map);
+    const ll=readLatLng();
+    if(ll) setLatLng(ll.lat,ll.lng,true);
+    map.on('click',(e)=>setLatLng(Number(e.latlng.lat.toFixed(6)),Number(e.latlng.lng.toFixed(6)),false));
+    zoomInput.addEventListener('change',()=>{ if(readLatLng()) map.setZoom(Number(zoomInput.value)||13); });
+  }
+  if(window.L) initMap();
+
+  function setBusy(btn,busy,textBusy='Chargement…'){
+    if(!btn) return;
+    btn.disabled=busy;
+    if(!btn.dataset.baseText) btn.dataset.baseText=btn.textContent||'';
+    btn.textContent=busy?textBusy:btn.dataset.baseText;
+  }
+
+  function renderGeocodeResults(items){
+    if(!items.length){ results.style.display='none'; results.innerHTML=''; return; }
+    results.style.display='block';
+    results.innerHTML=items.map((item,idx)=>
+      '<button type="button" data-i="'+idx+'" style="display:block;width:100%;text-align:left;background:#0f1f3d;border:none;border-bottom:1px solid #243a65;color:#edf4ff;padding:.55rem .65rem;cursor:pointer">'+
+      item.label+'<div style="font-size:.72rem;color:#90a8d2;margin-top:.2rem">'+item.lat.toFixed(5)+', '+item.lng.toFixed(5)+'</div></button>'
+    ).join('');
+    [...results.querySelectorAll('button[data-i]')].forEach((b)=>{
+      b.onclick=()=>{
+        const item=items[Number(b.dataset.i)];
+        setLatLng(item.lat,item.lng,true);
+        addressInput.value=item.label||addressInput.value;
+        if(!labelInput.value) labelInput.value=item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || '';
+        results.style.display='none';
+      };
+    });
+  }
+
+  geocodeBtn?.addEventListener('click',async()=>{
+    const q=(addressInput.value||'').trim();
+    if(!q){alert('Renseigne une adresse.');return;}
+    setBusy(geocodeBtn,true);
+    try{
+      const r=await fetch('/api/geocode?q='+encodeURIComponent(q));
+      const d=await r.json();
+      if(!d.ok) throw new Error(d.error||'Erreur géocodage');
+      renderGeocodeResults(Array.isArray(d.results)?d.results:[]);
+      if(d.results && d.results[0]) setLatLng(d.results[0].lat,d.results[0].lng,true);
+    }catch(e){ alert('Géocodage impossible: '+(e.message||'erreur inconnue')); }
+    finally{ setBusy(geocodeBtn,false); }
+  });
+
+  reverseBtn?.addEventListener('click',async()=>{
+    const ll=readLatLng();
+    if(!ll){alert('Coordonnées invalides.');return;}
+    setBusy(reverseBtn,true,'Recherche…');
+    try{
+      const r=await fetch('/api/reverse?lat='+encodeURIComponent(ll.lat)+'&lng='+encodeURIComponent(ll.lng));
+      const d=await r.json();
+      if(!d.ok) throw new Error(d.error||'Reverse géocodage impossible');
+      if(d.result?.label) addressInput.value=d.result.label;
+      if(!labelInput.value && d.result?.address){
+        labelInput.value=d.result.address.city || d.result.address.town || d.result.address.village || d.result.address.municipality || '';
+      }
+    }catch(e){ alert('Reverse géocodage impossible: '+(e.message||'erreur inconnue')); }
+    finally{ setBusy(reverseBtn,false); }
+  });
+
+  if(initMode==='address' && addressInput.value.trim() && (!latInput.value || !lngInput.value)){
+    geocodeBtn?.click();
+  }
+})();
 </script>`, 'series');
 }
 
@@ -2430,9 +2574,13 @@ a:hover{background:#748fff33}</style></head><body>
     const isNew=!file||file==='new';
     const slug=body.slug||slugify(body.name);
     const seriesTags=body.tags?body.tags.split(',').map(t=>t.trim()).filter(Boolean):[];
-    const mapLat=body.map_lat?parseFloat(body.map_lat):undefined;
-    const mapLng=body.map_lng?parseFloat(body.map_lng):undefined;
-    const mapZoom=body.map_zoom?parseInt(body.map_zoom):13;
+    const mapInputType = body.map_input_type === 'address' ? 'address' : 'coords';
+    const mapAddress = String(body.map_address || '').trim();
+    const mapLabel = String(body.map_label || '').trim();
+    const mapLat = parseCoordinate(body.map_lat, -90, 90);
+    const mapLng = parseCoordinate(body.map_lng, -180, 180);
+    const rawZoom = Number.parseInt(String(body.map_zoom || '13'), 10);
+    const mapZoom = Number.isFinite(rawZoom) ? Math.min(18, Math.max(1, rawZoom)) : 13;
     const links=[];
     for(let i=1;i<=5;i++){
       const label=(body[`link_label_${i}`]||'').trim();
@@ -2440,7 +2588,30 @@ a:hover{background:#748fff33}</style></head><body>
       if(label&&url)links.push({label,url});
     }
     const seriesDate=body.series_date||undefined;
-    const data={name:body.name,slug,description:body.description||'',cover_url:body.cover_url||'',status:body.status||'published',published:body.status!=='draft',tags:seriesTags,...(seriesDate?{date:seriesDate}:{}),...(mapLat&&mapLng?{map_lat:mapLat,map_lng:mapLng,map_zoom:mapZoom}:{}),links};
+    const mapMeta = {
+      map_input_type: mapInputType,
+      ...(mapAddress ? { map_address: mapAddress } : {}),
+      ...(mapLabel ? { map_label: mapLabel } : {})
+    };
+    const data={
+      name:body.name,
+      slug,
+      description:body.description||'',
+      cover_url:body.cover_url||'',
+      status:body.status||'published',
+      published:body.status!=='draft',
+      tags:seriesTags,
+      ...(seriesDate?{date:seriesDate}:{}),
+      ...mapMeta,
+      ...(Number.isFinite(mapLat) && Number.isFinite(mapLng)
+        ? {
+            map_lat: mapLat,
+            map_lng: mapLng,
+            map_zoom: mapZoom
+          }
+        : {}),
+      links
+    };
     const outFile=isNew?`${slug}.yaml`:file;
     writeYaml(path.join(CFG.seriesDir,outFile),data);
     autoGitPush(`serie: ${isNew?'création':'modification'} ${slug}`);

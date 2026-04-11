@@ -115,7 +115,7 @@ const breadcrumbJsonLd = {
 
   {series.data.map_lat && series.data.map_lng && (
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script define:vars={{ lat: series.data.map_lat, lng: series.data.map_lng, zoom: series.data.map_zoom ?? 13, name: series.data.name }}>
+    <script define:vars={{ lat: series.data.map_lat, lng: series.data.map_lng, zoom: series.data.map_zoom ?? 13, name: series.data.map_label || series.data.name }}>
       (function() {
         function initMap() {
           if (!window.L || !document.getElementById('series-map')) return;
