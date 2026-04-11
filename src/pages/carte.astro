@@ -165,12 +165,21 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
     </div>
     <div class="legend">
       <h2>Légende</h2>
-      <div class="legend-item"><span class="dot series"></span>Localisation série</div>
-      <div class="legend-note">Point principal d’un reportage ou d’une série complète.</div>
-      <div class="legend-item"><span class="dot photo"></span>Localisation photo</div>
-      <div class="legend-note">Point spécifique défini directement sur une image.</div>
-      <div class="legend-item"><span class="dot precise"></span>Position précise</div>
-      <div class="legend-item"><span class="dot approx"></span>Position approximative</div>
+      <div class="legend-grid">
+        <div class="legend-group">
+          <h3>Type de localisation</h3>
+          <div class="legend-item"><span class="dot series"></span>Localisation série</div>
+          <div class="legend-note">Point principal d’un reportage ou d’une série complète.</div>
+          <div class="legend-item"><span class="dot photo"></span>Localisation photo</div>
+          <div class="legend-note">Point spécifique défini directement sur une image.</div>
+        </div>
+        <div class="legend-group">
+          <h3>Niveau de précision</h3>
+          <div class="legend-item"><span class="dot precise"></span>Position précise</div>
+          <div class="legend-item"><span class="dot approx"></span>Position approximative</div>
+          <div class="legend-note">La couleur indique la précision. Le contour indique s’il s’agit d’une série ou d’une photo.</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -281,14 +290,15 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
 
         markers.forEach((point) => {
           const color = point.visibility === 'approx' ? '#e9a756' : '#4f7dff';
-          const sourceWeight = point.sourceType === 'series' ? 3 : 2;
+          const sourceWeight = point.sourceType === 'series' ? 3 : 2.4;
           const sourceFillOpacity = point.sourceType === 'series' ? 0.98 : 0.82;
+          const sourceStroke = point.sourceType === 'series' ? '#ffffff' : '#6de2cb';
           const actionUrl = point.seriesSlugs.length === 1
             ? '/recherche?series=' + encodeURIComponent(point.seriesSlugs[0])
             : '/recherche?q=' + encodeURIComponent(point.label);
           const marker = L.circleMarker([point.lat, point.lng], {
             radius: point.sourceType === 'series' ? 9 : 7,
-            color: '#ffffff',
+            color: sourceStroke,
             weight: sourceWeight,
             fillColor: color,
             fillOpacity: sourceFillOpacity
@@ -467,6 +477,28 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
     font-size: 1.15rem;
   }
 
+  .legend-grid {
+    display: grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .legend-group {
+    display: grid;
+    gap: .45rem;
+    align-content: start;
+  }
+
+  .legend-group h3 {
+    margin: 0;
+    font-size: .78rem;
+    font-family: var(--font-mono);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #8ea5d8;
+  }
+
   .legend-item {
     display: flex;
     align-items: center;
@@ -485,14 +517,14 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
 
   .dot.precise { background: #4f7dff; }
   .dot.approx { background: #e9a756; }
-  .dot.series { background: #4f7dff; border-width: 2px; }
-  .dot.photo { background: #4f7dff; border-style: dashed; border-width: 2px; opacity: .82; }
+  .dot.series { background: #4f7dff; border-width: 2px; border-color: #ffffff; }
+  .dot.photo { background: #4f7dff; border-style: dashed; border-width: 2px; border-color: #6de2cb; opacity: .86; }
 
   .legend-note {
-    margin-top: .2rem;
+    margin: 0 0 .25rem 1.55rem;
     font-size: .76rem;
     color: var(--muted);
-    line-height: 1.55;
+    line-height: 1.45;
   }
 
   .map-shell {
@@ -652,6 +684,11 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   @media (max-width: 900px) {
     .map-hero {
       grid-template-columns: 1fr;
+    }
+
+    .legend-grid {
+      grid-template-columns: 1fr;
+      gap: .75rem;
     }
   }
 </style>
