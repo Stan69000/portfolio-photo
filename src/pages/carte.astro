@@ -359,7 +359,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
         const focusLat = Number(params.get('lat'));
         const focusLng = Number(params.get('lng'));
         if (Number.isFinite(focusLat) && Number.isFinite(focusLng)) {
-          const focusZoom = 11;
+          const focusZoom = 6;
           map.setView([focusLat, focusLng], focusZoom, { animate: false });
           let best = null;
           let bestDist = Infinity;
@@ -371,11 +371,6 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
               bestDist = dist;
               best = ref.marker;
             }
-          }
-          if (best) {
-            setTimeout(() => {
-              best.openPopup();
-            }, 120);
           }
         }
       }
