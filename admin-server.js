@@ -152,7 +152,7 @@ function applySecurityHeaders(req, res) {
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
-    "img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
     "font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
     "connect-src 'self' https://admin.stan-bouchet.eu;"
   );
@@ -297,6 +297,65 @@ function filterKnownTags(inputTags, strict = false) {
   return { tags: normalizeTags(kept), rejected };
 }
 
+function parseCoordinate(raw, min, max) {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  if (n < min || n > max) return undefined;
+  return n;
+}
+
+function normalizeLocation(input) {
+  if (!input || typeof input !== 'object') return undefined;
+  const inputType = input.input_type === 'address' ? 'address' : 'coords';
+  const address = String(input.address || '').trim();
+  const label = String(input.label || '').trim();
+  const lat = parseCoordinate(input.lat, -90, 90);
+  const lng = parseCoordinate(input.lng, -180, 180);
+  const visibilityRaw = String(input.public_visibility || '').trim().toLowerCase();
+  const publicVisibility = ['hidden', 'approx', 'precise'].includes(visibilityRaw) ? visibilityRaw : 'hidden';
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  return {
+    input_type: inputType,
+    ...(address ? { address } : {}),
+    ...(label ? { label } : {}),
+    lat: Number(lat),
+    lng: Number(lng),
+    public_visibility: publicVisibility
+  };
+}
+
+function formatGeocodeResult(item) {
+  const lat = parseCoordinate(item?.lat, -90, 90);
+  const lng = parseCoordinate(item?.lon ?? item?.lng, -180, 180);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {
+    label: String(item.display_name || '').trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+    address: item.address || {},
+    lat: Number(lat),
+    lng: Number(lng)
+  };
+}
+
+function httpsGetRaw(urlStr, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(urlStr, {
+      headers: {
+        'User-Agent': 'stan-photo-admin/1.0 (contact: admin@stan-bouchet.eu)',
+        Accept: 'application/json',
+        ...headers
+      },
+      timeout: 12000
+    }, (r) => {
+      let body = '';
+      r.on('data', (c) => { body += c; });
+      r.on('end', () => resolve({ statusCode: r.statusCode || 500, body }));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+  });
+}
+
 function readSettings() {
   try { return readYaml(CFG.settingsFile); } catch { return {}; }
 }
@@ -382,6 +441,11 @@ function savePhoto(file, updates) {
   const data = { ...readYaml(fp), ...updates };
   if ('status' in data) data.status = normalizeStatus(data.status);
   if ('tags' in data) data.tags = normalizeTags(data.tags);
+  if ('location' in data) {
+    const normalizedLocation = normalizeLocation(data.location);
+    if (normalizedLocation) data.location = normalizedLocation;
+    else delete data.location;
+  }
   if (data.exif && !Object.values(data.exif).some(Boolean)) delete data.exif;
   writeYaml(fp, data);
 }
@@ -1156,9 +1220,11 @@ render();
 
 // ─── EDIT PAGE ────────────────────────────────────────────────────────────────
 function editPage(photo, file, saved=false) {
+  const escAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const st = normalizeStatus(photo.status);
   const stLabel = st==='published' ? 'En ligne' : st==='draft' ? 'Brouillon' : st==='archived' ? 'Archivée' : 'Corbeille';
   const currentTags = Array.isArray(photo.tags) ? photo.tags : (photo.tags ? [photo.tags] : []);
+  const location = normalizeLocation(photo.location || {});
   const series = readSeries();
   const allTags = getTagCatalog();
   const savedHtml = saved ? '<div class="alert alert-success">✓ Sauvegardé.</div>' : '';
@@ -1166,7 +1232,14 @@ function editPage(photo, file, saved=false) {
   const thumbHtml = thumbUrl ? '<img src="' + thumbUrl + '" style="max-width:360px;border-radius:.5rem;margin-bottom:1.5rem;display:block">' : '';
   const seriesOptsHtml = series.map(s=>'<option value="' + s.slug + '"' + (photo.series===s.slug?' selected':'') + '>' + s.name + '</option>').join('');
   const tagsWidget = tagInputWidget('tags', currentTags, allTags, 'ti-photo');
+  const locationInputType = location?.input_type || 'coords';
+  const locationAddress = escAttr(location?.address || '');
+  const locationLabel = escAttr(location?.label || '');
+  const locationLat = Number.isFinite(location?.lat) ? location.lat : '';
+  const locationLng = Number.isFinite(location?.lng) ? location.lng : '';
+  const locationVisibility = location?.public_visibility || 'hidden';
   return layout('Modifier — ' + photo.title, `
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
   <a href="/" class="btn">← Retour</a>
   <h1 style="margin:0">${photo.title}</h1>
@@ -1190,6 +1263,48 @@ ${thumbHtml}
     <label>Tags</label>
     ${tagsWidget}
   </div>
+  <div class="field full" style="border:1px solid #243a65;border-radius:.8rem;padding:1rem;background:#0a1628">
+    <label style="font-size:.85rem;color:#c8d7f4">Localisation de la prise de vue</label>
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.45rem">
+      <label style="display:flex;gap:.35rem;align-items:center;cursor:pointer">
+        <input type="radio" name="location_input_type" value="address"${locationInputType==='address' ? ' checked' : ''}> Adresse
+      </label>
+      <label style="display:flex;gap:.35rem;align-items:center;cursor:pointer">
+        <input type="radio" name="location_input_type" value="coords"${locationInputType==='coords' ? ' checked' : ''}> Coordonnées GPS
+      </label>
+    </div>
+    <div id="location-address-wrap" style="margin-top:.8rem;display:grid;gap:.5rem">
+      <label>Adresse postale</label>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <input id="location-address" name="location_address" value="${locationAddress}" placeholder="Ex: 35 rue de la République, Lyon" style="flex:1;min-width:260px">
+        <button class="btn btn-sm" type="button" id="location-geocode-btn">Géocoder</button>
+      </div>
+      <div id="location-geocode-results" style="display:none;max-height:180px;overflow:auto;border:1px solid #243a65;border-radius:.5rem"></div>
+    </div>
+    <div id="location-coords-wrap" style="margin-top:.8rem;display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;align-items:end">
+      <div class="field" style="margin:0"><label>Latitude</label><input id="location-lat" name="location_lat" type="number" step="any" value="${locationLat}" placeholder="45.764043"></div>
+      <div class="field" style="margin:0"><label>Longitude</label><input id="location-lng" name="location_lng" type="number" step="any" value="${locationLng}" placeholder="4.835659"></div>
+      <button class="btn btn-sm" type="button" id="location-reverse-btn" style="height:2.1rem">Adresse ← GPS</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 220px;gap:.75rem;margin-top:.8rem">
+      <div class="field" style="margin:0">
+        <label>Libellé affiché (optionnel)</label>
+        <input id="location-label" name="location_label" value="${locationLabel}" placeholder="Ex: Café de la Mairie, Chasselay">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Communication publique</label>
+        <select name="location_public_visibility" id="location-visibility">
+          <option value="hidden"${locationVisibility==='hidden' ? ' selected' : ''}>Non (privé)</option>
+          <option value="approx"${locationVisibility==='approx' ? ' selected' : ''}>Oui, approximatif</option>
+          <option value="precise"${locationVisibility==='precise' ? ' selected' : ''}>Oui, précis</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:.8rem">
+      <div id="location-map" style="height:240px;border:1px solid #243a65;border-radius:.6rem;overflow:hidden"></div>
+      <div id="location-map-hint" style="font-size:.72rem;color:#6b7fa8;margin-top:.35rem">Astuce : déplace le marqueur pour ajuster précisément le point.</div>
+    </div>
+  </div>
   <div class="field"><label>Appareil</label><input name="exif_camera" value="${photo.exif?.camera||''}"></div>
   <div class="field"><label>Objectif</label><input name="exif_lens" value="${photo.exif?.lens||''}"></div>
   <div class="field"><label>Réglages (ex: f/2.8 1/500s)</label><input name="exif_settings" value="${photo.exif?.settings||''}"></div>
@@ -1206,7 +1321,155 @@ ${thumbHtml}
   <button type="submit" class="btn btn-primary">Sauvegarder</button>
   <a href="/" class="btn">Annuler</a>
 </div>
-</form>`, 'photos');
+</form>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  const modeRadios=[...document.querySelectorAll('input[name="location_input_type"]')];
+  const addressWrap=document.getElementById('location-address-wrap');
+  const coordsWrap=document.getElementById('location-coords-wrap');
+  const addressInput=document.getElementById('location-address');
+  const labelInput=document.getElementById('location-label');
+  const latInput=document.getElementById('location-lat');
+  const lngInput=document.getElementById('location-lng');
+  const geocodeBtn=document.getElementById('location-geocode-btn');
+  const reverseBtn=document.getElementById('location-reverse-btn');
+  const results=document.getElementById('location-geocode-results');
+  const initType='${locationInputType}';
+
+  function currentMode(){
+    return (modeRadios.find((r)=>r.checked)?.value)||'coords';
+  }
+
+  function syncModeUi(){
+    const mode=currentMode();
+    addressWrap.style.display=mode==='address'?'grid':'none';
+    coordsWrap.style.display='grid';
+  }
+  modeRadios.forEach((r)=>r.addEventListener('change',syncModeUi));
+  syncModeUi();
+
+  let map;
+  let marker;
+  function readLatLng(){
+    const lat=Number(latInput.value);
+    const lng=Number(lngInput.value);
+    if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+    if(lat<-90||lat>90||lng<-180||lng>180) return null;
+    return {lat,lng};
+  }
+  function setLatLng(lat,lng,updateView=true){
+    latInput.value=String(lat);
+    lngInput.value=String(lng);
+    const ll=[lat,lng];
+    if(!marker){
+      marker=L.marker(ll,{draggable:true}).addTo(map);
+      marker.on('dragend',()=>{
+        const p=marker.getLatLng();
+        latInput.value=p.lat.toFixed(6);
+        lngInput.value=p.lng.toFixed(6);
+      });
+    }else{
+      marker.setLatLng(ll);
+    }
+    if(updateView) map.setView(ll, map.getZoom()<6?13:map.getZoom());
+  }
+
+  function initMap(){
+    map=L.map('location-map',{zoomControl:true,scrollWheelZoom:false}).setView([46.2276,2.2137],5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+      attribution:'© OpenStreetMap © CARTO',
+      maxZoom:19
+    }).addTo(map);
+    const ll=readLatLng();
+    if(ll) setLatLng(ll.lat,ll.lng,true);
+    map.on('click',(e)=>setLatLng(Number(e.latlng.lat.toFixed(6)),Number(e.latlng.lng.toFixed(6)),false));
+  }
+  if(window.L) initMap();
+
+  latInput.addEventListener('change',()=>{
+    const ll=readLatLng();
+    if(ll) setLatLng(ll.lat,ll.lng,false);
+  });
+  lngInput.addEventListener('change',()=>{
+    const ll=readLatLng();
+    if(ll) setLatLng(ll.lat,ll.lng,false);
+  });
+
+  function setBusy(btn,busy,textBusy='Chargement…'){
+    if(!btn) return;
+    btn.disabled=busy;
+    if(!btn.dataset.baseText) btn.dataset.baseText=btn.textContent||'';
+    btn.textContent=busy?textBusy:btn.dataset.baseText;
+  }
+
+  function renderGeocodeResults(items){
+    if(!items.length){
+      results.style.display='none';
+      results.innerHTML='';
+      return;
+    }
+    results.style.display='block';
+    results.innerHTML=items.map((item,idx)=>
+      '<button type="button" data-i="'+idx+'" style="display:block;width:100%;text-align:left;background:#0f1f3d;border:none;border-bottom:1px solid #243a65;color:#edf4ff;padding:.55rem .65rem;cursor:pointer">'+
+      item.label+
+      '<div style="font-size:.72rem;color:#90a8d2;margin-top:.2rem">'+item.lat.toFixed(5)+', '+item.lng.toFixed(5)+'</div>'+
+      '</button>'
+    ).join('');
+    [...results.querySelectorAll('button[data-i]')].forEach((b)=>{
+      b.onclick=()=>{
+        const item=items[Number(b.dataset.i)];
+        setLatLng(item.lat,item.lng,true);
+        addressInput.value=item.label||addressInput.value;
+        if(!labelInput.value) labelInput.value=item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || '';
+        results.style.display='none';
+      };
+    });
+  }
+
+  geocodeBtn?.addEventListener('click',async()=>{
+    const q=(addressInput.value||'').trim();
+    if(!q){alert('Renseigne une adresse.');return;}
+    setBusy(geocodeBtn,true);
+    try{
+      const r=await fetch('/api/geocode?q='+encodeURIComponent(q));
+      const d=await r.json();
+      if(!d.ok){throw new Error(d.error||'Erreur géocodage');}
+      renderGeocodeResults(Array.isArray(d.results)?d.results:[]);
+      if(d.results && d.results[0]){
+        setLatLng(d.results[0].lat,d.results[0].lng,true);
+      }
+    }catch(e){
+      alert('Géocodage impossible: '+(e.message||'erreur inconnue'));
+    }finally{
+      setBusy(geocodeBtn,false);
+    }
+  });
+
+  reverseBtn?.addEventListener('click',async()=>{
+    const ll=readLatLng();
+    if(!ll){alert('Coordonnées invalides.');return;}
+    setBusy(reverseBtn,true,'Recherche…');
+    try{
+      const r=await fetch('/api/reverse?lat='+encodeURIComponent(ll.lat)+'&lng='+encodeURIComponent(ll.lng));
+      const d=await r.json();
+      if(!d.ok){throw new Error(d.error||'Reverse géocodage impossible');}
+      if(d.result?.label) addressInput.value=d.result.label;
+      if(!labelInput.value && d.result?.address){
+        labelInput.value=d.result.address.city || d.result.address.town || d.result.address.village || d.result.address.municipality || '';
+      }
+    }catch(e){
+      alert('Reverse géocodage impossible: '+(e.message||'erreur inconnue'));
+    }finally{
+      setBusy(reverseBtn,false);
+    }
+  });
+
+  if(initType==='address' && addressInput.value.trim() && (!latInput.value || !lngInput.value)){
+    geocodeBtn?.click();
+  }
+})();
+</script>`, 'photos');
 }
 
 // ─── UPLOAD PAGE ──────────────────────────────────────────────────────────────
@@ -1972,6 +2235,14 @@ a:hover{background:#748fff33}</style></head><body>
     const file=path.basename(p.slice(6));
     const body=await parseBody(req);
     const { tags } = filterKnownTags(parseTagsString(body.tags), false);
+    const location = normalizeLocation({
+      input_type: body.location_input_type,
+      address: body.location_address,
+      label: body.location_label,
+      lat: body.location_lat,
+      lng: body.location_lng,
+      public_visibility: body.location_public_visibility
+    });
     savePhoto(file,{
       title:body.title, slug:body.slug, series:body.series,
       date:body.shoot_date||undefined,
@@ -1979,7 +2250,8 @@ a:hover{background:#748fff33}</style></head><body>
       rating:body.rating?parseFloat(body.rating):undefined,
       price:body.price?parseFloat(body.price):undefined,
       for_sale:body.for_sale==='true',
-      exif:{camera:body.exif_camera||undefined,lens:body.exif_lens||undefined,settings:body.exif_settings||undefined,iso:body.exif_iso||undefined}
+      exif:{camera:body.exif_camera||undefined,lens:body.exif_lens||undefined,settings:body.exif_settings||undefined,iso:body.exif_iso||undefined},
+      location
     });
     autoGitPush(`edit: ${body.title||file}`);
     redirect(`/edit/${file}?saved=1`);
@@ -2237,6 +2509,50 @@ a:hover{background:#748fff33}</style></head><body>
   // ── Stats
   } else if (req.method==='GET' && p==='/stats') {
     html(statsPage(readPhotos(),readSeries(),readViews()));
+
+  // ── API: geocoding (adresse -> coordonnées)
+  } else if (req.method==='GET' && p==='/api/geocode') {
+    if (!SKIP_AUTH && !getSessionUser(req)) { json({ ok: false, error: 'unauthorized' }, 401); return; }
+    const q = String(url.searchParams.get('q') || '').trim();
+    if (!q) { json({ ok: false, error: 'adresse manquante' }, 400); return; }
+    const ip = getClientIp(req);
+    if (!consumeRateLimit(`geocode:${ip}`, 40, 60_000)) { json({ ok: false, error: 'rate limit' }, 429); return; }
+    try {
+      const endpoint = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`;
+      const out = await httpsGetRaw(endpoint);
+      if (out.statusCode < 200 || out.statusCode >= 300) {
+        json({ ok: false, error: `service geocodage indisponible (${out.statusCode})` }, 502);
+        return;
+      }
+      const parsed = JSON.parse(out.body || '[]');
+      const results = Array.isArray(parsed) ? parsed.map(formatGeocodeResult).filter(Boolean) : [];
+      json({ ok: true, results });
+    } catch (e) {
+      json({ ok: false, error: `géocodage impossible: ${e.message}` }, 500);
+    }
+
+  // ── API: reverse geocoding (coordonnées -> adresse)
+  } else if (req.method==='GET' && p==='/api/reverse') {
+    if (!SKIP_AUTH && !getSessionUser(req)) { json({ ok: false, error: 'unauthorized' }, 401); return; }
+    const lat = parseCoordinate(url.searchParams.get('lat'), -90, 90);
+    const lng = parseCoordinate(url.searchParams.get('lng'), -180, 180);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { json({ ok: false, error: 'coordonnées invalides' }, 400); return; }
+    const ip = getClientIp(req);
+    if (!consumeRateLimit(`reverse:${ip}`, 50, 60_000)) { json({ ok: false, error: 'rate limit' }, 429); return; }
+    try {
+      const endpoint = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
+      const out = await httpsGetRaw(endpoint);
+      if (out.statusCode < 200 || out.statusCode >= 300) {
+        json({ ok: false, error: `service reverse indisponible (${out.statusCode})` }, 502);
+        return;
+      }
+      const parsed = JSON.parse(out.body || '{}');
+      const result = formatGeocodeResult(parsed);
+      if (!result) { json({ ok: false, error: 'adresse introuvable' }, 404); return; }
+      json({ ok: true, result });
+    } catch (e) {
+      json({ ok: false, error: `reverse impossible: ${e.message}` }, 500);
+    }
 
   // ── API: increment view
   } else if (req.method==='POST' && p.startsWith('/api/view/')) {

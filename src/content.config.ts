@@ -26,6 +26,16 @@ const photos = defineCollection({
         iso: z.union([z.string(), z.number()]).optional()
       })
       .optional(),
+    location: z
+      .object({
+        input_type: z.enum(['address', 'coords']).default('coords'),
+        address: z.string().optional(),
+        label: z.string().optional(),
+        lat: z.number().optional(),
+        lng: z.number().optional(),
+        public_visibility: z.enum(['hidden', 'approx', 'precise']).default('hidden')
+      })
+      .optional(),
     price: z.number().optional(),
     for_sale: z.boolean().default(false)
   })

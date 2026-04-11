@@ -1,0 +1,441 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+type MarkerPhoto = {
+  slug: string;
+  title: string;
+  series: string;
+  date: string;
+  thumb: string;
+  visibility: 'approx' | 'precise';
+};
+
+type Marker = {
+  lat: number;
+  lng: number;
+  visibility: 'approx' | 'precise';
+  count: number;
+  label: string;
+  photos: MarkerPhoto[];
+};
+
+const publishedPhotos = await getCollection('photos', ({ data }) => data.status === 'published');
+
+function asNumber(value: unknown): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+function toDisplayCoord(value: number, visibility: 'approx' | 'precise'): number {
+  if (visibility === 'precise') return Number(value.toFixed(6));
+  return Number(value.toFixed(2));
+}
+
+const grouped = new Map<string, Marker>();
+
+for (const photo of publishedPhotos) {
+  const location = photo.data.location;
+  if (!location) continue;
+  const visibility = location.public_visibility;
+  if (visibility !== 'approx' && visibility !== 'precise') continue;
+  const lat = asNumber(location.lat);
+  const lng = asNumber(location.lng);
+  if (lat === null || lng === null) continue;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+
+  const displayLat = toDisplayCoord(lat, visibility);
+  const displayLng = toDisplayCoord(lng, visibility);
+  const key = `${displayLat}|${displayLng}|${visibility}`;
+  const label = location.label || location.address || photo.data.series.replace(/-/g, ' ');
+  const photoItem: MarkerPhoto = {
+    slug: photo.data.slug,
+    title: photo.data.title,
+    series: photo.data.series,
+    date: photo.data.date ? photo.data.date.toISOString().slice(0, 10) : '',
+    thumb: photo.data.url_thumb || photo.data.url_web || photo.data.url,
+    visibility
+  };
+
+  const existing = grouped.get(key);
+  if (existing) {
+    existing.count += 1;
+    if (existing.photos.length < 8) existing.photos.push(photoItem);
+  } else {
+    grouped.set(key, {
+      lat: displayLat,
+      lng: displayLng,
+      visibility,
+      count: 1,
+      label,
+      photos: [photoItem]
+    });
+  }
+}
+
+const markers = [...grouped.values()].sort((a, b) => b.count - a.count);
+const totalPhotosMapped = markers.reduce((acc, item) => acc + item.count, 0);
+const markerCount = markers.length;
+const preciseCount = markers.filter((m) => m.visibility === 'precise').length;
+const approxCount = markers.filter((m) => m.visibility === 'approx').length;
+---
+
+<Base title="Carte des prises de vue | Portfolio" description="Visualiser les lieux des photos en France et dans le monde.">
+  <section class="map-hero reveal">
+    <div class="map-copy">
+      <p class="kicker">Atlas photo</p>
+      <h1>Où les images ont été prises</h1>
+      <p>
+        Explore les lieux de prise de vue en mode France ou Monde. Les localisations privées ne sont jamais affichées.
+      </p>
+      <div class="stats">
+        <span>{totalPhotosMapped} photo{totalPhotosMapped > 1 ? 's' : ''} localisée{totalPhotosMapped > 1 ? 's' : ''}</span>
+        <span>{markerCount} lieu{markerCount > 1 ? 'x' : ''}</span>
+        <span>{preciseCount} précis · {approxCount} approximatif{approxCount > 1 ? 's' : ''}</span>
+      </div>
+      <div class="actions">
+        <button type="button" class="mode-btn active" id="mode-fr">France</button>
+        <button type="button" class="mode-btn" id="mode-world">Monde</button>
+      </div>
+    </div>
+    <div class="legend">
+      <h2>Légende</h2>
+      <div class="legend-item"><span class="dot precise"></span>Localisation précise</div>
+      <div class="legend-item"><span class="dot approx"></span>Localisation approximative</div>
+      <div class="legend-note">Les clusters regroupent automatiquement les lieux proches et les doublons.</div>
+    </div>
+  </section>
+
+  <section class="map-shell reveal">
+    <div id="photo-map" class="photo-map" aria-label="Carte des lieux de prise de vue"></div>
+  </section>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script define:vars={{ markers }}>
+    (function () {
+      if (!window.L || !document.getElementById('photo-map')) return;
+
+      const frBounds = L.latLngBounds([41.15, -5.8], [51.3, 9.9]);
+      const worldBounds = L.latLngBounds([-62, -178], [82, 178]);
+
+      const map = L.map('photo-map', { zoomControl: true, minZoom: 2 }).setView([46.2276, 2.2137], 5);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap © CARTO',
+      }).addTo(map);
+
+      const cluster = L.markerClusterGroup({
+        maxClusterRadius: 44,
+        showCoverageOnHover: false,
+        spiderfyOnEveryZoom: true,
+      });
+
+      function esc(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function buildPopup(point) {
+        const preview = point.photos
+          .map((item) => {
+            const when = item.date ? new Date(item.date).toLocaleDateString('fr-FR') : '';
+            return (
+              '<a class="popup-item" href="/photo/' + esc(item.slug) + '/">' +
+                '<img src="' + esc(item.thumb) + '" alt="' + esc(item.title) + '" loading="lazy">' +
+                '<div class="popup-body">' +
+                  '<strong>' + esc(item.title) + '</strong>' +
+                  '<span>' + esc(item.series.replace(/-/g, ' ')) + (when ? ' · ' + esc(when) : '') + '</span>' +
+                '</div>' +
+              '</a>'
+            );
+          })
+          .join('');
+
+        const note = point.visibility === 'approx'
+          ? '<p class="popup-note">Position volontairement approximative.</p>'
+          : '';
+
+        return (
+          '<div class="popup-wrap">' +
+            '<h3>' + esc(point.label) + '</h3>' +
+            '<p class="popup-count">' + point.count + ' photo' + (point.count > 1 ? 's' : '') + '</p>' +
+            note +
+            '<div class="popup-list">' + preview + '</div>' +
+          '</div>'
+        );
+      }
+
+      markers.forEach((point) => {
+        const className = point.visibility === 'approx' ? 'map-pin pin-approx' : 'map-pin pin-precise';
+        const marker = L.marker([point.lat, point.lng], {
+          icon: L.divIcon({
+            className: '',
+            html: '<span class="' + className + '"></span>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          }),
+        });
+        marker.bindPopup(buildPopup(point), { maxWidth: 360, closeButton: true });
+        cluster.addLayer(marker);
+      });
+
+      map.addLayer(cluster);
+      map.fitBounds(frBounds.pad(0.15));
+
+      const frBtn = document.getElementById('mode-fr');
+      const worldBtn = document.getElementById('mode-world');
+      function setMode(mode) {
+        if (mode === 'world') {
+          map.fitBounds(worldBounds);
+          worldBtn?.classList.add('active');
+          frBtn?.classList.remove('active');
+          return;
+        }
+        map.fitBounds(frBounds.pad(0.15));
+        frBtn?.classList.add('active');
+        worldBtn?.classList.remove('active');
+      }
+      frBtn?.addEventListener('click', () => setMode('fr'));
+      worldBtn?.addEventListener('click', () => setMode('world'));
+    })();
+  </script>
+</Base>
+
+<style>
+  .map-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .map-copy {
+    background: linear-gradient(148deg, rgba(18, 37, 74, 0.92), rgba(8, 18, 42, 0.95));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .kicker {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: .76rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #c0d4ff;
+  }
+
+  .map-copy h1 {
+    font-size: clamp(1.8rem, 4.2vw, 3rem);
+  }
+
+  .map-copy p {
+    margin: 0;
+  }
+
+  .stats {
+    display: flex;
+    gap: .45rem;
+    flex-wrap: wrap;
+  }
+
+  .stats span {
+    border: 1px solid rgba(116, 143, 255, 0.28);
+    background: rgba(116, 143, 255, 0.12);
+    border-radius: 999px;
+    padding: .2rem .62rem;
+    font-family: var(--font-mono);
+    font-size: .72rem;
+    color: #d2e0ff;
+  }
+
+  .actions {
+    display: flex;
+    gap: .55rem;
+    flex-wrap: wrap;
+  }
+
+  .mode-btn {
+    border: 1px solid rgba(116, 143, 255, 0.35);
+    background: rgba(8, 19, 41, 0.6);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: .34rem .82rem;
+    font-family: var(--font-mono);
+    font-size: .74rem;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+
+  .mode-btn:hover,
+  .mode-btn.active {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(116, 143, 255, 0.15);
+  }
+
+  .legend {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem;
+    background: linear-gradient(145deg, rgba(14, 30, 62, .82), rgba(7, 16, 37, .88));
+    display: grid;
+    align-content: start;
+    gap: .55rem;
+  }
+
+  .legend h2 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    font-size: .88rem;
+    color: #d8e4ff;
+  }
+
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, .45);
+  }
+
+  .dot.precise { background: #4f7dff; }
+  .dot.approx { background: #e9a756; }
+
+  .legend-note {
+    margin-top: .2rem;
+    font-size: .76rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .map-shell {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: rgba(7, 16, 37, 0.9);
+  }
+
+  .photo-map {
+    width: 100%;
+    height: min(74vh, 760px);
+    min-height: 420px;
+  }
+
+  :global(.map-pin) {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: block;
+    border: 2px solid #fff;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
+  }
+
+  :global(.pin-precise) {
+    background: #4f7dff;
+  }
+
+  :global(.pin-approx) {
+    background: #e9a756;
+  }
+
+  :global(.marker-cluster-small),
+  :global(.marker-cluster-medium),
+  :global(.marker-cluster-large) {
+    background: rgba(79, 125, 255, 0.22);
+  }
+
+  :global(.marker-cluster div) {
+    background: rgba(79, 125, 255, 0.75);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    font-family: var(--font-mono);
+    font-size: .73rem;
+  }
+
+  :global(.popup-wrap h3) {
+    margin: 0;
+    font-size: 1.02rem;
+    color: #13284f;
+  }
+
+  :global(.popup-count) {
+    margin: .15rem 0 .45rem;
+    font-size: .74rem;
+    font-family: var(--font-mono);
+    color: #516792;
+  }
+
+  :global(.popup-note) {
+    margin: 0 0 .45rem;
+    font-size: .72rem;
+    color: #9f611d;
+  }
+
+  :global(.popup-list) {
+    display: grid;
+    gap: .45rem;
+    max-height: 210px;
+    overflow: auto;
+  }
+
+  :global(.popup-item) {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: .5rem;
+    align-items: center;
+    border: 1px solid #dde7f7;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  :global(.popup-item img) {
+    width: 72px;
+    height: 54px;
+    object-fit: cover;
+    display: block;
+  }
+
+  :global(.popup-body) {
+    display: grid;
+    gap: .15rem;
+    padding-right: .5rem;
+  }
+
+  :global(.popup-body strong) {
+    font-size: .8rem;
+    color: #152a50;
+    line-height: 1.2;
+  }
+
+  :global(.popup-body span) {
+    font-size: .69rem;
+    color: #6b7ea5;
+    font-family: var(--font-mono);
+    line-height: 1.2;
+  }
+
+  @media (max-width: 900px) {
+    .map-hero {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

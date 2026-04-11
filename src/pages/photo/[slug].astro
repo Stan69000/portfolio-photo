@@ -22,6 +22,12 @@ export async function getStaticPaths() {
 
 const { photo, seriesTags, seriesDate, prev, next } = Astro.props;
 const effectiveDate: Date | null = photo.data.date ?? (seriesDate ? new Date(seriesDate) : null);
+const locationVisibility = photo.data.location?.public_visibility ?? 'hidden';
+const locationIsPublic = locationVisibility === 'approx' || locationVisibility === 'precise';
+const locationDisplay =
+  (locationIsPublic && (photo.data.location?.label || photo.data.location?.address))
+    ? (photo.data.location?.label || photo.data.location?.address || '')
+    : '';
 const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
 const canonicalPath = `/photo/${photo.data.slug}/`;
 const photoUrl = new URL(canonicalPath, siteBase).toString();
@@ -189,6 +195,15 @@ const breadcrumbJsonLd = {
             <a href={`/series/${photo.data.series}/`} class="meta-value meta-link">
               {seriesName}
             </a>
+          </div>
+        )}
+        {locationDisplay && (
+          <div class="meta-item">
+            <span class="meta-label">Lieu</span>
+            <span class="meta-value">
+              {locationDisplay}
+              {locationVisibility === 'approx' && ' (approximatif)'}
+            </span>
           </div>
         )}
       </div>

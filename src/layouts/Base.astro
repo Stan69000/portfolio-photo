@@ -82,6 +82,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
           <a href="/" class:list={['nav-link', { active: isActive('/') }]}>Accueil</a>
           <a href="/photos" class:list={['nav-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
           <a href="/series" class:list={['nav-link', { active: isActive('/series') }]}>Séries</a>
+          <a href="/carte" class:list={['nav-link', { active: isActive('/carte') }]}>Carte</a>
           <a href="/recherche" class:list={['nav-link nav-search', { active: isActive('/recherche') }]} aria-label="Recherche">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span>Recherche</span>
@@ -104,6 +105,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         <a href="/" class:list={['mobile-link', { active: isActive('/') }]}>Accueil</a>
         <a href="/photos" class:list={['mobile-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
         <a href="/series" class:list={['mobile-link', { active: isActive('/series') }]}>Séries</a>
+        <a href="/carte" class:list={['mobile-link', { active: isActive('/carte') }]}>Carte</a>
         <a href="/recherche" class:list={['mobile-link', { active: isActive('/recherche') }]}>Recherche</a>
         <a href="/stats" class:list={['mobile-link', { active: isActive('/stats') }]}>Favoris</a>
         <a href="/a-propos" class:list={['mobile-link', { active: isActive('/a-propos') }]}>À propos</a>
