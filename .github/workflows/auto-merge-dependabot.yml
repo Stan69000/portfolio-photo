@@ -35,7 +35,7 @@ jobs:
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Validate dependency update
