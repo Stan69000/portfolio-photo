@@ -26,6 +26,9 @@ const photos = (await getCollection('photos'))
 
 const allTags = (series.data.tags ?? []).slice(0, 10);
 const hero = photos[0];
+const mapVisibility = series.data.map_public_visibility ?? 'precise';
+const hasSeriesCoords = Number.isFinite(Number(series.data.map_lat)) && Number.isFinite(Number(series.data.map_lng));
+const seriesLocationVisible = hasSeriesCoords && mapVisibility !== 'hidden';
 const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
 const canonicalPath = `/series/${series.data.slug}/`;
 const pageUrl = new URL(canonicalPath, siteBase).toString();
@@ -86,9 +89,9 @@ const breadcrumbJsonLd = {
         </div>
       )}
 
-      {(series.data.map_lat && series.data.map_lng) || ((series.data.links ?? []).length > 0) ? (
+      {seriesLocationVisible || ((series.data.links ?? []).length > 0) ? (
         <div class="extras-grid">
-          {series.data.map_lat && series.data.map_lng && (
+          {seriesLocationVisible && (
             <div class="map-inline">
               <p class="extras-label">📍 Secteur</p>
               <div id="series-map" class="series-map"></div>
@@ -113,7 +116,7 @@ const breadcrumbJsonLd = {
     </div>
   </section>
 
-  {series.data.map_lat && series.data.map_lng && (
+  {seriesLocationVisible && (
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script define:vars={{ lat: series.data.map_lat, lng: series.data.map_lng, zoom: series.data.map_zoom ?? 13, name: series.data.map_label || series.data.name }}>
       (function() {

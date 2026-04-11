@@ -55,6 +55,7 @@ const series = defineCollection({
     map_input_type: z.enum(['address', 'coords']).optional(),
     map_address: z.string().optional(),
     map_label: z.string().optional(),
+    map_public_visibility: z.enum(['hidden', 'approx', 'precise']).default('precise').optional(),
     map_lat: z.number().optional(),
     map_lng: z.number().optional(),
     map_zoom: z.number().default(13).optional(),

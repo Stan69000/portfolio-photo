@@ -3,12 +3,14 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
 type MarkerPhoto = {
+  kind: 'series' | 'photo';
   slug: string;
   title: string;
-  series: string;
+  href: string;
+  seriesSlug: string;
+  seriesName: string;
   date: string;
   thumb: string;
-  visibility: 'approx' | 'precise';
 };
 
 type Marker = {
@@ -17,10 +19,20 @@ type Marker = {
   visibility: 'approx' | 'precise';
   count: number;
   label: string;
-  photos: MarkerPhoto[];
+  entries: MarkerPhoto[];
+  seriesSlugs: string[];
 };
 
 const publishedPhotos = await getCollection('photos', ({ data }) => data.status === 'published');
+const publishedSeries = await getCollection('series', ({ data }) => data.published);
+const seriesNameBySlug = new Map(publishedSeries.map((s) => [s.data.slug, s.data.name]));
+const seriesPhotosMap = new Map<string, typeof publishedPhotos>();
+for (const photo of publishedPhotos) {
+  const slug = photo.data.series || '';
+  if (!slug) continue;
+  if (!seriesPhotosMap.has(slug)) seriesPhotosMap.set(slug, []);
+  seriesPhotosMap.get(slug)!.push(photo);
+}
 
 function asNumber(value: unknown): number | null {
   const n = Number(value);
@@ -35,6 +47,67 @@ function toDisplayCoord(value: number, visibility: 'approx' | 'precise'): number
 
 const grouped = new Map<string, Marker>();
 
+function upsertMarker(
+  lat: number,
+  lng: number,
+  visibility: 'approx' | 'precise',
+  label: string,
+  entry: MarkerPhoto,
+  countWeight: number
+) {
+  const displayLat = toDisplayCoord(lat, visibility);
+  const displayLng = toDisplayCoord(lng, visibility);
+  const key = `${displayLat}|${displayLng}|${visibility}`;
+  const existing = grouped.get(key);
+  if (existing) {
+    existing.count += Math.max(1, countWeight);
+    if (existing.entries.length < 10) existing.entries.push(entry);
+    if (entry.seriesSlug && !existing.seriesSlugs.includes(entry.seriesSlug)) existing.seriesSlugs.push(entry.seriesSlug);
+    return;
+  }
+  grouped.set(key, {
+    lat: displayLat,
+    lng: displayLng,
+    visibility,
+    count: Math.max(1, countWeight),
+    label,
+    entries: [entry],
+    seriesSlugs: entry.seriesSlug ? [entry.seriesSlug] : []
+  });
+}
+
+for (const serie of publishedSeries) {
+  const visibilityRaw = serie.data.map_public_visibility ?? 'precise';
+  const visibility = visibilityRaw === 'approx' ? 'approx' : visibilityRaw === 'precise' ? 'precise' : 'hidden';
+  if (visibility === 'hidden') continue;
+  const lat = asNumber(serie.data.map_lat);
+  const lng = asNumber(serie.data.map_lng);
+  if (lat === null || lng === null) continue;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+  const photos = (seriesPhotosMap.get(serie.data.slug) ?? [])
+    .slice()
+    .sort((a, b) => (b.data.date?.getTime?.() ?? 0) - (a.data.date?.getTime?.() ?? 0));
+  const cover = serie.data.cover_url || photos[0]?.data.url_thumb || photos[0]?.data.url_web || photos[0]?.data.url || '';
+  const photoCount = Math.max(1, photos.length);
+  upsertMarker(
+    lat,
+    lng,
+    visibility,
+    serie.data.map_label || serie.data.map_address || serie.data.name,
+    {
+      kind: 'series',
+      slug: serie.data.slug,
+      title: serie.data.name,
+      href: `/series/${serie.data.slug}/`,
+      seriesSlug: serie.data.slug,
+      seriesName: serie.data.name,
+      date: serie.data.date || '',
+      thumb: cover
+    },
+    photoCount
+  );
+}
+
 for (const photo of publishedPhotos) {
   const location = photo.data.location;
   if (!location) continue;
@@ -45,33 +118,18 @@ for (const photo of publishedPhotos) {
   if (lat === null || lng === null) continue;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
 
-  const displayLat = toDisplayCoord(lat, visibility);
-  const displayLng = toDisplayCoord(lng, visibility);
-  const key = `${displayLat}|${displayLng}|${visibility}`;
-  const label = location.label || location.address || photo.data.series.replace(/-/g, ' ');
+  const label = location.label || location.address || (seriesNameBySlug.get(photo.data.series) ?? photo.data.series.replace(/-/g, ' '));
   const photoItem: MarkerPhoto = {
+    kind: 'photo',
     slug: photo.data.slug,
     title: photo.data.title,
-    series: photo.data.series,
+    href: `/photo/${photo.data.slug}/`,
+    seriesSlug: photo.data.series,
+    seriesName: seriesNameBySlug.get(photo.data.series) ?? photo.data.series.replace(/-/g, ' '),
     date: photo.data.date ? photo.data.date.toISOString().slice(0, 10) : '',
-    thumb: photo.data.url_thumb || photo.data.url_web || photo.data.url,
-    visibility
+    thumb: photo.data.url_thumb || photo.data.url_web || photo.data.url
   };
-
-  const existing = grouped.get(key);
-  if (existing) {
-    existing.count += 1;
-    if (existing.photos.length < 8) existing.photos.push(photoItem);
-  } else {
-    grouped.set(key, {
-      lat: displayLat,
-      lng: displayLng,
-      visibility,
-      count: 1,
-      label,
-      photos: [photoItem]
-    });
-  }
+  upsertMarker(lat, lng, visibility, label, photoItem, 1);
 }
 
 const markers = [...grouped.values()].sort((a, b) => b.count - a.count);
@@ -145,15 +203,15 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
       }
 
       function buildPopup(point) {
-        const preview = point.photos
+        const preview = point.entries
           .map((item) => {
             const when = item.date ? new Date(item.date).toLocaleDateString('fr-FR') : '';
             return (
-              '<a class="popup-item" href="/photo/' + esc(item.slug) + '/">' +
-                '<img src="' + esc(item.thumb) + '" alt="' + esc(item.title) + '" loading="lazy">' +
+              '<a class="popup-item" href="' + esc(item.href) + '">' +
+                (item.thumb ? '<img src="' + esc(item.thumb) + '" alt="' + esc(item.title) + '" loading="lazy">' : '<div class="popup-fallback"></div>') +
                 '<div class="popup-body">' +
                   '<strong>' + esc(item.title) + '</strong>' +
-                  '<span>' + esc(item.series.replace(/-/g, ' ')) + (when ? ' · ' + esc(when) : '') + '</span>' +
+                  '<span>' + esc(item.seriesName) + (when ? ' · ' + esc(when) : '') + '</span>' +
                 '</div>' +
               '</a>'
             );
@@ -176,6 +234,9 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
 
       markers.forEach((point) => {
         const className = point.visibility === 'approx' ? 'map-pin pin-approx' : 'map-pin pin-precise';
+        const actionUrl = point.seriesSlugs.length === 1
+          ? '/recherche?series=' + encodeURIComponent(point.seriesSlugs[0])
+          : '/recherche?q=' + encodeURIComponent(point.label);
         const marker = L.marker([point.lat, point.lng], {
           icon: L.divIcon({
             className: '',
@@ -185,6 +246,10 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
           }),
         });
         marker.bindPopup(buildPopup(point), { maxWidth: 360, closeButton: true });
+        marker.bindTooltip(
+          '<a class="map-hover-link" href="' + actionUrl + '">Voir les photos de ce lieu</a>',
+          { direction: 'top', offset: [0, -12], opacity: 0.95, sticky: true }
+        );
         cluster.addLayer(marker);
       });
 
@@ -414,6 +479,13 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
     display: block;
   }
 
+  :global(.popup-fallback) {
+    width: 72px;
+    height: 54px;
+    background: linear-gradient(135deg, #d7e2f7, #eff4ff);
+    border-right: 1px solid #e5edfb;
+  }
+
   :global(.popup-body) {
     display: grid;
     gap: .15rem;
@@ -431,6 +503,27 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
     color: #6b7ea5;
     font-family: var(--font-mono);
     line-height: 1.2;
+  }
+
+  :global(.leaflet-tooltip) {
+    background: rgba(9, 21, 46, 0.92);
+    border: 1px solid rgba(116, 143, 255, 0.5);
+    color: #dce8ff;
+    border-radius: 999px;
+    padding: .25rem .55rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  }
+
+  :global(.leaflet-tooltip:before) {
+    border-top-color: rgba(116, 143, 255, 0.5) !important;
+  }
+
+  :global(.map-hover-link) {
+    color: #dce8ff;
+    font-family: var(--font-mono);
+    font-size: .7rem;
+    text-decoration: none;
+    letter-spacing: .02em;
   }
 
   @media (max-width: 900px) {

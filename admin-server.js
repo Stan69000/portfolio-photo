@@ -1636,6 +1636,9 @@ function seriesEditPage(serie={}, file='', msg='') {
   const mapLat = Number.isFinite(Number(serie.map_lat)) ? Number(serie.map_lat) : '';
   const mapLng = Number.isFinite(Number(serie.map_lng)) ? Number(serie.map_lng) : '';
   const mapZoom = Number.isFinite(Number(serie.map_zoom)) ? Number(serie.map_zoom) : 13;
+  const mapPublicVisibility = ['hidden', 'approx', 'precise'].includes(String(serie.map_public_visibility || ''))
+    ? String(serie.map_public_visibility)
+    : (Number.isFinite(Number(serie.map_lat)) && Number.isFinite(Number(serie.map_lng)) ? 'precise' : 'hidden');
   const linksHtml = Array.from({length:5},(_,i)=>{
     const l=serieLinks[i]||{};
     return `<div style="display:grid;grid-template-columns:1fr 2fr;gap:.5rem;align-items:center;margin-bottom:.5rem">
@@ -1695,6 +1698,14 @@ ${msgHtml}
   <div class="field" style="margin-top:.75rem">
     <label>Libellé du lieu (optionnel)</label>
     <input id="series-map-label" name="map_label" value="${mapLabel}" placeholder="Ex: Café de la mairie, Chasselay">
+  </div>
+  <div class="field" style="margin-top:.75rem">
+    <label>Communication publique</label>
+    <select name="map_public_visibility">
+      <option value="hidden"${mapPublicVisibility==='hidden' ? ' selected' : ''}>Non (privé)</option>
+      <option value="approx"${mapPublicVisibility==='approx' ? ' selected' : ''}>Oui, approximatif</option>
+      <option value="precise"${mapPublicVisibility==='precise' ? ' selected' : ''}>Oui, précis</option>
+    </select>
   </div>
   <div style="margin-top:.8rem">
     <div id="series-map-preview" style="height:230px;border:1px solid #243a65;border-radius:.6rem;overflow:hidden"></div>
@@ -2577,6 +2588,8 @@ a:hover{background:#748fff33}</style></head><body>
     const mapInputType = body.map_input_type === 'address' ? 'address' : 'coords';
     const mapAddress = String(body.map_address || '').trim();
     const mapLabel = String(body.map_label || '').trim();
+    const mapVisibilityRaw = String(body.map_public_visibility || '').trim().toLowerCase();
+    const mapPublicVisibility = ['hidden', 'approx', 'precise'].includes(mapVisibilityRaw) ? mapVisibilityRaw : 'hidden';
     const mapLat = parseCoordinate(body.map_lat, -90, 90);
     const mapLng = parseCoordinate(body.map_lng, -180, 180);
     const rawZoom = Number.parseInt(String(body.map_zoom || '13'), 10);
@@ -2591,7 +2604,8 @@ a:hover{background:#748fff33}</style></head><body>
     const mapMeta = {
       map_input_type: mapInputType,
       ...(mapAddress ? { map_address: mapAddress } : {}),
-      ...(mapLabel ? { map_label: mapLabel } : {})
+      ...(mapLabel ? { map_label: mapLabel } : {}),
+      map_public_visibility: mapPublicVisibility
     };
     const data={
       name:body.name,

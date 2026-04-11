@@ -463,11 +463,21 @@ const seriesList = seriesCollection
   const cards    = Array.from(document.querySelectorAll('.r-card'));
 
   /* ── URL param ?tag= au chargement ───── */
-  const urlTag = normalize(new URLSearchParams(location.search).get('tag') || '');
+  const params = new URLSearchParams(location.search);
+  const urlTag = normalize(params.get('tag') || '');
+  const urlSeries = normalize(params.get('series') || '');
+  const urlQ = (params.get('q') || '').trim();
+  if (urlQ) qEl.value = urlQ;
   if (urlTag) {
     activeTag = urlTag;
     document.querySelectorAll('.tag-pill').forEach((pill) => {
       pill.classList.toggle('active', normalize(pill.dataset.tag) === activeTag);
+    });
+  }
+  if (urlSeries) {
+    activeSeries = urlSeries;
+    document.querySelectorAll('.pill').forEach((pill) => {
+      pill.classList.toggle('active', normalize(pill.dataset.series || '') === activeSeries);
     });
   }
 
