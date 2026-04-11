@@ -6,6 +6,12 @@ import Lightbox from '../../components/Lightbox.astro';
 const seriesCollection = await getCollection('series', ({ data }) => data.published);
 const seriesBySlug = new Map(seriesCollection.map((item) => [item.data.slug, item.data.name]));
 const seriesTagsBySlug = new Map(seriesCollection.map((item) => [item.data.slug, item.data.tags ?? []]));
+const seriesLocationBySlug = new Map(
+  seriesCollection.map((item) => [
+    item.data.slug,
+    (item.data.map_label || item.data.map_address || '').toLowerCase()
+  ])
+);
 
 const photos = (await getCollection('photos'))
   .filter((p) => p.data.status === 'published')
@@ -19,6 +25,12 @@ const photos = (await getCollection('photos'))
       title: photo.data.title,
       series: photo.data.series,
       seriesName: seriesBySlug.get(photo.data.series) ?? photo.data.series,
+      location: (
+        seriesLocationBySlug.get(photo.data.series) ||
+        photo.data.location?.label ||
+        photo.data.location?.address ||
+        ''
+      ).toLowerCase(),
       url: photo.data.url,
       description: photo.data.description,
       tags,
@@ -78,6 +90,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
       <span>Trier par</span>
       <select id="search-sort">
         <option value="newest">Plus récentes</option>
+        <option value="location">Localisation A → Z</option>
         <option value="votes">Plus votées</option>
         <option value="rating">Mieux notées</option>
         <option value="title">Titre A → Z</option>
@@ -102,6 +115,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
         data-series={photo.series}
         data-series-name={photo.seriesName.toLowerCase()}
         data-tags={photo.tags.join(' ').toLowerCase()}
+        data-location={photo.location}
         data-rating={photo.rating}
         data-timestamp={photo.timestamp}
       >
@@ -472,7 +486,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   const recentClear = document.querySelector('#recent-clear');
 
   const normalize = (v) => (v || '').trim().toLowerCase();
-  const allowedSorts = new Set(['newest', 'votes', 'rating', 'title']);
+  const allowedSorts = new Set(['newest', 'location', 'votes', 'rating', 'title']);
 
   const setSelectIfOptionExists = (select, value) => {
     if (!select || !value) return;
@@ -552,6 +566,11 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
 
     visibleCards.sort((a, b) => {
       if (sortBy === 'title') {
+        return (a.dataset.title || '').localeCompare(b.dataset.title || '', 'fr');
+      }
+      if (sortBy === 'location') {
+        const locCmp = (a.dataset.location || '').localeCompare(b.dataset.location || '', 'fr');
+        if (locCmp !== 0) return locCmp;
         return (a.dataset.title || '').localeCompare(b.dataset.title || '', 'fr');
       }
       if (sortBy === 'rating') {

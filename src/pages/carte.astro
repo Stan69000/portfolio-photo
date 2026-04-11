@@ -17,6 +17,7 @@ type Marker = {
   lat: number;
   lng: number;
   visibility: 'approx' | 'precise';
+  sourceType: 'series' | 'photo';
   count: number;
   label: string;
   entries: MarkerPhoto[];
@@ -51,6 +52,7 @@ function upsertMarker(
   lat: number,
   lng: number,
   visibility: 'approx' | 'precise',
+  sourceType: 'series' | 'photo',
   label: string,
   entry: MarkerPhoto,
   countWeight: number
@@ -66,14 +68,15 @@ function upsertMarker(
     return;
   }
   grouped.set(key, {
-    lat: displayLat,
-    lng: displayLng,
-    visibility,
-    count: Math.max(1, countWeight),
-    label,
-    entries: [entry],
-    seriesSlugs: entry.seriesSlug ? [entry.seriesSlug] : []
-  });
+      lat: displayLat,
+      lng: displayLng,
+      visibility,
+      sourceType,
+      count: Math.max(1, countWeight),
+      label,
+      entries: [entry],
+      seriesSlugs: entry.seriesSlug ? [entry.seriesSlug] : []
+    });
 }
 
 for (const serie of publishedSeries) {
@@ -93,6 +96,7 @@ for (const serie of publishedSeries) {
     lat,
     lng,
     visibility,
+    'series',
     serie.data.map_label || serie.data.map_address || serie.data.name,
     {
       kind: 'series',
@@ -129,7 +133,7 @@ for (const photo of publishedPhotos) {
     date: photo.data.date ? photo.data.date.toISOString().slice(0, 10) : '',
     thumb: photo.data.url_thumb || photo.data.url_web || photo.data.url
   };
-  upsertMarker(lat, lng, visibility, label, photoItem, 1);
+  upsertMarker(lat, lng, visibility, 'photo', label, photoItem, 1);
 }
 
 const markers = [...grouped.values()].sort((a, b) => b.count - a.count);
@@ -145,7 +149,9 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
       <p class="kicker">Atlas photo</p>
       <h1>Où les images ont été prises</h1>
       <p>
-        Explore les lieux de prise de vue en mode France ou Monde. Les localisations privées ne sont jamais affichées.
+        Partez à la découverte des lieux capturés à travers ces images.
+        Parfois très précis, parfois plus approximatifs, ces repères vous aident à replacer chaque photo dans son environnement.
+        Peut-être y trouverez-vous une idée de balade… ou simplement une nouvelle façon de regarder ces endroits.
       </p>
       <div class="stats">
         <span>{totalPhotosMapped} photo{totalPhotosMapped > 1 ? 's' : ''} localisée{totalPhotosMapped > 1 ? 's' : ''}</span>
@@ -159,118 +165,214 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
     </div>
     <div class="legend">
       <h2>Légende</h2>
-      <div class="legend-item"><span class="dot precise"></span>Localisation précise</div>
-      <div class="legend-item"><span class="dot approx"></span>Localisation approximative</div>
-      <div class="legend-note">Les clusters regroupent automatiquement les lieux proches et les doublons.</div>
+      <div class="legend-item"><span class="dot series"></span>Localisation série</div>
+      <div class="legend-note">Point principal d’un reportage ou d’une série complète.</div>
+      <div class="legend-item"><span class="dot photo"></span>Localisation photo</div>
+      <div class="legend-note">Point spécifique défini directement sur une image.</div>
+      <div class="legend-item"><span class="dot precise"></span>Position précise</div>
+      <div class="legend-item"><span class="dot approx"></span>Position approximative</div>
     </div>
   </section>
 
-  <section class="map-shell reveal">
+  <section class="map-shell">
     <div id="photo-map" class="photo-map" aria-label="Carte des lieux de prise de vue"></div>
   </section>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script define:vars={{ markers }}>
     (function () {
-      if (!window.L || !document.getElementById('photo-map')) return;
+      const mapEl = document.getElementById('photo-map');
+      if (!mapEl) return;
 
-      const frBounds = L.latLngBounds([41.15, -5.8], [51.3, 9.9]);
-      const worldBounds = L.latLngBounds([-62, -178], [82, 178]);
-
-      const map = L.map('photo-map', { zoomControl: true, minZoom: 2 }).setView([46.2276, 2.2137], 5);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap © CARTO',
-      }).addTo(map);
-
-      const cluster = L.markerClusterGroup({
-        maxClusterRadius: 44,
-        showCoverageOnHover: false,
-        spiderfyOnEveryZoom: true,
-      });
-
-      function esc(str) {
-        return String(str || '')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      }
-
-      function buildPopup(point) {
-        const preview = point.entries
-          .map((item) => {
-            const when = item.date ? new Date(item.date).toLocaleDateString('fr-FR') : '';
-            return (
-              '<a class="popup-item" href="' + esc(item.href) + '">' +
-                (item.thumb ? '<img src="' + esc(item.thumb) + '" alt="' + esc(item.title) + '" loading="lazy">' : '<div class="popup-fallback"></div>') +
-                '<div class="popup-body">' +
-                  '<strong>' + esc(item.title) + '</strong>' +
-                  '<span>' + esc(item.seriesName) + (when ? ' · ' + esc(when) : '') + '</span>' +
-                '</div>' +
-              '</a>'
-            );
-          })
-          .join('');
-
-        const note = point.visibility === 'approx'
-          ? '<p class="popup-note">Position volontairement approximative.</p>'
-          : '';
-
-        return (
-          '<div class="popup-wrap">' +
-            '<h3>' + esc(point.label) + '</h3>' +
-            '<p class="popup-count">' + point.count + ' photo' + (point.count > 1 ? 's' : '') + '</p>' +
-            note +
-            '<div class="popup-list">' + preview + '</div>' +
-          '</div>'
-        );
-      }
-
-      markers.forEach((point) => {
-        const className = point.visibility === 'approx' ? 'map-pin pin-approx' : 'map-pin pin-precise';
-        const actionUrl = point.seriesSlugs.length === 1
-          ? '/recherche?series=' + encodeURIComponent(point.seriesSlugs[0])
-          : '/recherche?q=' + encodeURIComponent(point.label);
-        const marker = L.marker([point.lat, point.lng], {
-          icon: L.divIcon({
-            className: '',
-            html: '<span class="' + className + '"></span>',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-          }),
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const existing = document.querySelector(`script[data-src="${src}"]`);
+          if (existing) {
+            if (existing.dataset.loaded === '1') resolve();
+            else existing.addEventListener('load', () => resolve(), { once: true });
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = false;
+          script.dataset.src = src;
+          script.addEventListener('load', () => {
+            script.dataset.loaded = '1';
+            resolve();
+          }, { once: true });
+          script.addEventListener('error', () => reject(new Error(`Échec chargement ${src}`)), { once: true });
+          document.head.appendChild(script);
         });
-        marker.bindPopup(buildPopup(point), { maxWidth: 360, closeButton: true });
-        marker.bindTooltip(
-          '<a class="map-hover-link" href="' + actionUrl + '">Voir les photos de ce lieu</a>',
-          { direction: 'top', offset: [0, -12], opacity: 0.95, sticky: true }
-        );
-        cluster.addLayer(marker);
-      });
-
-      map.addLayer(cluster);
-      map.fitBounds(frBounds.pad(0.15));
-
-      const frBtn = document.getElementById('mode-fr');
-      const worldBtn = document.getElementById('mode-world');
-      function setMode(mode) {
-        if (mode === 'world') {
-          map.fitBounds(worldBounds);
-          worldBtn?.classList.add('active');
-          frBtn?.classList.remove('active');
-          return;
-        }
-        map.fitBounds(frBounds.pad(0.15));
-        frBtn?.classList.add('active');
-        worldBtn?.classList.remove('active');
       }
-      frBtn?.addEventListener('click', () => setMode('fr'));
-      worldBtn?.addEventListener('click', () => setMode('world'));
+
+      async function loadFromCdn(urls, isReady) {
+        let lastError = null;
+        for (const url of urls) {
+          try {
+            await loadScript(url);
+            if (isReady()) return;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw lastError || new Error('Ressource indisponible');
+      }
+
+      async function initMap() {
+        await loadFromCdn(
+          [
+            'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+          ],
+          () => Boolean(window.L && typeof window.L.map === 'function')
+        );
+        if (!window.L) throw new Error('Leaflet indisponible');
+
+        const frBounds = L.latLngBounds([41.2, -5.2], [51.2, 9.7]);
+        const worldBounds = L.latLngBounds([-62, -178], [82, 178]);
+
+        const map = L.map('photo-map', { zoomControl: true, minZoom: 2 }).setView([46.2276, 2.2137], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap © CARTO',
+        }).addTo(map);
+
+        const markerLayer = L.layerGroup();
+        const markerRefs = [];
+
+        function esc(str) {
+          return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function buildPopup(point) {
+          const preview = point.entries
+            .map((item) => {
+              const when = item.date ? new Date(item.date).toLocaleDateString('fr-FR') : '';
+              return (
+                '<a class="popup-item" href="' + esc(item.href) + '">' +
+                  (item.thumb ? '<img src="' + esc(item.thumb) + '" alt="' + esc(item.title) + '" loading="lazy">' : '<div class="popup-fallback"></div>') +
+                  '<div class="popup-body">' +
+                    '<strong>' + esc(item.title) + '</strong>' +
+                    '<span>' + esc(item.seriesName) + (when ? ' · ' + esc(when) : '') + '</span>' +
+                  '</div>' +
+                '</a>'
+              );
+            })
+            .join('');
+
+          const note = point.visibility === 'approx'
+            ? '<p class="popup-note">Position volontairement approximative.</p>'
+            : '';
+
+          return (
+            '<div class="popup-wrap">' +
+              '<h3>' + esc(point.label) + '</h3>' +
+              '<p class="popup-count">' + point.count + ' photo' + (point.count > 1 ? 's' : '') + '</p>' +
+              note +
+              '<div class="popup-list">' + preview + '</div>' +
+            '</div>'
+          );
+        }
+
+        markers.forEach((point) => {
+          const color = point.visibility === 'approx' ? '#e9a756' : '#4f7dff';
+          const sourceWeight = point.sourceType === 'series' ? 3 : 2;
+          const sourceFillOpacity = point.sourceType === 'series' ? 0.98 : 0.82;
+          const actionUrl = point.seriesSlugs.length === 1
+            ? '/recherche?series=' + encodeURIComponent(point.seriesSlugs[0])
+            : '/recherche?q=' + encodeURIComponent(point.label);
+          const marker = L.circleMarker([point.lat, point.lng], {
+            radius: point.sourceType === 'series' ? 9 : 7,
+            color: '#ffffff',
+            weight: sourceWeight,
+            fillColor: color,
+            fillOpacity: sourceFillOpacity
+          });
+          if (point.sourceType === 'photo') {
+            marker.setStyle({ dashArray: '2 2' });
+          }
+          marker.bindPopup(buildPopup(point), { maxWidth: 440, minWidth: 290, closeButton: true });
+          marker.bindTooltip(
+            '<a class="map-hover-link" href="' + actionUrl + '">' +
+              '<strong>' + esc(point.label) + '</strong>' +
+              '<em>' + (point.sourceType === 'series' ? 'Localisation série' : 'Localisation photo') + '</em>' +
+              '<span>Voir ' + point.count + ' photo' + (point.count > 1 ? 's' : '') + '</span>' +
+            '</a>',
+            { direction: 'top', offset: [0, -12], opacity: 0.95, sticky: true }
+          );
+          markerLayer.addLayer(marker);
+          markerRefs.push({ point, marker });
+        });
+
+        map.addLayer(markerLayer);
+        map.fitBounds(frBounds.pad(0.02));
+        function forceRender() {
+          map.invalidateSize(true);
+          map.panBy([0, 0], { animate: false });
+        }
+        requestAnimationFrame(forceRender);
+        setTimeout(forceRender, 40);
+        setTimeout(forceRender, 140);
+        setTimeout(forceRender, 420);
+        map.whenReady(forceRender);
+        map.on('load', forceRender);
+        map.on('zoomend', forceRender);
+        window.addEventListener('resize', forceRender);
+
+        const frBtn = document.getElementById('mode-fr');
+        const worldBtn = document.getElementById('mode-world');
+        function setMode(mode) {
+          if (mode === 'world') {
+            map.setMaxBounds(null);
+            map.setMinZoom(2);
+            map.fitBounds(worldBounds);
+            worldBtn?.classList.add('active');
+            frBtn?.classList.remove('active');
+            return;
+          }
+          map.setMaxBounds(frBounds.pad(0.12));
+          map.setMinZoom(5);
+          map.fitBounds(frBounds.pad(0.02));
+          frBtn?.classList.add('active');
+          worldBtn?.classList.remove('active');
+        }
+        frBtn?.addEventListener('click', () => setMode('fr'));
+        worldBtn?.addEventListener('click', () => setMode('world'));
+        setMode('fr');
+
+        const params = new URLSearchParams(window.location.search);
+        const focusLat = Number(params.get('lat'));
+        const focusLng = Number(params.get('lng'));
+        if (Number.isFinite(focusLat) && Number.isFinite(focusLng)) {
+          const focusZoom = 11;
+          map.setView([focusLat, focusLng], focusZoom, { animate: false });
+          let best = null;
+          let bestDist = Infinity;
+          for (const ref of markerRefs) {
+            const dLat = ref.point.lat - focusLat;
+            const dLng = ref.point.lng - focusLng;
+            const dist = (dLat * dLat) + (dLng * dLng);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = ref.marker;
+            }
+          }
+          if (best) {
+            setTimeout(() => {
+              best.openPopup();
+            }, 120);
+          }
+        }
+      }
+
+      initMap().catch(() => {
+        mapEl.innerHTML = '<div style="padding:1rem;color:#9fb2d4;font-family:var(--font-mono);font-size:.8rem">Impossible de charger la carte (ressources externes bloquées).</div>';
+      });
     })();
   </script>
 </Base>
@@ -383,6 +485,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
 
   .dot.precise { background: #4f7dff; }
   .dot.approx { background: #e9a756; }
+  .dot.series { background: #4f7dff; border-width: 2px; }
+  .dot.photo { background: #4f7dff; border-style: dashed; border-width: 2px; opacity: .82; }
 
   .legend-note {
     margin-top: .2rem;
@@ -421,20 +525,6 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
     background: #e9a756;
   }
 
-  :global(.marker-cluster-small),
-  :global(.marker-cluster-medium),
-  :global(.marker-cluster-large) {
-    background: rgba(79, 125, 255, 0.22);
-  }
-
-  :global(.marker-cluster div) {
-    background: rgba(79, 125, 255, 0.75);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    font-family: var(--font-mono);
-    font-size: .73rem;
-  }
-
   :global(.popup-wrap h3) {
     margin: 0;
     font-size: 1.02rem;
@@ -457,13 +547,14 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   :global(.popup-list) {
     display: grid;
     gap: .45rem;
-    max-height: 210px;
+    max-height: 255px;
     overflow: auto;
+    padding-right: .15rem;
   }
 
   :global(.popup-item) {
     display: grid;
-    grid-template-columns: 72px 1fr;
+    grid-template-columns: 88px 1fr;
     gap: .5rem;
     align-items: center;
     border: 1px solid #dde7f7;
@@ -473,15 +564,15 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   :global(.popup-item img) {
-    width: 72px;
-    height: 54px;
+    width: 88px;
+    height: 62px;
     object-fit: cover;
     display: block;
   }
 
   :global(.popup-fallback) {
-    width: 72px;
-    height: 54px;
+    width: 88px;
+    height: 62px;
     background: linear-gradient(135deg, #d7e2f7, #eff4ff);
     border-right: 1px solid #e5edfb;
   }
@@ -493,16 +584,24 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   :global(.popup-body strong) {
-    font-size: .8rem;
+    font-size: .92rem;
     color: #152a50;
-    line-height: 1.2;
+    line-height: 1.15;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   :global(.popup-body span) {
-    font-size: .69rem;
+    font-size: .72rem;
     color: #6b7ea5;
     font-family: var(--font-mono);
     line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   :global(.leaflet-tooltip) {
@@ -519,11 +618,35 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   :global(.map-hover-link) {
+    display: grid;
+    gap: .1rem;
     color: #dce8ff;
-    font-family: var(--font-mono);
-    font-size: .7rem;
     text-decoration: none;
-    letter-spacing: .02em;
+  }
+
+  :global(.map-hover-link strong) {
+    font-family: var(--font-display);
+    font-size: .92rem;
+    font-weight: 600;
+    line-height: 1.05;
+    max-width: 240px;
+  }
+
+  :global(.map-hover-link em) {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: .64rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #93b1f4;
+  }
+
+  :global(.map-hover-link span) {
+    font-family: var(--font-mono);
+    font-size: .68rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #bfd3ff;
   }
 
   @media (max-width: 900px) {

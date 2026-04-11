@@ -8,26 +8,52 @@ export async function getStaticPaths() {
   const seriesCollection = await getCollection('series');
   const seriesTagsBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.tags ?? []]));
   const seriesDateBySlug = new Map(seriesCollection.map((s) => [s.data.slug, s.data.date ?? null]));
+  const seriesLocationBySlug = new Map(seriesCollection.map((s) => [
+    s.data.slug,
+    {
+      label: s.data.map_label || '',
+      address: s.data.map_address || '',
+      visibility: s.data.map_public_visibility || 'precise',
+      lat: s.data.map_lat,
+      lng: s.data.map_lng
+    }
+  ]));
   return sorted.map((photo, index) => ({
     params: { slug: photo.data.slug },
     props: {
       photo,
       seriesTags: seriesTagsBySlug.get(photo.data.series) ?? [],
       seriesDate: seriesDateBySlug.get(photo.data.series) ?? null,
+      seriesLocation: seriesLocationBySlug.get(photo.data.series) ?? null,
       prev: sorted[index - 1] ?? null,
       next: sorted[index + 1] ?? null
     }
   }));
 }
 
-const { photo, seriesTags, seriesDate, prev, next } = Astro.props;
+const { photo, seriesTags, seriesDate, seriesLocation, prev, next } = Astro.props;
 const effectiveDate: Date | null = photo.data.date ?? (seriesDate ? new Date(seriesDate) : null);
-const locationVisibility = photo.data.location?.public_visibility ?? 'hidden';
-const locationIsPublic = locationVisibility === 'approx' || locationVisibility === 'precise';
-const locationDisplay =
-  (locationIsPublic && (photo.data.location?.label || photo.data.location?.address))
-    ? (photo.data.location?.label || photo.data.location?.address || '')
-    : '';
+const photoLocationVisibility = photo.data.location?.public_visibility ?? 'hidden';
+const photoLocationIsPublic = photoLocationVisibility === 'approx' || photoLocationVisibility === 'precise';
+const photoLocationDisplay = photoLocationIsPublic
+  ? (photo.data.location?.label || photo.data.location?.address || '')
+  : '';
+const seriesLocationVisibility = seriesLocation?.visibility ?? 'hidden';
+const seriesLocationIsPublic = seriesLocationVisibility === 'approx' || seriesLocationVisibility === 'precise';
+const seriesLocationDisplay = seriesLocationIsPublic
+  ? (seriesLocation?.label || seriesLocation?.address || '')
+  : '';
+const effectiveLocationDisplay = photoLocationDisplay || seriesLocationDisplay;
+const effectiveLocationVisibility = photoLocationDisplay ? photoLocationVisibility : seriesLocationVisibility;
+const photoLocationLat = photoLocationIsPublic ? Number(photo.data.location?.lat) : NaN;
+const photoLocationLng = photoLocationIsPublic ? Number(photo.data.location?.lng) : NaN;
+const seriesLocationLat = seriesLocationIsPublic ? Number(seriesLocation?.lat) : NaN;
+const seriesLocationLng = seriesLocationIsPublic ? Number(seriesLocation?.lng) : NaN;
+const effectiveLocationLat = Number.isFinite(photoLocationLat) ? photoLocationLat : seriesLocationLat;
+const effectiveLocationLng = Number.isFinite(photoLocationLng) ? photoLocationLng : seriesLocationLng;
+const locationMapLink = (effectiveLocationDisplay && Number.isFinite(effectiveLocationLat) && Number.isFinite(effectiveLocationLng))
+  ? `/carte?lat=${encodeURIComponent(effectiveLocationLat.toFixed(6))}&lng=${encodeURIComponent(effectiveLocationLng.toFixed(6))}&label=${encodeURIComponent(effectiveLocationDisplay)}`
+  : '/carte';
 const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
 const canonicalPath = `/photo/${photo.data.slug}/`;
 const photoUrl = new URL(canonicalPath, siteBase).toString();
@@ -197,13 +223,13 @@ const breadcrumbJsonLd = {
             </a>
           </div>
         )}
-        {locationDisplay && (
+        {effectiveLocationDisplay && (
           <div class="meta-item">
             <span class="meta-label">Lieu</span>
-            <span class="meta-value">
-              {locationDisplay}
-              {locationVisibility === 'approx' && ' (approximatif)'}
-            </span>
+            <a href={locationMapLink} class="meta-value meta-link">
+              {effectiveLocationDisplay}
+              {effectiveLocationVisibility === 'approx' && ' (approximatif)'}
+            </a>
           </div>
         )}
       </div>
