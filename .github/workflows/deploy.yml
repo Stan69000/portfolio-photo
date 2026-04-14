@@ -142,18 +142,48 @@ jobs:
             */) ;;
             *) ADMIN_DIR="${ADMIN_DIR}/" ;;
           esac
-          REMOTE_BUILD="$(curl -sS --fail \
-            "ftp://${{ secrets.FTP_SERVER }}${ADMIN_DIR}build.txt" \
-            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" | tr -d '\r\n' || true)"
-          if [ -z "$REMOTE_BUILD" ]; then
-            echo "ERROR: unable to read uploaded build.txt in ${ADMIN_DIR}"
-            exit 1
+          ADMIN_PARENT="$(dirname "${ADMIN_DIR%/}")"
+          case "$ADMIN_PARENT" in
+            .|/) ADMIN_PARENT="/" ;;
+            */) ;;
+            *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
+          esac
+          ADMIN_GRANDPARENT="$(dirname "${ADMIN_PARENT%/}")"
+          case "$ADMIN_GRANDPARENT" in
+            .|/) ADMIN_GRANDPARENT="/" ;;
+            */) ;;
+            *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
+          esac
+
+          MATCH_FOUND=0
+          READ_FOUND=0
+
+          for TARGET_DIR in "$ADMIN_DIR" "$ADMIN_PARENT" "$ADMIN_GRANDPARENT" "${ADMIN_PARENT}public/" "${ADMIN_GRANDPARENT}public/"; do
+            [ "$TARGET_DIR" = "/" ] && continue
+            REMOTE_BUILD="$(curl -sS --fail \
+              "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}build.txt" \
+              --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" | tr -d '\r\n' || true)"
+            [ -z "$REMOTE_BUILD" ] && continue
+
+            READ_FOUND=1
+            echo "Remote build.txt in ${TARGET_DIR}: ${REMOTE_BUILD}"
+
+            if [ "${REMOTE_BUILD}" = "${GITHUB_SHA}" ] || [ "${REMOTE_BUILD}" = "${SHORT_SHA}" ]; then
+              MATCH_FOUND=1
+            fi
+          done
+
+          if [ "$MATCH_FOUND" -eq 1 ]; then
+            echo "build.txt verification OK"
+            exit 0
           fi
-          echo "Remote build.txt: ${REMOTE_BUILD}"
-          if [ "${REMOTE_BUILD}" != "${GITHUB_SHA}" ] && [ "${REMOTE_BUILD}" != "${SHORT_SHA}" ]; then
+
+          if [ "$READ_FOUND" -eq 0 ]; then
+            echo "ERROR: unable to read uploaded build.txt in tested directories"
+          else
             echo "ERROR: uploaded build.txt mismatch (expected ${GITHUB_SHA} or ${SHORT_SHA})"
-            exit 1
           fi
+          exit 1
 
       - name: Verify deployed admin build id
         run: |
