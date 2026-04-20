@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v2
+        uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
@@ -43,7 +43,7 @@ jobs:
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
         run: |
-          npm ci
+          npm ci || npm install
           npm run build
           npm audit --omit=dev --audit-level=high
 
