@@ -34,7 +34,7 @@ jobs:
 
       - name: Trivy filesystem scan (high/critical)
         id: trivy
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         continue-on-error: true
         with:
           scan-type: "fs"
