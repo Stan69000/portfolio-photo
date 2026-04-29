@@ -25,7 +25,8 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci || npm install
 
       - name: NPM audit (high/critical)
         id: npm_audit
