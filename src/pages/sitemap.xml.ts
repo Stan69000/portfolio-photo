@@ -13,7 +13,7 @@ function escapeXml(value: string) {
 export const GET: APIRoute = async ({ site }) => {
   const base = site ?? new URL('https://stan-bouchet.eu');
 
-  const staticPaths = ['/', '/photos/', '/series/', '/recherche/', '/stats/', '/a-propos/', '/rss.xml'];
+  const staticPaths = ['/', '/photos/', '/series/', '/recherche/', '/stats/', '/a-propos/'];
   const staticUrls = staticPaths.map((path) => ({
     loc: new URL(path, base).toString(),
     lastmod: undefined as string | undefined,
