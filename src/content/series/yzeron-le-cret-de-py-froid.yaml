@@ -2,3 +2,12 @@ slug: yzeron-le-cret-de-py-froid
 name: Yzeron - Le Crêt de Py-Froid
 description: Randonnée sympa
 cover_url: ''
+status: published
+map_input_type: address
+map_address: 32 Grande Rue 69510 Yzeron
+map_label: Parking de la mairie
+map_public_visibility: precise
+date: '2026-05-22'
+links:
+  - label: Lien de la rando
+    url: https://www.alltrails.com/fr/randonnee/france/rhone/le-cret-de-py-froid
