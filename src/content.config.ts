@@ -76,7 +76,10 @@ const settings = defineCollection({
     images_domain: z.string().optional(),
     series_title: z.string().optional(),
     series_subtitle: z.string().optional(),
-    featured_photo_slug: z.string().optional()
+    featured_photo_slug: z.string().optional(),
+    seo_description: z.string().optional(),
+    seo_og_image: z.string().optional(),
+    seo_noindex: z.boolean().optional()
   })
 });
 
