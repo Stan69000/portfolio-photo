@@ -6,6 +6,8 @@ Personal photography portfolio built with [Astro](https://astro.build/).
 
 This repository contains the **source code** of the portfolio site (Astro components, YAML metadata, configuration). Photographs are hosted externally and are not stored in this repository.
 
+Voir [CHANGELOG.md](CHANGELOG.md) pour l'historique des modifications.
+
 ## Photo License
 
 All photographs published on [stan-bouchet.eu](https://stan-bouchet.eu) are the exclusive property of Stan Bouchet and are protected under:
