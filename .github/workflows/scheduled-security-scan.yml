@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -97,11 +97,42 @@ jobs:
           steps.npm_audit.outcome == 'failure' ||
           steps.trivy.outcome == 'failure' ||
           steps.gitleaks.outcome == 'failure'
-        uses: peter-evans/create-issue-from-file@v6
-        with:
-          title: "Security scan alert"
-          content-filepath: security-report.md
-          labels: |
-            security
-            automated
-          search-existing-open-issue-title: "Security scan alert"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_TITLE: Security scan alert
+        run: |
+          gh label create security \
+            --repo "$REPO" \
+            --description "Security scan findings" \
+            --color d73a4a \
+            --force
+          gh label create automated \
+            --repo "$REPO" \
+            --description "Created or updated by automation" \
+            --color cfd3d7 \
+            --force
+
+          existing_issue="$(
+            gh issue list \
+              --repo "$REPO" \
+              --state open \
+              --json number,title \
+              --jq '.[] | select(.title == "Security scan alert") | .number' \
+            | head -n 1
+          )"
+
+          if [ -n "$existing_issue" ]; then
+            gh issue edit "$existing_issue" \
+              --repo "$REPO" \
+              --body-file security-report.md \
+              --add-label security \
+              --add-label automated
+          else
+            gh issue create \
+              --repo "$REPO" \
+              --title "$ISSUE_TITLE" \
+              --body-file security-report.md \
+              --label security \
+              --label automated
+          fi
