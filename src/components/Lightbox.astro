@@ -326,6 +326,7 @@ const { photos } = Astro.props;
 </style>
 
 <script is:inline define:vars={{ photos }}>
+(function() {
   const items = photos;
   const root = document.querySelector('#lightbox');
   if (!root || !Array.isArray(items) || !items.length) return;
@@ -533,4 +534,5 @@ const { photos } = Astro.props;
     e.preventDefault();
     setZoom(zoom + (e.deltaY < 0 ? 0.15 : -0.15));
   }, { passive: false });
+})();
 </script>
