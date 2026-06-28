@@ -1,4 +1,10 @@
-slug: jardin-des-merveilles
 description: Une belle découverte d'un lieux magique
 cover_url: ''
+slug: jardin-des-merveilles
 name: Jardin des merveilles
+status: published
+map_input_type: address
+map_public_visibility: precise
+links:
+  - label: Site Web
+    url: https://www.lejardindesmerveilles38.com/
