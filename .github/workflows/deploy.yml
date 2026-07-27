@@ -43,7 +43,7 @@ jobs:
             https://admin.stan-bouchet.fr/api/public/ratings)"
 
           [ "$code" = "200" ]
-          grep -Eiq '^access-control-allow-origin: https://stan-bouchet\.eu\r?$' "$tmp_headers"
+          tr -d '\r' < "$tmp_headers" | grep -Fqx 'access-control-allow-origin: https://stan-bouchet.eu'
           node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (!Array.isArray(value)) process.exit(1)" "$tmp_body"
 
       - name: Deploy site via FTP → O2Switch
