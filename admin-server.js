@@ -154,7 +154,7 @@ function applySecurityHeaders(req, res) {
     "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
     "img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
     "font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
-    "connect-src 'self' https://admin.stan-bouchet.eu;"
+    "connect-src 'self' https://admin.stan-bouchet.fr;"
   );
   if (requestIsSecure(req)) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');

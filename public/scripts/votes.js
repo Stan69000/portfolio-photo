@@ -1,6 +1,6 @@
 const RATINGS_KEY   = 'stan-photo-ratings-v1';
 const FAVORITES_KEY = 'stan-photo-favorites-v1';
-const API_BASE      = 'https://admin.stan-bouchet.eu';
+const API_BASE      = 'https://admin.stan-bouchet.fr/api/public';
 
 // ── Ratings ───────────────────────────────────────────────────────────────────
 function readRatings() {

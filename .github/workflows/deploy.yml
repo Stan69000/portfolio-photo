@@ -1,4 +1,4 @@
-name: Build & Deploy → O2Switch
+name: Build & Deploy site → O2Switch
 
 on:
   push:
@@ -30,6 +30,22 @@ jobs:
       - name: Build Astro
         run: npm run build
 
+      - name: Verify replacement ratings API
+        run: |
+          tmp_headers="$(mktemp)"
+          tmp_body="$(mktemp)"
+          trap 'rm -f "$tmp_headers" "$tmp_body"' EXIT
+
+          code="$(curl --fail-with-body --show-error --silent \
+            --dump-header "$tmp_headers" \
+            --output "$tmp_body" \
+            --write-out "%{http_code}" \
+            https://admin.stan-bouchet.fr/api/public/ratings)"
+
+          [ "$code" = "200" ]
+          grep -Eiq '^access-control-allow-origin: https://stan-bouchet\.eu\r?$' "$tmp_headers"
+          node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (!Array.isArray(value)) process.exit(1)" "$tmp_body"
+
       - name: Deploy site via FTP → O2Switch
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -42,166 +58,3 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
-
-      - name: Prépare admin-server pour déploiement
-        run: |
-          mkdir -p ./admin-deploy
-          cp admin-server.js ./admin-deploy/
-          cp admin-server.js ./admin-deploy/app.js
-          cp package.json ./admin-deploy/
-          cp package-lock.json ./admin-deploy/
-          echo "${{ github.sha }}" > ./admin-deploy/build.txt
-
-      - name: Deploy admin-server via FTP → O2Switch
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./admin-deploy/
-          server-dir: ${{ secrets.FTP_ADMIN_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-
-      - name: Fallback deploy to detected Passenger roots
-        run: |
-          ADMIN_DIR="${{ secrets.FTP_ADMIN_DIR }}"
-          case "$ADMIN_DIR" in
-            */) ;;
-            *) ADMIN_DIR="${ADMIN_DIR}/" ;;
-          esac
-          ADMIN_PARENT="$(dirname "${ADMIN_DIR%/}")"
-          case "$ADMIN_PARENT" in
-            .|/) ADMIN_PARENT="/" ;;
-            */) ;;
-            *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
-          esac
-          ADMIN_GRANDPARENT="$(dirname "${ADMIN_PARENT%/}")"
-          case "$ADMIN_GRANDPARENT" in
-            .|/) ADMIN_GRANDPARENT="/" ;;
-            */) ;;
-            *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
-          esac
-
-          for TARGET_DIR in "$ADMIN_DIR" "$ADMIN_PARENT" "$ADMIN_GRANDPARENT" "${ADMIN_PARENT}public/" "${ADMIN_GRANDPARENT}public/"; do
-            [ "$TARGET_DIR" = "/" ] && continue
-            listing="$(curl -sS --list-only "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || true)"
-            if echo "$listing" | grep -Eq '(^|[[:space:]])(app\.js|passenger_wsgi\.py)$'; then
-              echo "Passenger root detected: ${TARGET_DIR}"
-              for f in admin-server.js app.js package.json package-lock.json build.txt; do
-                curl --fail --show-error --silent \
-                  -T "./admin-deploy/${f}" \
-                  "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}${f}" \
-                  --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
-              done
-            fi
-          done
-
-      - name: Restart Passenger (curl FTP → tmp/restart.txt)
-        run: |
-          ADMIN_DIR="${{ secrets.FTP_ADMIN_DIR }}"
-          case "$ADMIN_DIR" in
-            */) ;;
-            *) ADMIN_DIR="${ADMIN_DIR}/" ;;
-          esac
-          ADMIN_PARENT="$(dirname "${ADMIN_DIR%/}")"
-          case "$ADMIN_PARENT" in
-            .|/) ADMIN_PARENT="/" ;;
-            */) ;;
-            *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
-          esac
-          ADMIN_GRANDPARENT="$(dirname "${ADMIN_PARENT%/}")"
-          case "$ADMIN_GRANDPARENT" in
-            .|/) ADMIN_GRANDPARENT="/" ;;
-            */) ;;
-            *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
-          esac
-
-          for TARGET_DIR in \
-            "$ADMIN_DIR" \
-            "$ADMIN_PARENT" \
-            "${ADMIN_DIR}public/" \
-            "${ADMIN_PARENT}public/" \
-            "${ADMIN_GRANDPARENT}public/"
-          do
-            echo "Passenger markers in ${TARGET_DIR}tmp/"
-            echo "${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
-              --ftp-create-dirs \
-              -T - \
-              "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}tmp/restart.txt" \
-              --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
-            echo "force-restart-${{ github.run_id }}-${{ github.run_attempt }}" | curl --fail --show-error --silent \
-              --ftp-create-dirs \
-              -T - \
-              "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}tmp/always_restart.txt" \
-              --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
-          done
-
-      - name: Verify uploaded admin build.txt over FTP
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          ADMIN_DIR="${{ secrets.FTP_ADMIN_DIR }}"
-          case "$ADMIN_DIR" in
-            */) ;;
-            *) ADMIN_DIR="${ADMIN_DIR}/" ;;
-          esac
-          ADMIN_PARENT="$(dirname "${ADMIN_DIR%/}")"
-          case "$ADMIN_PARENT" in
-            .|/) ADMIN_PARENT="/" ;;
-            */) ;;
-            *) ADMIN_PARENT="${ADMIN_PARENT}/" ;;
-          esac
-          ADMIN_GRANDPARENT="$(dirname "${ADMIN_PARENT%/}")"
-          case "$ADMIN_GRANDPARENT" in
-            .|/) ADMIN_GRANDPARENT="/" ;;
-            */) ;;
-            *) ADMIN_GRANDPARENT="${ADMIN_GRANDPARENT}/" ;;
-          esac
-
-          MATCH_FOUND=0
-          READ_FOUND=0
-
-          for TARGET_DIR in "$ADMIN_DIR" "$ADMIN_PARENT" "$ADMIN_GRANDPARENT" "${ADMIN_PARENT}public/" "${ADMIN_GRANDPARENT}public/"; do
-            [ "$TARGET_DIR" = "/" ] && continue
-            REMOTE_BUILD="$(curl -sS --fail \
-              "ftp://${{ secrets.FTP_SERVER }}${TARGET_DIR}build.txt" \
-              --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" | tr -d '\r\n' || true)"
-            [ -z "$REMOTE_BUILD" ] && continue
-
-            READ_FOUND=1
-            echo "Remote build.txt in ${TARGET_DIR}: ${REMOTE_BUILD}"
-
-            if [ "${REMOTE_BUILD}" = "${GITHUB_SHA}" ] || [ "${REMOTE_BUILD}" = "${SHORT_SHA}" ]; then
-              MATCH_FOUND=1
-            fi
-          done
-
-          if [ "$MATCH_FOUND" -eq 1 ]; then
-            echo "build.txt verification OK"
-            exit 0
-          fi
-
-          if [ "$READ_FOUND" -eq 0 ]; then
-            echo "ERROR: unable to read uploaded build.txt in tested directories"
-          else
-            echo "ERROR: uploaded build.txt mismatch (expected ${GITHUB_SHA} or ${SHORT_SHA})"
-          fi
-          exit 1
-
-      - name: Verify deployed admin build id
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          tmp_body="$(mktemp)"
-          code="$(curl -sS -o "$tmp_body" -w "%{http_code}" https://admin.stan-bouchet.eu/api/ping || echo "000")"
-          body="$(cat "$tmp_body" 2>/dev/null || true)"
-          rm -f "$tmp_body"
-
-          if [ "$code" = "200" ] && echo "$body" | grep -q "\"build\":\"${SHORT_SHA}"; then
-            echo "Admin updated: HTTP $code — $body"
-          else
-            echo "::warning::admin build id does not match ${SHORT_SHA}"
-            echo "Ping HTTP: ${code}"
-            echo "Ping body: ${body}"
-          fi
