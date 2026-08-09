@@ -16,7 +16,7 @@ export async function GET(context: APIContext) {
 
   const photoItems = allPhotos.map((p) => ({
     title: p.data.title,
-    pubDate: new Date(p.data.date as string),
+    pubDate: p.data.date!,
     description: [
       `<strong>Série :</strong> ${seriesBySlug.get(p.data.series) || p.data.series}`,
       p.data.description || p.data.title
