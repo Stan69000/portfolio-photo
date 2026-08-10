@@ -136,3 +136,25 @@ jobs:
               --label security \
               --label automated
           fi
+
+      - name: Close resolved security incident issues
+        if: |
+          steps.npm_audit.outcome == 'success' &&
+          steps.trivy.outcome == 'success' &&
+          steps.gitleaks.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue list \
+            --repo "$REPO" \
+            --state open \
+            --limit 100 \
+            --json number,title \
+            --jq '.[] | select(.title == "Security scan alert") | .number' \
+          | while read -r issue_number; do
+              [ -n "$issue_number" ] || continue
+              gh issue close "$issue_number" \
+                --repo "$REPO" \
+                --comment "Le scan de sécurité est de nouveau vert. Fermeture automatique de cette alerte résolue."
+            done
