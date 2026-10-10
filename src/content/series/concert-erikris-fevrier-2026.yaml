@@ -1,4 +1,15 @@
-slug: concert-erikris-fevrier-2026
 description: Une belle découverte Érikris avec son spectacle Show Johnny / La Voix, en duo chant-batterie
 cover_url: ''
+slug: concert-erikris-fevrier-2026
 name: Concert Érikris - Février 2026
+status: published
+map_input_type: address
+map_address: 9 rue des Varennes 69380 Chazay-d’Azergues
+map_label: Salle Jeanne d'Arc
+map_public_visibility: precise
+date: '2026-02-28'
+links:
+  - label: Site d'Erikris
+    url: https://erikris.fr/concert-live/
+map_lat: 45.877283
+map_lng: 4.7116964
