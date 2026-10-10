@@ -1,7 +1,17 @@
-slug: motormania
 description: >-
   Red Bull Motormania 2025 était la première édition française de ce festival de sports mécaniques, organisée le samedi
   13 septembre 2025 au circuit de Nevers Magny-Cours. Elle a réuni F1, MotoGP, drift, stunt, freestyle motocross et
   voltige aérienne dans une journée de démonstrations et de duels.
 cover_url: ''
+slug: motormania
 name: Motormania
+status: published
+map_input_type: address
+map_address: Circuit de Nevers Magny-Cours, Nièvre
+map_public_visibility: precise
+date: '2025-09-13'
+links:
+  - label: Site Officiel
+    url: https://www.redbull.com/fr-fr/events/red-bull-motormania
+map_lat: 46.8637548
+map_lng: 3.1662123
