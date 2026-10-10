@@ -1,4 +1,11 @@
-slug: marseille
 description: Photographies réalisées lors d'un WE à Marseille
 cover_url: ''
+slug: marseille
 name: Marseille
+status: published
+map_input_type: address
+map_address: Marseille
+map_public_visibility: approx
+date: '2025-08-29'
+map_lat: 43.2963986
+map_lng: 5.3777888
