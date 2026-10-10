@@ -6,7 +6,8 @@ const photos = defineCollection({
   schema: z.object({
     title: z.string(),
     slug: z.string(),
-    series: z.string(),
+    // Une série supprimée laisse ses photos sans rattachement.
+    series: z.string().default(''),
     url: z.string(),
     url_thumb: z.string().optional(),
     url_web: z.string().optional(),
