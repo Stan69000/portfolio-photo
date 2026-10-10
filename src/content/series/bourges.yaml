@@ -1,4 +1,12 @@
-slug: bourges
 description: WE à Bourges
 cover_url: ''
+slug: bourges
 name: Bourges
+status: published
+map_input_type: address
+map_address: Bourges
+map_label: Bourges
+map_public_visibility: approx
+date: '2025-05-29'
+map_lat: 47.0811658
+map_lng: 2.399125
