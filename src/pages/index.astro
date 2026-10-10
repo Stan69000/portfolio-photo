@@ -17,13 +17,15 @@ const allPhotos = (await getCollection('photos')).filter((p) => p.data.status ==
 
 const latestPhoto = allPhotos
   .slice()
-  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())[0];
+  .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))[0];
 
 const featured = featuredSlug
   ? (allPhotos.find(p => p.data.slug === featuredSlug) ?? latestPhoto)
   : latestPhoto;
 
 const featuredLabel = featuredSlug ? 'Photo du jour' : 'Derni\u00e8re photo';
+
+const instants = allPhotos.filter(p => p.data.kind === 'instant').sort((a,b) => (b.data.published_at?.getTime() ?? 0) - (a.data.published_at?.getTime() ?? 0)).slice(0,3);
 
 const cards = allSeries
   .map((series) => {
@@ -71,6 +73,10 @@ const cards = allSeries
     )}
   </section>
 
+  {instants.length > 0 && <section style="margin:3rem 0">
+    <h2><a href="/instants">Instants →</a></h2><p>Des images glanées au fil des jours.</p>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem">{instants.map(p => <a href={`/photo/${p.data.slug}/`}><img src={p.data.url_thumb || p.data.url} alt={p.data.title} loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" /></a>)}</div>
+  </section>}
   <section class="series-head">
     <h2>{seriesTitle}</h2>
     <p>{seriesSubtitle}</p>

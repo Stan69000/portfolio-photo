@@ -4,6 +4,8 @@ import { glob } from 'astro/loaders';
 const photos = defineCollection({
   loader: glob({ pattern: '**/*.{yml,yaml}', base: './src/content/photos' }),
   schema: z.object({
+    kind: z.enum(['photo', 'instant']).default('photo'),
+    published_at: z.coerce.date().optional(),
     title: z.string(),
     slug: z.string(),
     // Une série supprimée laisse ses photos sans rattachement.

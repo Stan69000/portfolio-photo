@@ -52,7 +52,7 @@ const seriesLocationLng = seriesLocationIsPublic ? Number(seriesLocation?.lng) :
 const effectiveLocationLat = Number.isFinite(photoLocationLat) ? photoLocationLat : seriesLocationLat;
 const effectiveLocationLng = Number.isFinite(photoLocationLng) ? photoLocationLng : seriesLocationLng;
 const locationMapLink = (effectiveLocationDisplay && Number.isFinite(effectiveLocationLat) && Number.isFinite(effectiveLocationLng))
-  ? `/carte?lat=${encodeURIComponent(effectiveLocationLat.toFixed(6))}&lng=${encodeURIComponent(effectiveLocationLng.toFixed(6))}&label=${encodeURIComponent(effectiveLocationDisplay)}`
+  ? `/carte?lat=${encodeURIComponent(effectiveLocationLat.toFixed(effectiveLocationVisibility === 'approx' ? 2 : 6))}&lng=${encodeURIComponent(effectiveLocationLng.toFixed(effectiveLocationVisibility === 'approx' ? 2 : 6))}&label=${encodeURIComponent(effectiveLocationDisplay)}`
   : '/carte';
 const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
 const canonicalPath = `/photo/${photo.data.slug}/`;

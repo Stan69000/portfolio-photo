@@ -22,3 +22,25 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 ## Code License
 
 The source code in this repository may be reused freely with attribution.
+
+## Instants — publication mobile
+
+La rubrique `/instants/` affiche les photos de type `instant`, par date de publication.
+Dans l’administration, `/instants` permet l’import depuis Safari : sélection de
+photos JPEG/PNG/WebP/TIFF, commentaire facultatif commun à la sélection, lieu GPS
+issu de chaque fichier ou lieu choisi manuellement. La localisation est masquée
+par défaut. Si l’iPhone conserve un fichier HEIC non compatible, l’exporter en JPEG.
+La page peut être ajoutée à l’écran d’accueil depuis le menu Partager de Safari.
+
+« Publier » transfère les images, enregistre les nouvelles photos et déclenche le
+workflow GitHub existant vers O2Switch. La page vérifie ensuite la présence des
+nouvelles fiches publiques pendant cinq minutes. Une absence de confirmation
+invite à consulter le site ou GitHub Actions. Les modifications déjà en attente
+bloquent cette publication rapide ; l’enregistrement en brouillon reste possible.
+Les brouillons se modifient et se publient avec les outils habituels de l’administration.
+
+Pour activer la fonctionnalité en production : déployer ces sources sur `main`
+pour le site public, puis mettre à jour et redémarrer le service d’administration
+avec cette version de `admin-server.js`. Le déploiement statique du site ne
+redémarre pas le service d’administration. Vérifier ensuite un import JPEG depuis
+un iPhone connecté, avec un lieu approximatif, et la confirmation de mise en ligne.

@@ -1,0 +1,28 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Lightbox from '../components/Lightbox.astro';
+const photos = (await getCollection('photos'))
+  .filter(p => p.data.kind === 'instant' && p.data.status === 'published')
+  .sort((a,b) => (b.data.published_at?.getTime() ?? b.data.date?.getTime() ?? 0) - (a.data.published_at?.getTime() ?? a.data.date?.getTime() ?? 0));
+const items = photos.map(p => ({id:p.id,slug:p.data.slug,title:p.data.title,description:p.data.description,url:p.data.url_zoom || p.data.url}));
+---
+<Base title="Instants | Stan Bouchet" description="Des images glanées au fil des jours.">
+  <header class="instant-head"><p class="kicker">Journal photographique</p><h1>Instants</h1><p>Des images glanées au fil des jours.</p></header>
+  {photos.length === 0 && <p class="empty">Les premiers instants arrivent bientôt.</p>}
+  <div class="instant-feed">
+    {photos.map((photo,index) => <article>
+      <button class="instant-image" type="button" data-lightbox-index={index} aria-label={`Ouvrir ${photo.data.title} en plein écran`}><img src={photo.data.url_web || photo.data.url} alt={photo.data.title} loading={index === 0 ? 'eager' : 'lazy'} decoding="async" /></button>
+      <div class="instant-caption">
+        <a href={`/photo/${photo.data.slug}/`}>{photo.data.title}</a>
+        {photo.data.date && <time datetime={photo.data.date.toISOString()}>{photo.data.date.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Paris'})}</time>}
+        {photo.data.description && <p>{photo.data.description}</p>}
+        {photo.data.location && photo.data.location.public_visibility !== 'hidden' && <a class="place" href="/carte">⌖ {photo.data.location.label || photo.data.location.address || 'Voir sur la carte'}</a>}
+      </div>
+    </article>)}
+  </div>
+  <Lightbox photos={items} />
+</Base>
+<style>
+.instant-head{margin:2rem 0 3rem}.instant-head h1{font-size:clamp(2.5rem,6vw,4.5rem);margin:.5rem 0}.instant-feed{max-width:900px;margin:0 auto;display:grid;gap:3.5rem}.instant-image{display:block;width:100%;border:0;padding:0;background:transparent;cursor:zoom-in}.instant-image img{display:block;width:100%;max-height:85vh;object-fit:contain;border-radius:8px}.instant-caption{padding:1rem 0;display:flex;gap:.6rem 1rem;align-items:baseline;flex-wrap:wrap}.instant-caption>a{font-weight:600}.instant-caption time{font-size:.85rem;opacity:.65}.instant-caption p{width:100%;margin:0;white-space:pre-wrap}.instant-caption .place{font-size:.85rem;font-weight:400}.empty{padding:3rem 0;opacity:.7}
+</style>

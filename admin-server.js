@@ -111,6 +111,7 @@ const sessions    = new Map(); // id → { user, expires }
 const oauthStates = new Map(); // state → expiry timestamp
 const rateBuckets = new Map();
 let deployInProgress = false;
+let instantBusy = false;
 
 function signVal(v)  { return crypto.createHmac('sha256', SESSION_SECRET).update(v).digest('base64url'); }
 
@@ -532,16 +533,20 @@ function parseUpload(req) {
       }
       const decodedName = decodeUploadFilename(info.filename || 'upload');
       const safeName = path.basename(decodedName).replace(/[^\p{L}\p{N}._-]/gu, '_');
-      const tmp = path.join(CFG.tmpDir, `${Date.now()}-${safeName}`);
+      const tmp = path.join(CFG.tmpDir, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}-${safeName}`);
       const ws = fs.createWriteStream(tmp);
       stream.pipe(ws);
       const done = new Promise((res, rej) => {
-        ws.on('finish', () => { files.push({ path: tmp, filename: decodedName, mime: info.mimeType }); res(); });
+        ws.on('finish', () => { files.push({ path: tmp, filename: decodedName, mime: info.mimeType }); if (stream.truncated) rej(new Error('Photo trop volumineuse (maximum 300 Mo).')); else res(); });
         ws.on('error', rej);
       });
       pending.push(done);
     });
-    bb.on('close', () => Promise.all(pending).then(() => resolve({ fields, files })).catch(reject));
+    bb.on('close', () => Promise.allSettled(pending).then(results => {
+      const failure = results.find(result => result.status === 'rejected');
+      if (failure) { for (const file of files) { try { fs.unlinkSync(file.path); } catch {} } reject(failure.reason); }
+      else resolve({ fields, files });
+    }));
     bb.on('error', reject);
     req.pipe(bb);
   });
@@ -849,6 +854,7 @@ function layout(title, content, active = '') {
     ['/', 'adminhome', '⬅ Admin', false],
     ['/', 'photos', '📷 Photos', false],
     ['/series', 'series', '📁 Séries', false],
+    ['/instants', 'instants', '📷 Instants', false],
     ['/upload', 'upload', '⬆️ Upload', false],
     ['/tags', 'tags', '🏷 Tags', false],
     ['/stats', 'stats', '📊 Stats', false],
@@ -1578,6 +1584,36 @@ function doUpload(){
   xhr.send(fd);
 }
 </script>`, 'upload');
+}
+
+function instantsPage() {
+  return layout('Instants', `
+<h1>Ajouter un instant</h1><p>Des images glanées au fil des jours.</p>
+<p>Sur iPhone : dans Safari, utilise Partager → Sur l’écran d’accueil pour retrouver cette page rapidement.</p>
+<form id="instant-form" style="max-width:640px;display:grid;gap:1rem">
+<label>Photos <input name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/tiff" multiple required style="display:block;width:100%"></label>
+<div id="instant-preview" class="upload-preview"></div>
+<label>Quelques mots… <textarea name="description" maxlength="4000" rows="3" style="width:100%" placeholder="Une impression, une anecdote… (facultatif)"></textarea></label>
+<fieldset><legend>Localisation</legend>
+<p>Le lieu de chaque photo est lu automatiquement s’il est présent. Tu peux le remplacer ci-dessous pour toute la sélection.</p>
+<label>Visibilité <select name="visibility"><option value="hidden">Lieu masqué</option><option value="approx">Zone approximative</option><option value="precise">Position précise</option></select></label>
+<label>Rechercher un lieu <input id="instant-place" placeholder="Ville, adresse…"><button type="button" id="instant-search" class="btn">Rechercher</button></label>
+<div id="instant-places"></div>
+<label>Nom du lieu <input name="label"></label>
+<label>Latitude <input name="lat" type="number" step="any" min="-90" max="90"></label>
+<label>Longitude <input name="lng" type="number" step="any" min="-180" max="180"></label>
+</fieldset>
+<p>Publier lance la mise en ligne (environ deux minutes). Si d’autres modifications attendent, enregistre un brouillon ou déploie-les d’abord dans l’administration.</p>
+<div><button class="btn btn-primary" name="action" value="publish">Publier</button> <button class="btn" name="action" value="draft">Enregistrer en brouillon</button></div>
+<p id="instant-status" role="status" aria-live="polite"></p><div id="instant-links"></div>
+</form>
+<script>
+const form=document.getElementById('instant-form'), statusEl=document.getElementById('instant-status');
+let previewUrls=[];
+form.photos.onchange=()=>{previewUrls.forEach(URL.revokeObjectURL);previewUrls=[];const box=document.getElementById('instant-preview');box.replaceChildren();for(const file of form.photos.files){const img=document.createElement('img');img.className='upload-thumb';img.alt=file.name;img.src=URL.createObjectURL(file);previewUrls.push(img.src);box.append(img);}};
+document.getElementById('instant-search').onclick=async()=>{try{const r=await fetch('/api/geocode?q='+encodeURIComponent(document.getElementById('instant-place').value));const data=await r.json();const box=document.getElementById('instant-places');box.replaceChildren();for(const place of data.results||[]){const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=place.label;b.onclick=()=>{form.lat.value=place.lat;form.lng.value=place.lng;form.label.value=place.label;box.replaceChildren();};box.append(b);}if(!box.children.length)box.textContent='Aucun lieu trouvé.';}catch{statusEl.textContent='Recherche indisponible. Tu peux saisir les coordonnées.';}};
+form.onsubmit=async(e)=>{e.preventDefault();const fd=new FormData(form);fd.set('action',e.submitter.value);const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);statusEl.textContent='Transfert et traitement en cours… Garde cette page ouverte.';try{const r=await fetch('/instants',{method:'POST',body:fd});const data=await r.json();statusEl.textContent=data.message||data.error;const links=document.getElementById('instant-links');links.replaceChildren();for(const item of data.results||[]){const line=document.createElement('p');line.textContent=item.ok?'✓ '+item.title:'Échec : '+item.title+' — '+item.error;if(item.ok){const a=document.createElement('a');a.href='/edit/'+item.slug+'.yaml';a.textContent=' Modifier';line.append(a);}links.append(line);}if(data.deployed){statusEl.textContent='Mise en ligne en cours…';let tries=0;const poll=async()=>{try{const response=await fetch('/instants/status?slugs='+encodeURIComponent(data.results.filter(x=>x.ok).map(x=>x.slug).join(',')));const state=await response.json();if(state.live){statusEl.textContent='En ligne !';const a=document.createElement('a');a.href=${JSON.stringify(PUBLIC_SITE_ORIGIN + '/instants/')};a.textContent='Voir les instants';links.append(a);return;}}catch{}if(++tries<60)setTimeout(poll,5000);else statusEl.textContent='Déploiement demandé. La mise en ligne reste à confirmer : consulte le site ou GitHub Actions.';};setTimeout(poll,5000);}if(data.ok)form.reset();}catch{statusEl.textContent='Connexion interrompue. Vérifie les photos dans l’administration avant de réessayer.';}finally{buttons.forEach(b=>b.disabled=false);}};
+</script>`, 'instants');
 }
 
 // ─── SERIES PAGES ─────────────────────────────────────────────────────────────
@@ -2365,6 +2401,8 @@ a:hover{background:#748fff33}</style></head><body>
     if (!user) { redirect('/auth/github'); return; }
   }
 
+  if (instantBusy && req.method !== 'GET') { json({ok:false,error:'Un instant est en cours de traitement. Réessaie dans un moment.'},409); return; }
+
   // ── Photos list
   if (req.method==='GET' && p==='/') {
     html(photosPage(readPhotos(), {
@@ -2509,6 +2547,58 @@ a:hover{background:#748fff33}</style></head><body>
     }
     autoGitPush(`batch: suppression définitive (${body.files.length} photo(s))`);
     json({ok:true});
+
+  // ── Publication mobile Instants (authentification identique à l’administration)
+  } else if (req.method==='GET' && p==='/instants') {
+    html(instantsPage());
+  } else if (req.method==='GET' && p==='/instants/status') {
+    const slugs=String(url.searchParams.get('slugs')||'').split(',').filter(s=>/^instants-[a-z0-9-]+$/.test(s)).slice(0,100);
+    try {
+      const checks=await Promise.all(slugs.map(async slug=>{
+        const response=await fetch(`${PUBLIC_SITE_ORIGIN}/photo/${slug}/?check=${Date.now()}`,{signal:AbortSignal.timeout(8000),cache:'no-store'});
+        return response.ok && (await response.text()).includes(slug);
+      }));
+      json({live:checks.length>0&&checks.every(Boolean)});
+    } catch { json({live:false}); }
+  } else if (req.method==='POST' && p==='/instants') {
+    instantBusy=true;
+    let files=[];
+    try {
+      const parsed=await parseUpload(req);files=parsed.files;const fields=parsed.fields;
+      const publish=fields.action==='publish';
+      const opts={cwd:__dirname,stdio:'pipe'};
+      if(publish && (Number(execFileSync('git',['rev-list','--count','origin/main..HEAD'],opts).toString().trim())>0 || execFileSync('git',['status','--porcelain'],opts).toString().trim())) {
+        json({ok:false,error:'D’autres modifications attendent. Enregistre un brouillon ou déploie-les d’abord depuis l’administration.'},409);return;
+      }
+      if(!files.length){json({ok:false,error:'Aucune photo compatible. Depuis Photos, partage ou exporte les images en JPEG si nécessaire.'},400);return;}
+      const manual=fields.lat!=='' || fields.lng!=='';
+      const lat=parseCoordinate(fields.lat,-90,90),lng=parseCoordinate(fields.lng,-180,180);
+      if(manual && (!Number.isFinite(lat)||!Number.isFinite(lng))){json({ok:false,error:'Renseigne une latitude et une longitude valides.'},400);return;}
+      const results=[], paths=[];
+      for(const file of files){
+        const slug=`instants-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+        try {
+          const title=buildPhotoTitleFromFilename(file.filename);
+          const [versions,exif,date]=await Promise.all([processImage(file.path,'instants',slug),readExif(file.path),readExifDate(file.path)]);
+          const transfer=await uploadViaSFTP(versions,'instants',slug);
+          if(!transfer.ok)throw new Error('Transfert des images impossible : '+transfer.error);
+          let gps;
+          try{const {default:exifr}=await import('exifr');gps=await exifr.gps(file.path);}catch{}
+          const location=normalizeLocation({lat:manual?lat:gps?.latitude,lng:manual?lng:gps?.longitude,label:fields.label||'',public_visibility:fields.visibility});
+          const urls=buildUrls('instants',slug), target=path.join(CFG.photosDir,slug+'.yaml');
+          writeYaml(target,{title,slug,series:'',kind:'instant',status:publish?'published':'draft',date:date||new Date().toISOString().slice(0,10),published_at:new Date().toISOString(),description:String(fields.description||'').slice(0,4000),tags:[],url:urls.url_web,...urls,...(location?{location}:{}),...(Object.values(exif).some(Boolean)?{exif}:{})});
+          paths.push(target);results.push({ok:true,slug,title});
+        }catch(e){results.push({ok:false,title:file.filename,error:e.message});}
+      }
+      let deployed=false;
+      if(paths.length){
+        execFileSync('git',['add','--',...paths],opts);
+        execFileSync('git',['commit','-m','photos: ajout d’instants','--',...paths],opts);
+        if(publish){const result=gitPush();if(!result.ok){json({ok:false,results,error:'Photos sauvegardées, mais déploiement impossible : '+result.error});return;}deployed=true;}
+      }
+      json({ok:results.every(r=>r.ok),results,deployed,message:deployed?'Mise en ligne en cours…':paths.length?'Brouillons enregistrés. Tu peux les modifier dans l’administration.':'Aucune photo enregistrée.'});
+    }catch(e){json({ok:false,error:e.message},500);}
+    finally{for(const file of files){try{fs.unlinkSync(file.path);}catch{}}instantBusy=false;}
 
   // ── Upload page
   } else if (req.method==='GET' && p==='/upload') {

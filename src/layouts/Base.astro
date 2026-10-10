@@ -88,6 +88,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         <!-- Desktop nav -->
         <nav class="nav" id="main-nav" aria-label="Navigation principale">
           <a href="/" class:list={['nav-link', { active: isActive('/') }]}>Accueil</a>
+          <a href="/instants" class:list={['nav-link', { active: isActive('/instants') }]}>Instants</a>
           <a href="/photos" class:list={['nav-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
           <a href="/series" class:list={['nav-link', { active: isActive('/series') }]}>Séries</a>
           <a href="/carte" class:list={['nav-link', { active: isActive('/carte') }]}>Carte</a>
@@ -111,6 +112,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       <!-- Mobile menu -->
       <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
         <a href="/" class:list={['mobile-link', { active: isActive('/') }]}>Accueil</a>
+        <a href="/instants" class:list={['mobile-link', { active: isActive('/instants') }]}>Instants</a>
         <a href="/photos" class:list={['mobile-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
         <a href="/series" class:list={['mobile-link', { active: isActive('/series') }]}>Séries</a>
         <a href="/carte" class:list={['mobile-link', { active: isActive('/carte') }]}>Carte</a>
