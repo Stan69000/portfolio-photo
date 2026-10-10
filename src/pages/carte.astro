@@ -241,9 +241,9 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
         const worldBounds = L.latLngBounds([-62, -178], [82, 178]);
 
         const map = L.map('photo-map', { zoomControl: true, minZoom: 2 }).setView([46.2276, 2.2137], 5);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
-          attribution: '© OpenStreetMap © CARTO',
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(map);
 
         const markerLayer = L.layerGroup();
