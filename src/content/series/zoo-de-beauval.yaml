@@ -4,9 +4,11 @@ slug: zoo-de-beauval
 name: Zoo de Beauval
 status: published
 map_input_type: address
-map_address: Avenue du Blanc 41110 Saint-Aignan-sur-Cher
+map_address: Zoo de Beauval
 map_public_visibility: precise
 date: '2025-04-21'
 links:
   - label: Site officiel
     url: https://www.zoobeauval.com/
+map_lat: 47.2464882
+map_lng: 1.34809
