@@ -1,4 +1,12 @@
-slug: normandie
 description: Photos prises lors d'un séjour pour un concours de mon fils
 cover_url: ''
+slug: normandie
 name: Normandie
+status: published
+map_input_type: address
+map_address: Tocqueville
+map_label: Quelque part en Normandie
+map_public_visibility: approx
+date: '2025-11-24'
+map_lat: 49.4077365
+map_lng: 0.6096663
