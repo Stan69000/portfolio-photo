@@ -1377,8 +1377,8 @@ ${thumbHtml}
 
   function initMap(){
     map=L.map('location-map',{zoomControl:true,scrollWheelZoom:false}).setView([46.2276,2.2137],5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-      attribution:'© OpenStreetMap © CARTO',
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom:19
     }).addTo(map);
     const ll=readLatLng();
@@ -1775,7 +1775,7 @@ document.getElementById('slug-field').addEventListener('input',()=>document.getE
   }
   function initMap(){
     map=L.map('series-map-preview',{zoomControl:true,scrollWheelZoom:false}).setView([46.2276,2.2137],5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19}).addTo(map);
     const ll=readLatLng();
     if(ll) setLatLng(ll.lat,ll.lng,true);
     map.on('click',(e)=>setLatLng(Number(e.latlng.lat.toFixed(6)),Number(e.latlng.lng.toFixed(6)),false));
