@@ -2,11 +2,11 @@
 
 La clé se renseigne dans https://admin.stan-bouchet.fr/sites/portfolio-photo/settings, rubrique Stockage kDrive. Elle est vérifiée puis enregistrée dans `.processed/kdrive-admin.json` sur le serveur d’administration, avec des permissions privées. Elle ne doit pas être copiée chez O2Switch.
 
-Les imports de l’administration utilisent kDrive par défaut lorsqu’une clé est configurée. Le dossier « série — date » est facultatif. Les originaux sont conservés sans signature ; seules les versions web et zoom peuvent être signées.
+Les imports de l’administration utilisent kDrive par défaut lorsqu’une clé est configurée. Le dossier « série — date » est facultatif. Chaque sous-dossier créé ou réutilisé reçoit automatiquement la catégorie existante « Galerie Photos », sans retirer ses autres catégories. Les originaux sont conservés sans signature ; seules les versions web et zoom peuvent être signées.
 
 Les images publiées sont servies par `https://admin.stan-bouchet.fr/api/public/kdrive?slug=…&version=web`. Le relais vérifie le statut publié et refuse les originaux. Les brouillons passent par une route réservée aux utilisateurs connectés. Le site reste statique : Publier (Instants) ou Déployer (imports classiques) déclenche sa reconstruction.
 
-Pour la migration sur le serveur, définir `KDRIVE_RELAY_ORIGIN=https://admin.stan-bouchet.fr` et `KDRIVE_RELAY_PATH=/api/public/kdrive`, avec les identifiants chargés depuis le fichier privé. Commencer avec `--apply --limit 1`, vérifier l’image publique, puis reprendre sans limite. Les copies O2Switch restent disponibles pendant cette opération.
+Pour la migration sur le serveur, définir `KDRIVE_RELAY_ORIGIN=https://admin.stan-bouchet.fr` et `KDRIVE_RELAY_PATH=/api/public/kdrive`, avec les identifiants chargés depuis le fichier privé et `KDRIVE_CATEGORY_NAME="Galerie Photos"`. Les dossiers déjà migrés sont catégorisés au démarrage. Commencer avec `--apply --limit 1`, vérifier l’image publique, puis reprendre sans limite. Les copies O2Switch restent disponibles pendant cette opération.
 
 ---
 
@@ -20,9 +20,9 @@ Destination fournie : [Photographies - Galerie Photo](https://ksuite.infomaniak.
 - « Créer ou réutiliser un dossier » range les fichiers dans `Photographies - Galerie Photo/Nom de la série — AAAA-MM-JJ`. Date choisie, sinon date de la série, sinon date de prise de vue. Pour Instants : `Instants — AAAA-MM-JJ`. Décocher utilise directement le dossier principal.
 - Les fichiers kDrive restent privés. Aucun lien de partage n’est créé automatiquement.
 
-## Affichage public sans dépendre du Mac
+## Ancien relais PHP facultatif (non utilisé en production)
 
-Le site statique reste hébergé chez O2Switch. `public/media-kdrive.php` est un relais PHP 8.1+ avec cURL : il télécharge une version depuis kDrive et la renvoie au navigateur, sans conserver une copie sur disque. Les images sont donc stockées sur kDrive ; le serveur web existant assure leur diffusion. Le Mac n’intervient pas.
+La production utilise le serveur d’administration décrit ci-dessus et ne copie pas la clé chez O2Switch. Le mécanisme PHP ci-dessous reste disponible uniquement comme alternative explicitement configurée. `public/media-kdrive.php` est un relais PHP 8.1+ avec cURL : il télécharge une version depuis kDrive et la renvoie au navigateur, sans conserver une copie sur disque. Les images sont donc stockées sur kDrive ; le serveur web existant assure leur diffusion. Le Mac n’intervient pas.
 
 Créer sur l’hébergement, **en dehors du dossier public du site**, un fichier `kdrive-config.php` (droits 0600) :
 
