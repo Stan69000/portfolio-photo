@@ -2,10 +2,10 @@ title: Zoo de Beauval — 046
 slug: zoo-de-beauval-2025-04-22-005
 series: zoo-de-beauval
 status: published
-url: http://stan-bouchet.eu/zoo-de-beauval/web/zoo-de-beauval-2025-04-22-005.webp
-url_thumb: http://stan-bouchet.eu/zoo-de-beauval/thumb/zoo-de-beauval-2025-04-22-005.webp
-url_web: http://stan-bouchet.eu/zoo-de-beauval/web/zoo-de-beauval-2025-04-22-005.webp
-url_zoom: http://stan-bouchet.eu/zoo-de-beauval/zoom/zoo-de-beauval-2025-04-22-005.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=web&rev=36b268a9-3abe-4074-9643-5bed573c58ff
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=thumb&rev=36b268a9-3abe-4074-9643-5bed573c58ff
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=web&rev=36b268a9-3abe-4074-9643-5bed573c58ff
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=zoom&rev=36b268a9-3abe-4074-9643-5bed573c58ff
 date: '2025-04-22'
 description: ''
 tags: []
@@ -14,3 +14,28 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/5.6 1/320s
+kdrive:
+  drive_id: '620855'
+  directory_id: '429314'
+  files:
+    thumb: '429461'
+    web: '430294'
+    zoom: '430295'
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 125
+  color: '#ff0000'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '429314'
+    files:
+      thumb: '429461'
+      web: '429463'
+      zoom: '429465'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2025-04-22-005&version=zoom
