@@ -2,10 +2,10 @@ title: Marseille — 212
 slug: marseille-2024-08-29-143
 series: marseille
 status: published
-url: http://stan-bouchet.eu/marseille/web/marseille-2024-08-29-143.webp
-url_thumb: http://stan-bouchet.eu/marseille/thumb/marseille-2024-08-29-143.webp
-url_web: http://stan-bouchet.eu/marseille/web/marseille-2024-08-29-143.webp
-url_zoom: http://stan-bouchet.eu/marseille/zoom/marseille-2024-08-29-143.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=web&rev=96ede1b6-71a4-4d5b-a9ac-49e4d5369b40
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=thumb&rev=96ede1b6-71a4-4d5b-a9ac-49e4d5369b40
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=web&rev=96ede1b6-71a4-4d5b-a9ac-49e4d5369b40
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=zoom&rev=96ede1b6-71a4-4d5b-a9ac-49e4d5369b40
 date: '2024-08-29'
 description: ''
 tags: []
@@ -14,3 +14,28 @@ exif:
   camera: Apple iPhone 15
   lens: iPhone 15 back dual wide camera 5.96mm f/1.6
   settings: f/1.6 1/2933s
+kdrive:
+  drive_id: '620855'
+  directory_id: '427700'
+  files:
+    thumb: '428126'
+    web: '430127'
+    zoom: '430128'
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 145
+  color: '#ff6161'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '427700'
+    files:
+      thumb: '428126'
+      web: '428128'
+      zoom: '428130'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-143&version=zoom
