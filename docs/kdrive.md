@@ -1,3 +1,15 @@
+# Connexion en production
+
+La clé se renseigne dans https://admin.stan-bouchet.fr/sites/portfolio-photo/settings, rubrique Stockage kDrive. Elle est vérifiée puis enregistrée dans `.processed/kdrive-admin.json` sur le serveur d’administration, avec des permissions privées. Elle ne doit pas être copiée chez O2Switch.
+
+Les imports de l’administration utilisent kDrive par défaut lorsqu’une clé est configurée. Le dossier « série — date » est facultatif. Les originaux sont conservés sans signature ; seules les versions web et zoom peuvent être signées.
+
+Les images publiées sont servies par `https://admin.stan-bouchet.fr/api/public/kdrive?slug=…&version=web`. Le relais vérifie le statut publié et refuse les originaux. Les brouillons passent par une route réservée aux utilisateurs connectés. Le site reste statique : Publier (Instants) ou Déployer (imports classiques) déclenche sa reconstruction.
+
+Pour la migration sur le serveur, définir `KDRIVE_RELAY_ORIGIN=https://admin.stan-bouchet.fr` et `KDRIVE_RELAY_PATH=/api/public/kdrive`, avec les identifiants chargés depuis le fichier privé. Commencer avec `--apply --limit 1`, vérifier l’image publique, puis reprendre sans limite. Les copies O2Switch restent disponibles pendant cette opération.
+
+---
+
 # Stockage des photographies sur kDrive
 
 Destination fournie : [Photographies - Galerie Photo](https://ksuite.infomaniak.com/628601/kdrive/app/drive/620855/files/426358)

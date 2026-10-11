@@ -16,8 +16,8 @@ export function kdriveFolderName(name, date) {
   return `${label || 'Instants'} — ${day}`;
 }
 
-export function kdriveUrls(origin, slug) {
-  const base = new URL('/media-kdrive.php', origin);
+export function kdriveUrls(origin, slug, relayPath = '/media-kdrive.php') {
+  const base = new URL(relayPath, origin);
   return Object.fromEntries(['thumb', 'web', 'zoom'].map(version => {
     const url = new URL(base);
     url.searchParams.set('slug', slug);

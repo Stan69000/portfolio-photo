@@ -38,7 +38,8 @@ if (!apply) {
 }
 const config = kdriveConfig();
 const client = new KdriveStorage(config);
-const origin = process.env.PUBLIC_SITE_ORIGIN || 'https://stan-bouchet.eu';
+const origin = process.env.KDRIVE_RELAY_ORIGIN || process.env.PUBLIC_SITE_ORIGIN || 'https://stan-bouchet.eu';
+const relayPath = process.env.KDRIVE_RELAY_PATH || '/media-kdrive.php';
 const destination = await client.request(`/3/drive/${config.driveId}/files/${config.rootId}`);
 if (destination.data?.type !== 'dir') throw new Error('Dossier kDrive inaccessible.');
 const journalDir = path.join(root, '.processed/kdrive-migration');
@@ -61,7 +62,7 @@ try {
     let journal = { drive_id: config.driveId, directory_id: directoryId, files: {} };
     if (fs.existsSync(journalPath)) journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
     if (journal.drive_id !== config.driveId || journal.directory_id !== directoryId) throw new Error('Destination différente du précédent essai.');
-    const urls = kdriveUrls(origin, photo.slug);
+    const urls = kdriveUrls(origin, photo.slug, relayPath);
     for (const version of ['thumb', 'web', 'zoom']) {
       const oldUrl = photo[`url_${version}`] || photo.url;
       const url = new URL(oldUrl);
