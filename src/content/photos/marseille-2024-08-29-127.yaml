@@ -2,10 +2,10 @@ title: Marseille — 196
 slug: marseille-2024-08-29-127
 series: marseille
 status: published
-url: http://stan-bouchet.eu/marseille/web/marseille-2024-08-29-127.webp
-url_thumb: http://stan-bouchet.eu/marseille/thumb/marseille-2024-08-29-127.webp
-url_web: http://stan-bouchet.eu/marseille/web/marseille-2024-08-29-127.webp
-url_zoom: http://stan-bouchet.eu/marseille/zoom/marseille-2024-08-29-127.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=web&rev=0f5c50cd-6c72-4bb6-ad46-703270a05dbd
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=thumb&rev=0f5c50cd-6c72-4bb6-ad46-703270a05dbd
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=web&rev=0f5c50cd-6c72-4bb6-ad46-703270a05dbd
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=zoom&rev=0f5c50cd-6c72-4bb6-ad46-703270a05dbd
 date: '2024-08-29'
 description: ''
 tags: []
@@ -14,3 +14,28 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/7.1 1/320s
+kdrive:
+  drive_id: '620855'
+  directory_id: '427700'
+  files:
+    thumb: '428078'
+    web: '430095'
+    zoom: '430096'
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 145
+  color: '#ff6161'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '427700'
+    files:
+      thumb: '428078'
+      web: '428080'
+      zoom: '428083'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-127&version=zoom
