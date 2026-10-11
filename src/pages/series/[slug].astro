@@ -2,6 +2,9 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Lightbox from '../../components/Lightbox.astro';
+import Anecdote from '../../components/Anecdote.astro';
+import ReadingProgress from '../../components/ReadingProgress.astro';
+import { narrativeChapters } from '../../lib/discovery.js';
 
 export async function getStaticPaths() {
   const seriesEntries = await getCollection('series', ({ data }) => data.published);
@@ -12,11 +15,15 @@ export async function getStaticPaths() {
 }
 
 const { series } = Astro.props;
+const revision = (await getCollection('settings'))[0]?.data.discovery_revision || '0';
 const publishedPhotos = (await getCollection('photos')).filter(photo => photo.data.status === 'published');
 const photos = publishedPhotos
   .filter((photo) => photo.data.series === series.data.slug && photo.data.status === 'published')
   .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))
   .map((photo) => ({
+    anecdote: photo.data.anecdote,
+    spotlight: photo.data.spotlight,
+    diptych_with: photo.data.diptych_with,
     id: photo.id,
     slug: photo.data.slug,
     title: photo.data.title,
@@ -25,9 +32,8 @@ const photos = publishedPhotos
     tags: photo.data.tags ?? []
   }));
 
-// Keep the opening image in the hero; subsequent photographs retain their lightbox indices.
-const sequence = photos.slice(1).map((photo, offset) => ({ ...photo, index: offset + 1 }));
-const chapters = Array.from({ length: Math.ceil(sequence.length / 12) }, (_, index) => sequence.slice(index * 12, (index + 1) * 12));
+const chapters = narrativeChapters(photos);
+const sequence = chapters.flat();
 
 const availableSeries = (await getCollection('series')).filter(entry => entry.data.published && entry.data.status === 'published' && entry.data.slug !== series.data.slug);
 const curated = series.data.related_series ?? [];
@@ -84,6 +90,8 @@ const breadcrumbJsonLd = {
       <button
         type="button"
         class="hero-image"
+        data-series-opening={series.data.slug}
+        data-revision={revision}
         data-lightbox-index="0"
         aria-label={`Ouvrir ${hero.title} en plein écran`}
       >
@@ -161,6 +169,7 @@ const breadcrumbJsonLd = {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   )}
 
+  {hero && <Anecdote text={hero.anecdote} />}
   {sequence.length > 0 && <section id="album" class="album-reading" aria-label={`Photographies de ${series.data.name}`}>
     <div class="reading-heading"><div><p class="story-kicker">Le fil des images</p><h2>Prendre le temps de regarder</h2><p>Chaque image s’ouvre en plein écran.</p></div>
       <div class="reading-switch" role="group" aria-label="Présentation de l’album" hidden>
@@ -170,12 +179,13 @@ const breadcrumbJsonLd = {
     </div>
     {chapters.map((chapter, chapterIndex) => <section class="album-chapter" aria-label={`Séquence ${chapterIndex + 1}`}>
       {chapters.length > 1 && <div class="chapter-marker"><span>Séquence {String(chapterIndex + 1).padStart(2, '0')}</span><span>Images {chapter[0].index + 1}–{chapter[chapter.length - 1].index + 1}</span></div>}
-      <div class="reading-grid">{chapter.map((photo, position) => <figure class:list={['reading-photo', { 'reading-wide': position % 6 === 0, 'reading-pause': position % 6 === 3 }]}>
+      <div class="reading-grid">{chapter.map((photo, position) => <figure data-photo-slug={photo.slug} data-pinned={photo.spotlight ? 'true' : undefined} data-paired={photo.paired ? 'true' : undefined} class:list={['reading-photo', { 'reading-wide': !photo.paired && (photo.spotlight || position % 6 === 0), 'reading-pause': !photo.paired && position % 6 === 3, 'reading-pair': photo.paired }]}>
         <button type="button" class="reading-trigger" data-lightbox-index={photo.index} aria-label={`Ouvrir ${photo.title} en plein écran`}>
           <img src={photo.url} alt={photo.title} loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
           <span class="expand-hint" aria-hidden="true">↗</span>
         </button>
         <figcaption><span class="photo-number">{String(photo.index + 1).padStart(2, '0')}</span><div><span class="reading-title">{photo.title}</span>{photo.description && <p>{photo.description}</p>}</div></figcaption>
+        <Anecdote text={photo.anecdote} />
       </figure>)}</div>
     </section>)}
   </section>}
@@ -187,6 +197,7 @@ const breadcrumbJsonLd = {
       <p class="continue-invitation">{item.invitation} <span aria-hidden="true">↗</span></p><h3>{item.name}</h3><span class="continue-count">{item.count} photographies</span>
     </a>)}</div>
   </section>
+  <ReadingProgress selector="[data-series-opening], .reading-photo" total={photos.length} />
   <Lightbox photos={photos} />
 </Base>
 
@@ -538,6 +549,17 @@ const breadcrumbJsonLd = {
   }
 </style>
 <script>
+  import { visitChoice } from '../../lib/visit-choice.js';
+  const opening = document.querySelector<HTMLElement>('[data-series-opening]');
+  if (opening) {
+    // Select a large photograph within each chapter; curated pairs remain together.
+    document.querySelectorAll<HTMLElement>('.album-chapter').forEach((chapter, index) => {
+      const figures = [...chapter.querySelectorAll<HTMLElement>('[data-photo-slug]')].filter(item => item.dataset.paired !== 'true');
+      const pinned = figures.filter(item => item.dataset.pinned === 'true');
+      const choice = visitChoice(figures.map(item => ({ slug: item.dataset.photoSlug })), `series:${opening.dataset.seriesOpening}:${opening.dataset.revision}:${index}`);
+      figures.forEach(item => item.classList.toggle('reading-wide', pinned.length ? pinned.includes(item) : item.dataset.photoSlug === choice?.slug));
+    });
+  }
   const album = document.querySelector<HTMLElement>('.album-reading');
   const viewSwitch = album?.querySelector<HTMLElement>('.reading-switch');
   if (album && viewSwitch) {
@@ -550,3 +572,10 @@ const breadcrumbJsonLd = {
     });
   }
 </script>
+
+<style>
+.reading-photo.reading-wide { width: 100%; margin: 1.5rem 0; }
+.reading-pair { align-self: center; }
+.reading-pair .reading-trigger img { max-height: 65svh; }
+@media(max-width:700px) { .reading-photo.reading-wide { margin: .75rem 0; } }
+</style>

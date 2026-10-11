@@ -1,0 +1,50 @@
+---
+interface Props { selector: string; total: number; }
+const {selector, total} = Astro.props;
+---
+{total > 0 && <aside class="reading-progress" data-reading-progress data-selector={selector} hidden aria-label="Progression dans les images">
+  <span data-progress-label>Image 0 sur {total}</span><span class="progress-percent" data-progress-percent>0 %</span>
+  <progress max={total} value="0" aria-label="Images parcourues"></progress>
+</aside>}
+<script>
+  document.querySelectorAll<HTMLElement>('[data-reading-progress]').forEach(root => {
+    const steps = [...document.querySelectorAll<HTMLElement>(root.dataset.selector || '')];
+    const label = root.querySelector('[data-progress-label]');
+    const percent = root.querySelector('[data-progress-percent]');
+    const progress = root.querySelector('progress');
+    if (!steps.length || !label || !percent || !progress) return;
+    let scheduled = false;
+    const update = () => {
+      scheduled = false;
+      const line = window.innerHeight * .5;
+      let current = 0;
+      for (let index = 0; index < steps.length; index++) {
+        if (steps[index].getBoundingClientRect().top <= line) current = index + 1;
+      }
+      root.hidden = current === 0;
+      label.textContent = `Image ${current} sur ${steps.length}`;
+      percent.textContent = `${Math.round(current / steps.length * 100)} %`;
+      progress.max = steps.length;
+      progress.value = current;
+    };
+    const requestUpdate = () => {
+      if (!scheduled) { scheduled = true; requestAnimationFrame(update); }
+    };
+    window.addEventListener('scroll', requestUpdate, {passive:true});
+    window.addEventListener('resize', requestUpdate);
+    window.addEventListener('load', requestUpdate, {once:true});
+    new ResizeObserver(requestUpdate).observe(document.querySelector('main') || document.body);
+    update();
+  });
+</script>
+<style>
+.reading-progress { position: fixed; z-index: 90; bottom: max(1rem,env(safe-area-inset-bottom)); left: max(1rem,env(safe-area-inset-left)); display: grid; grid-template-columns: auto auto; gap: .5rem 1rem; padding: .8rem 1rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: .8rem; box-shadow: 0 6px 24px #0003; font-family: var(--font-mono); font-size: .72rem; pointer-events: none; }
+.reading-progress[hidden] { display: none; }
+.progress-percent { color: var(--accent); text-align: right; }
+progress { grid-column: 1 / -1; appearance: none; border: 0; width: 100%; height: 3px; border-radius: 2px; overflow: hidden; background: var(--line); color: var(--accent); }
+progress::-webkit-progress-bar { background: var(--line); }
+progress::-webkit-progress-value { background: var(--accent); }
+progress::-moz-progress-bar { background: var(--accent); }
+@media(max-width:400px) { .reading-progress { gap:.4rem .6rem; padding:.65rem .8rem; font-size:.65rem; } }
+@media print { .reading-progress { display:none; } }
+</style>

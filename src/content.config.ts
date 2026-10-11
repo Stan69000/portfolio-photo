@@ -21,6 +21,10 @@ const photos = defineCollection({
       color: z.string().regex(/^#[0-9a-f]{6}$/i),
       font: z.enum(['sans', 'serif', 'script']),
     }).optional(),
+    anecdote: z.string().default(''),
+    emotions: z.array(z.string()).default([]),
+    diptych_with: z.string().default(''),
+    spotlight: z.boolean().default(false),
     title: z.string(),
     slug: z.string(),
     // Une série supprimée laisse ses photos sans rattachement.
@@ -62,6 +66,7 @@ const photos = defineCollection({
 const series = defineCollection({
   loader: glob({ pattern: '**/*.{yml,yaml}', base: './src/content/series' }),
   schema: z.object({
+    emotions: z.array(z.string()).default([]),
     related_series: z.array(z.object({ slug: z.string(), invitation: z.string() })).default([]),
     editorial_layout: z.boolean().default(false),
     name: z.string(),
@@ -99,6 +104,8 @@ const settings = defineCollection({
     series_title: z.string().optional(),
     series_subtitle: z.string().optional(),
     featured_photo_slug: z.string().optional(),
+    discovery_revision: z.string().default('0'),
+    tour_photos: z.array(z.string()).default([]),
     featured_series: z.array(z.string()).default([]),
     seo_description: z.string().optional(),
     seo_og_image: z.string().optional(),

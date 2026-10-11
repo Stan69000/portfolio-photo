@@ -1,6 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import VisitSpotlight from '../components/VisitSpotlight.astro';
+import { emotions, matchesEmotion, guidedSelection } from '../lib/discovery.js';
 
 const settingsEntries = await getCollection('settings');
 const siteSettings = settingsEntries[0]?.data ?? {};
@@ -17,16 +19,6 @@ const featuredSlug   = siteSettings.featured_photo_slug || '';
 
 const allSeries = await getCollection('series', ({ data }) => data.published);
 const allPhotos = (await getCollection('photos')).filter((p) => p.data.status === 'published');
-
-const latestPhoto = allPhotos
-  .slice()
-  .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))[0];
-
-const featured = featuredSlug
-  ? (allPhotos.find(p => p.data.slug === featuredSlug) ?? latestPhoto)
-  : latestPhoto;
-
-const featuredLabel = featuredSlug ? 'À la une' : 'Derni\u00e8re photo';
 
 const instants = allPhotos.filter(p => p.data.kind === 'instant').sort((a,b) => (b.data.published_at?.getTime() ?? 0) - (a.data.published_at?.getTime() ?? 0)).slice(0,3);
 
@@ -57,15 +49,19 @@ const otherCards = cards.filter(card => !selectedCards.some(selected => selected
 
 <Base title="Portfolio | Accueil" description="Galerie photo personnelle de Stan">
   <section class="hero">
-    {featured && <a href={featured.data.series ? `/series/${featured.data.series}/` : `/photo/${featured.data.slug}/`} class="hero-image" aria-label={`Découvrir ${featured.data.title}`}>
-      <img src={featured.data.url} alt={featured.data.title} loading="eager" fetchpriority="high" decoding="async" />
-      <div class="caption"><span>{featuredLabel}</span><strong>{featured.data.title}</strong></div>
-    </a>}
+    <VisitSpotlight photos={allPhotos} pinned={featuredSlug} revision={siteSettings.discovery_revision} />
     <div class="hero-copy">
       <p class="kicker">{siteTitle}</p>
       <h1>Des lieux, des rencontres.<br /><em>Des instants à partager.</em></h1>
       <a class="gallery-link" href="#selection">Entrer dans la galerie <span aria-hidden="true">↓</span></a>
     </div>
+  </section>
+  <section class="discovery-doors" aria-labelledby="discovery-title">
+    <p class="kicker">À votre rythme</p><h2 id="discovery-title">Par où commencer ?</h2>
+    <a class="guided-door" href="/visite/">Une première visite en {guidedSelection(allPhotos, siteSettings.tour_photos).length} images <span>Prendre deux minutes pour découvrir la galerie →</span></a>
+    <p class="discovery-note">{(siteSettings.tour_photos || []).some(slug => allPhotos.some(photo => photo.data.slug === slug)) ? 'Une visite composée par Stan, avec des images présentées dans un ordre choisi.' : 'Quelques images pour faire connaissance avec mon regard, entre voyages, rencontres et instants du quotidien.'}</p>
+    <p class="discovery-note">Une envie de calme, d’évasion ou d’énergie ? Laissez votre humeur guider la promenade.</p>
+    <div class="emotion-doors">{emotions.filter(emotion => allPhotos.some(photo => matchesEmotion(photo, emotion, allSeries))).map(emotion => <a href={`/explorer/${emotion.slug}/`}><h3>{emotion.name}</h3><p>{emotion.description}</p><span aria-hidden="true">↗</span></a>)}</div>
   </section>
   <section class="introduction" aria-label="Bienvenue">
     <p class="kicker">Derrière les images</p>
@@ -414,3 +410,15 @@ const otherCards = cards.filter(card => !selectedCards.some(selected => selected
     .introduction > .kicker { padding-top: 0; }
   }
 </style>
+
+<style>
+.discovery-doors { margin: 4rem 0; padding: 2rem 0; border-block: 1px solid var(--line); }
+.discovery-doors h2 { margin: .8rem 0 1.5rem; }
+.guided-door { display: block; font-family: var(--font-display); font-size: clamp(1.5rem,3vw,2.2rem); padding: 1.5rem; background: var(--surface); }
+.guided-door span { display: block; margin-top: .65rem; font-family: var(--font-sans); font-size: .85rem; color: var(--accent); }
+.emotion-doors { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 1.5rem; margin-top: 2rem; }
+.emotion-doors a { padding: 1rem 0; border-top: 1px solid var(--line); }
+.emotion-doors span { color: var(--accent); }
+</style>
+
+<style>.discovery-note { font-size: .85rem; max-width: 75ch; margin: 1rem 0; }</style>

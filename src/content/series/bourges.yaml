@@ -10,3 +10,6 @@ map_public_visibility: approx
 date: '2025-05-29'
 map_lat: 47.0811658
 map_lng: 2.399125
+
+emotions:
+  - se-perdre
