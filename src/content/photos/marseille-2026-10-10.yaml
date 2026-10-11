@@ -2,11 +2,36 @@ title: Marseille — 001
 slug: marseille-2026-10-10
 series: marseille
 status: published
-url: http://stan-bouchet.eu/marseille/web/marseille-2026-10-10.webp
-url_thumb: http://stan-bouchet.eu/marseille/thumb/marseille-2026-10-10.webp
-url_web: http://stan-bouchet.eu/marseille/web/marseille-2026-10-10.webp
-url_zoom: http://stan-bouchet.eu/marseille/zoom/marseille-2026-10-10.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=web&rev=3db0bb15-7529-47d9-b8b8-3a34d8604200
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=thumb&rev=3db0bb15-7529-47d9-b8b8-3a34d8604200
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=web&rev=3db0bb15-7529-47d9-b8b8-3a34d8604200
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=zoom&rev=3db0bb15-7529-47d9-b8b8-3a34d8604200
 date: '2026-10-10'
 description: ''
 tags: []
 hash: de315053f21957d5eebbd84d0603c0b0c69c8b416e1cf3a2b64d40292d21d02f
+kdrive:
+  drive_id: '620855'
+  directory_id: '427700'
+  files:
+    thumb: '428362'
+    web: '429706'
+    zoom: '429707'
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 145
+  color: '#ff6161'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '427700'
+    files:
+      thumb: '428362'
+      web: '428364'
+      zoom: '428366'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2026-10-10&version=zoom
