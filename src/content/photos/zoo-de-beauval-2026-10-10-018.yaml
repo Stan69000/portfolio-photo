@@ -2,11 +2,36 @@ title: Zoo de Beauval — 017
 slug: zoo-de-beauval-2026-10-10-018
 series: zoo-de-beauval
 status: published
-url: http://stan-bouchet.eu/zoo-de-beauval/web/zoo-de-beauval-2026-10-10-018.webp
-url_thumb: http://stan-bouchet.eu/zoo-de-beauval/thumb/zoo-de-beauval-2026-10-10-018.webp
-url_web: http://stan-bouchet.eu/zoo-de-beauval/web/zoo-de-beauval-2026-10-10-018.webp
-url_zoom: http://stan-bouchet.eu/zoo-de-beauval/zoom/zoo-de-beauval-2026-10-10-018.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=web&rev=9facd30b-c4e9-4c8f-8cba-bf30e81067df
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=thumb&rev=9facd30b-c4e9-4c8f-8cba-bf30e81067df
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=web&rev=9facd30b-c4e9-4c8f-8cba-bf30e81067df
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=zoom&rev=9facd30b-c4e9-4c8f-8cba-bf30e81067df
 date: '2026-10-10'
 description: ''
 tags: []
 hash: a494bf5169c79f631fd8698e4dbbe45216b6c8ae84a0d7787df1d46256bd49b6
+kdrive:
+  drive_id: '620855'
+  directory_id: '429314'
+  files:
+    thumb: '429626'
+    web: '430235'
+    zoom: '430236'
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 125
+  color: '#ff0000'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '429314'
+    files:
+      thumb: '429626'
+      web: '429628'
+      zoom: '429630'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=zoo-de-beauval-2026-10-10-018&version=zoom
