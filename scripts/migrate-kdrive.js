@@ -71,8 +71,14 @@ async function transferOne({ file, data: photo }) {
       if (!['http:', 'https:'].includes(url.protocol) || !['stan-bouchet.eu', 'www.stan-bouchet.eu', 'photos.bost7423.odns.fr'].includes(url.hostname)) {
         throw new Error('Source image non autorisée.');
       }
-      const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
-      if (!response.ok) throw new Error(`Source indisponible (HTTP ${response.status}).`);
+      let response;
+      for (let attempt=0;attempt<5;attempt++) {
+        response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+        if (![429,500,502,503,504].includes(response.status) || attempt===4) break;
+        await response.body?.cancel();
+        await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+      }
+      if (!response.ok) throw new Error(`Source indisponible : ${photo.slug}/${version} (HTTP ${response.status}).`);
       const bytes = Buffer.from(await response.arrayBuffer());
       if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') throw new Error('La source ne contient pas une image WebP.');
       if (!journal.files[version]) {
