@@ -2,10 +2,10 @@ title: Yzeron - Le Crêt de Py-Froid — 021
 slug: yzeron-le-cret-de-py-froid-2026-05-22-022
 series: yzeron-le-cret-de-py-froid
 status: published
-url: http://stan-bouchet.eu/yzeron-le-cret-de-py-froid/web/yzeron-le-cret-de-py-froid-2026-05-22-022.webp
-url_thumb: http://stan-bouchet.eu/yzeron-le-cret-de-py-froid/thumb/yzeron-le-cret-de-py-froid-2026-05-22-022.webp
-url_web: http://stan-bouchet.eu/yzeron-le-cret-de-py-froid/web/yzeron-le-cret-de-py-froid-2026-05-22-022.webp
-url_zoom: http://stan-bouchet.eu/yzeron-le-cret-de-py-froid/zoom/yzeron-le-cret-de-py-froid-2026-05-22-022.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=web&rev=14caad18-2a46-4f89-898a-bb31d9218049
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=thumb&rev=14caad18-2a46-4f89-898a-bb31d9218049
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=web&rev=14caad18-2a46-4f89-898a-bb31d9218049
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=zoom&rev=14caad18-2a46-4f89-898a-bb31d9218049
 date: '2026-05-22'
 description: ''
 tags: []
@@ -13,3 +13,28 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/5 1/250s
+kdrive:
+  drive_id: '620855'
+  directory_id: '429229'
+  files:
+    thumb: '429291'
+    web: '430187'
+    zoom: '430188'
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 130
+  color: '#fa0000'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '429229'
+    files:
+      thumb: '429291'
+      web: '429293'
+      zoom: '429295'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=yzeron-le-cret-de-py-froid-2026-05-22-022&version=zoom
