@@ -193,6 +193,10 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     gap: 0.6rem;
   }
 
+  .recent-strip[hidden] {
+    display: none;
+  }
+
   .recent-head {
     display: flex;
     justify-content: space-between;
@@ -221,7 +225,8 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     gap: 0.55rem;
   }
 
-  .recent-item {
+  .recent-list :global(.recent-item) {
+    min-width: 0;
     border: 1px solid var(--line);
     border-radius: 0.6rem;
     overflow: hidden;
@@ -229,14 +234,14 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     background: color-mix(in srgb, var(--surface) calc(0.45 * 100%), transparent);
   }
 
-  .recent-item img {
+  .recent-list :global(.recent-item img) {
     display: block;
     width: 100%;
     aspect-ratio: 4 / 3;
     object-fit: cover;
   }
 
-  .recent-item span {
+  .recent-list :global(.recent-item span) {
     display: block;
     padding: 0.35rem 0.45rem 0.4rem;
     font-size: 0.7rem;
@@ -605,7 +610,13 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   const renderRecent = () => {
     try {
       const parsed = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-      const recents = Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+      const publishedCards = new Map(cards.map((card) => [card.dataset.slug, card]));
+      const seen = new Set();
+      const recents = Array.isArray(parsed) ? parsed.filter((item) => {
+        if (!item || !publishedCards.has(item.slug) || seen.has(item.slug)) return false;
+        seen.add(item.slug);
+        return true;
+      }).slice(0, 10) : [];
       if (!recentStrip || !recentList) return;
       if (recents.length === 0) {
         recentStrip.hidden = true;
@@ -613,20 +624,33 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
         return;
       }
       recentStrip.hidden = false;
-      recentList.innerHTML = recents.map((item) => `
-        <a class="recent-item" href="/photo/${item.slug}/">
-          <img src="${item.thumb || ''}" alt="${item.title || ''}" loading="lazy" decoding="async" />
-          <span>${item.title || item.slug}</span>
-        </a>
-      `).join('');
+      recentList.replaceChildren(...recents.map((item) => {
+        const card = publishedCards.get(item.slug);
+        const sourceImage = card.querySelector('.card-img-btn img');
+        const link = document.createElement('a');
+        link.className = 'recent-item';
+        link.href = card.querySelector('.card-title').getAttribute('href');
+        const image = document.createElement('img');
+        image.src = sourceImage.getAttribute('src');
+        image.alt = sourceImage.alt;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        const title = document.createElement('span');
+        title.textContent = sourceImage.alt;
+        link.append(image, title);
+        return link;
+      }));
     } catch {
       if (recentStrip) recentStrip.hidden = true;
     }
   };
 
   recentClear?.addEventListener('click', () => {
-    localStorage.removeItem(RECENT_KEY);
-    renderRecent();
+    try {
+      localStorage.removeItem(RECENT_KEY);
+    } catch {}
+    recentList?.replaceChildren();
+    if (recentStrip) recentStrip.hidden = true;
   });
 
   renderRecent();
