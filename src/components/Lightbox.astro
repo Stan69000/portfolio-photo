@@ -55,7 +55,11 @@ const { photos } = Astro.props;
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
 
-  <div class="lb-counter" aria-live="polite"></div>
+  <div class="lb-counter">
+    <span class="lb-counter-label" aria-live="polite" aria-atomic="true"></span>
+    <span class="lb-counter-percent" aria-hidden="true"></span>
+    <progress class="lb-counter-bar" max="1" value="0" aria-label="Progression du diaporama"></progress>
+  </div>
 </div>
 
 <style>
@@ -342,7 +346,9 @@ const { photos } = Astro.props;
   const zoomInBtn = root.querySelector('.zoom-in');
   const zoomOutBtn = root.querySelector('.zoom-out');
   const zoomResetBtn = root.querySelector('.zoom-reset');
-  const counter = root.querySelector('.lb-counter');
+  const counter = root.querySelector('.lb-counter-label');
+  const counterPercent = root.querySelector('.lb-counter-percent');
+  const counterBar = root.querySelector('.lb-counter-bar');
 
   let index = 0;
   let openingIndex = 0;
@@ -434,7 +440,15 @@ const { photos } = Astro.props;
     captionToggle?.setAttribute('aria-expanded', 'false');
     if (captionToggle) captionToggle.textContent = 'Lire la légende';
     if (detailLink) detailLink.href = `/photo/${item.slug}/`;
-    if (counter) counter.textContent = `${index + 1} / ${items.length}`;
+    const current = index + 1;
+    const percent = Math.round(current / items.length * 100);
+    if (counter) counter.textContent = `Image ${current} sur ${items.length}`;
+    if (counterPercent) counterPercent.textContent = `${percent} %`;
+    if (counterBar instanceof HTMLProgressElement) {
+      counterBar.max = items.length;
+      counterBar.value = current;
+      counterBar.setAttribute('aria-valuetext', `Image ${current} sur ${items.length}, ${percent} %`);
+    }
     refreshLbStars(item.slug);
   };
 
@@ -598,7 +612,7 @@ const { photos } = Astro.props;
     height: 100dvh;
     overflow: hidden;
     grid-template-columns: 48px minmax(0, 1fr) 48px;
-    grid-template-rows: 44px minmax(0, 1fr) 28px;
+    grid-template-rows: 44px minmax(0, 1fr) 48px;
     gap: 12px;
     padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   }
@@ -623,6 +637,13 @@ const { photos } = Astro.props;
   .lb-prev { grid-column: 1; grid-row: 2; }
   .lb-next { grid-column: 3; grid-row: 2; }
   .lb-counter { position: relative; inset: auto; transform: none; grid-column: 1 / -1; grid-row: 3; justify-self: center; color: #ded8cc; }
+  .lb-counter { display: grid; grid-template-columns: auto auto; align-self: center; gap: 6px 16px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); letter-spacing: 0; max-width: 100%; box-sizing: border-box; white-space: nowrap; }
+  .lb-counter-percent { color: var(--accent); text-align: right; }
+  .lb-counter-bar { grid-column: 1 / -1; appearance: none; border: 0; width: 100%; height: 3px; border-radius: 2px; overflow: hidden; background: var(--line); color: var(--accent); }
+  .lb-counter-bar::-webkit-progress-bar { background: var(--line); }
+  .lb-counter-bar::-webkit-progress-value { background: var(--accent); }
+  .lb-counter-bar::-moz-progress-bar { background: var(--accent); }
+  @media (max-width: 400px) { .lb-counter { font-size: .65rem; gap: 5px 10px; padding: 6px 9px; } }
   .caption-toggle { display: inline-flex; background: transparent; border-color: transparent; text-decoration: underline; text-underline-offset: 4px; }
   .lb-caption { display: none; color: #ded8cc; max-height: min(18dvh, 120px); overflow-y: auto; overscroll-behavior: contain; padding: 0 8px; }
   .caption-expanded .lb-caption { display: block; }
