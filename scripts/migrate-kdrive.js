@@ -16,13 +16,16 @@ try {
 } catch {}
 const args = process.argv.slice(2);
 for (let index=0;index<args.length;index++) {
-  if(args[index]==='--limit'){index++;continue;}
+  if(['--limit','--concurrency'].includes(args[index])){index++;continue;}
   if(!['--apply','--flat'].includes(args[index]))throw new Error('Option inconnue : '+args[index]);
 }
 const apply = args.includes('--apply');
 const limitArg = args.indexOf('--limit');
 const limit = limitArg < 0 ? Infinity : Number(args[limitArg + 1]);
 if (!(limit > 0) || (limit !== Infinity && !Number.isInteger(limit))) throw new Error('Limite invalide.');
+const concurrencyArg = args.indexOf('--concurrency');
+const concurrency = concurrencyArg < 0 ? 2 : Number(args[concurrencyArg + 1]);
+if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) throw new Error('Parallélisme invalide (1 à 4).');
 const read = dir => fs.readdirSync(dir).filter(file => file.endsWith('.yaml')).sort()
   .map(file => ({ file, data: yaml.load(fs.readFileSync(path.join(dir, file), 'utf8')) }));
 const photosDir = path.join(root, 'src/content/photos');
@@ -52,8 +55,7 @@ const saveYaml = (target, data) => {
   fs.writeFileSync(temp, yaml.dump(data, { lineWidth: -1 }));
   fs.renameSync(temp, target);
 };
-try {
-  for (const { file, data: photo } of pending) {
+async function transferOne({ file, data: photo }) {
     if (!/^[a-z0-9][a-z0-9-]{0,240}$/.test(photo.slug)) throw new Error('Slug invalide.');
     const serie = series.get(photo.series);
     const folderName = args.includes('--flat') ? null : kdriveFolderName(serie?.name || 'Instants', serie?.date || photo.date);
@@ -91,7 +93,17 @@ try {
     saveYaml(path.join(photosDir, file), { ...current, kdrive: journal, url: urls.url_web, ...urls });
     completed++;
     console.log(`Vérifiée : ${photo.slug} (${completed}/${pending.length})`);
-  }
+}
+try {
+  let next = 0, failure;
+  const worker = async () => {
+    while (!failure && next < pending.length) {
+      const photo = pending[next++];
+      try { await transferOne(photo); } catch (error) { failure = error; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, worker));
+  if (failure) throw failure;
 } finally {
   // Keep explicit album covers and other exact URL references in sync, even after a partial run.
   const replace = value => typeof value === 'string' ? (replacements.get(value) || value)

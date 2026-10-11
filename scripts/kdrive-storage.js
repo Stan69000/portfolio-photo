@@ -33,12 +33,18 @@ export class KdriveStorage {
     this.folders = new Map();
   }
   async request(endpoint, options = {}, binary = false) {
-    const response = await this.fetch(`https://api.infomaniak.com${endpoint}`, {
+    let response;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      response = await this.fetch(`https://api.infomaniak.com${endpoint}`, {
       ...options,
       headers: { Authorization: `Bearer ${this.config.token}`, ...options.headers },
       redirect: binary ? 'follow' : 'error',
       signal: AbortSignal.timeout(binary ? 120000 : 30000),
     });
+      if (response.status !== 429 || attempt === 4) break;
+      const retry = Number(response.headers?.get('retry-after'));
+      await new Promise(resolve => setTimeout(resolve, Math.min(60000, Math.max(1000, Number.isFinite(retry) && retry > 0 ? retry * 1000 : 2000 * 2 ** attempt))));
+    }
     if (!response.ok) throw new Error(`kDrive : requête refusée (HTTP ${response.status}).`);
     if (binary) return response;
     const result = await response.json();
