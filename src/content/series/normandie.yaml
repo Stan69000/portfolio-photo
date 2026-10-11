@@ -1,12 +1,12 @@
 description: Photos prises lors d'un séjour pour un concours de mon fils
-cover_url: ''
+cover_url: http://stan-bouchet.eu/normandie/web/normandie-2025-11-22-007.webp
 slug: normandie
 name: Normandie
 status: published
-map_input_type: address
+map_input_type: coords
 map_address: Tocqueville
 map_label: Quelque part en Normandie
-map_public_visibility: approx
+map_public_visibility: precise
 date: '2025-11-24'
 map_lat: 49.4077365
 map_lng: 0.6096663
