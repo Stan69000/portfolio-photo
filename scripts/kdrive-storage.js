@@ -6,6 +6,7 @@ export function kdriveConfig(env = process.env) {
   if (!config.token || !/^\d+$/.test(config.driveId) || !/^\d+$/.test(config.rootId)) {
     throw new Error('kDrive non configuré : renseigner KDRIVE_TOKEN, KDRIVE_ID et KDRIVE_ROOT_ID dans le fichier .env local.');
   }
+  if (env.KDRIVE_CATEGORY_NAME) config.categoryName = env.KDRIVE_CATEGORY_NAME;
   return config;
 }
 
@@ -31,17 +32,26 @@ export class KdriveStorage {
     this.config = config;
     this.fetch = fetcher;
     this.folders = new Map();
+    this.taggedFolders = new Map();
   }
   async request(endpoint, options = {}, binary = false) {
     let response;
     for (let attempt = 0; attempt < 5; attempt++) {
+      try {
       response = await this.fetch(`https://api.infomaniak.com${endpoint}`, {
       ...options,
       headers: { Authorization: `Bearer ${this.config.token}`, ...options.headers },
       redirect: binary ? 'follow' : 'error',
       signal: AbortSignal.timeout(binary ? 120000 : 30000),
     });
-      if (response.status !== 429 || attempt === 4) break;
+      } catch (error) {
+        if ((options.method && options.method !== 'GET') || attempt===4) throw error;
+        await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+        continue;
+      }
+      const retryable = response.status === 429 || ((!options.method || options.method === 'GET') && [500,502,503,504].includes(response.status));
+      if (!retryable || attempt === 4) break;
+      await response.body?.cancel();
       const retry = Number(response.headers?.get('retry-after'));
       await new Promise(resolve => setTimeout(resolve, Math.min(60000, Math.max(1000, Number.isFinite(retry) && retry > 0 ? retry * 1000 : 2000 * 2 ** attempt))));
     }
@@ -54,9 +64,30 @@ export class KdriveStorage {
   async folder(name) {
     if (!name) return this.config.rootId;
     if (this.folders.has(name)) return this.folders.get(name);
-    const pending = this.ensureFolder(name);
+    const pending = this.ensureFolder(name).then(async id => { await this.tagFolder(id); return id; });
     this.folders.set(name, pending);
     try { return await pending; } catch (error) { this.folders.delete(name); throw error; }
+  }
+  async tagFolder(id) {
+    if (!this.config.categoryName || String(id) === this.config.rootId) return;
+    if (!/^\d+$/.test(String(id))) throw new Error('Identifiant du dossier invalide.');
+    if (this.taggedFolders.has(String(id))) return this.taggedFolders.get(String(id));
+    const pending = this.applyFolderCategory(String(id));
+    this.taggedFolders.set(String(id), pending);
+    try { return await pending; } catch (error) { this.taggedFolders.delete(String(id)); throw error; }
+  }
+  async applyFolderCategory(id) {
+    this.categoryPromise ||= this.request(`/2/drive/${this.config.driveId}/categories`).then(result => {
+      const category = result.data?.find(item => item.name === this.config.categoryName);
+      if (!category || !/^\d+$/.test(String(category.id))) throw new Error('Catégorie kDrive introuvable : ' + this.config.categoryName);
+      return String(category.id);
+    });
+    const categoryId = await this.categoryPromise;
+    const file = await this.request(`/3/drive/${this.config.driveId}/files/${id}?with=categories`);
+    if (file.data?.type !== 'dir') throw new Error('La catégorie doit être attribuée à un dossier.');
+    if (!Array.isArray(file.data.categories)) throw new Error('Catégories du dossier kDrive indisponibles.');
+    if (file.data.categories.some(item => String(item.category_id ?? item.category?.id ?? item.id) === categoryId)) return;
+    await this.request(`/2/drive/${this.config.driveId}/files/${id}/categories/${categoryId}`, { method: 'POST' });
   }
   async ensureFolder(name) {
     let cursor = '';

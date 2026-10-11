@@ -25,3 +25,5 @@ test('migration uses newest dates then natural filename order, preserving links'
   assert.equal(result[2].url, 'old-image');
   assert.equal(photos[0].title, undefined);
 });
+
+test('does not count an in-flight title twice after its metadata reaches disk',()=>{const photos=[{series:'ete',title:'Été à Lyon — 001'},{series:'ete',title:'Été à Lyon — 002'}];const reserved=new Set(['Été à Lyon — 002','Été à Lyon — 003']);assert.equal(nextSeriesPhotoNumber(photos,series,reserved),4);photos.push({series:'ete',title:'Été à Lyon — 003'});assert.equal(nextSeriesPhotoNumber(photos,series,reserved),4)});

@@ -3,9 +3,12 @@ export function seriesPhotoTitle(name, number) {
   return `${String(name).trim()} — ${String(number).padStart(3, '0')}`;
 }
 
-export function nextSeriesPhotoNumber(photos, series) {
-  const members = photos.filter(photo => photo.series === series.slug);
+export function nextSeriesPhotoNumber(photos, series, reservedTitles = []) {
   const prefix = `${String(series.name).trim()} — `;
+  const stored = photos.filter(photo => photo.series === series.slug);
+  const existing = new Set(stored.map(photo => photo.title));
+  const pending = [...reservedTitles].filter(title => title.startsWith(prefix) && !existing.has(title));
+  const members = [...stored, ...pending.map(title => ({ series: series.slug, title }))];
   return members.reduce((max, photo) => {
     const suffix = String(photo.title || '').startsWith(prefix)
       ? String(photo.title).slice(prefix.length) : '';

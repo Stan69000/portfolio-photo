@@ -100,3 +100,41 @@ test('public manifest excludes originals, drafts, trash and credentials', async 
   assert.deepEqual(result, { published: { drive_id: config.driveId, files: { thumb: '1', web: '2', zoom: '3' } } });
   assert.ok(!JSON.stringify(result).includes(config.token));
 });
+
+test('retries a lost read connection, but never repeats an ambiguous upload', async () => {
+  let reads = 0;
+  const reader = new KdriveStorage(config, async () => {
+    if (++reads === 1) throw new TypeError('fetch failed');
+    return Response.json({ result: 'success', data: { id: '42' } });
+  });
+  assert.equal((await reader.request('/3/drive/620855/files/426358')).data.id, '42');
+  assert.equal(reads, 2);
+  let uploads = 0;
+  const uploader = new KdriveStorage(config, async () => { uploads++; throw new TypeError('fetch failed'); });
+  await assert.rejects(() => uploader.upload(Buffer.from('image'), 'photo.webp', '426358'));
+  assert.equal(uploads, 1);
+});
+
+test('adds the existing category once without replacing other categories', async () => {
+  const writes = [];
+  const client = new KdriveStorage({ ...config, categoryName: 'Galerie Photos' }, async (input, options) => {
+    const url = new URL(input);
+    if (url.pathname.endsWith('/categories')) return ok([{ id: 17, name: 'Galerie Photos' }]);
+    if (url.searchParams.get('with') === 'categories') return ok({type:'dir',categories:[{category_id:16}]});
+    writes.push(url.pathname);
+    assert.equal(options.method, 'POST');
+    return ok(true);
+  });
+  await Promise.all([client.tagFolder('99'), client.tagFolder('99')]);
+  await client.tagFolder(config.rootId);
+  assert.deepEqual(writes, ['/2/drive/620855/files/99/categories/17']);
+});
+test('leaves already categorised folders unchanged and rejects unknown categories', async () => {
+  const client = new KdriveStorage({ ...config, categoryName: 'Galerie Photos' }, async (input, options) => {
+    assert.ok(!options.method);
+    return new URL(input).searchParams.has('with') ? ok({type:'dir',categories:[{category_id:17}]}) : ok([{id:17,name:'Galerie Photos'}]);
+  });
+  await client.tagFolder('99');
+  const missing = new KdriveStorage({...config,categoryName:'Galerie Photos'},async()=>ok([]));
+  await assert.rejects(missing.tagFolder('99'), /introuvable/);
+});

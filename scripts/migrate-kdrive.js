@@ -45,6 +45,7 @@ const origin = process.env.KDRIVE_RELAY_ORIGIN || process.env.PUBLIC_SITE_ORIGIN
 const relayPath = process.env.KDRIVE_RELAY_PATH || '/media-kdrive.php';
 const destination = await client.request(`/3/drive/${config.driveId}/files/${config.rootId}`);
 if (destination.data?.type !== 'dir') throw new Error('Dossier kDrive inaccessible.');
+for (const id of new Set(photos.filter(({data}) => data.kdrive?.drive_id === config.driveId).map(({data}) => data.kdrive.directory_id))) await client.tagFolder(id);
 const journalDir = path.join(root, '.processed/kdrive-migration');
 fs.mkdirSync(journalDir, { recursive: true });
 const replacements = new Map();
@@ -71,23 +72,33 @@ async function transferOne({ file, data: photo }) {
       if (!['http:', 'https:'].includes(url.protocol) || !['stan-bouchet.eu', 'www.stan-bouchet.eu', 'photos.bost7423.odns.fr'].includes(url.hostname)) {
         throw new Error('Source image non autorisée.');
       }
-      let response;
+      let bytes;
       for (let attempt=0;attempt<5;attempt++) {
-        response = await fetch(url, { signal: AbortSignal.timeout(120000) });
-        if (![429,500,502,503,504].includes(response.status) || attempt===4) break;
-        await response.body?.cancel();
-        await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+        try {
+          const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+          if (!response.ok) {
+            await response.body?.cancel();
+            throw Object.assign(new Error(`Source indisponible : ${photo.slug}/${version} (HTTP ${response.status}).`), {permanent: ![429,500,502,503,504].includes(response.status)});
+          }
+          bytes = Buffer.from(await response.arrayBuffer());
+          break;
+        } catch (error) {
+          if (error.permanent || attempt===4) throw error;
+          await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+        }
       }
-      if (!response.ok) throw new Error(`Source indisponible : ${photo.slug}/${version} (HTTP ${response.status}).`);
-      const bytes = Buffer.from(await response.arrayBuffer());
       if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') throw new Error('La source ne contient pas une image WebP.');
       if (!journal.files[version]) {
         journal.files[version] = await client.upload(bytes, `${photo.slug}-${version}.webp`, directoryId);
         const temp = journalPath + '.tmp';
         fs.writeFileSync(temp, JSON.stringify(journal));fs.renameSync(temp, journalPath);
       }
-      const downloaded = await client.download(journal.files[version]);
-      if (hash(Buffer.from(await downloaded.arrayBuffer())) !== hash(bytes)) throw new Error('Vérification du fichier transféré échouée.');
+      let downloadedBytes;
+      for (let attempt=0;attempt<5;attempt++) {
+        try {const downloaded = await client.download(journal.files[version]);downloadedBytes = Buffer.from(await downloaded.arrayBuffer());break;}
+        catch(error){if(attempt===4)throw error;await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));}
+      }
+      if (hash(downloadedBytes) !== hash(bytes)) throw new Error('Vérification du fichier transféré échouée.');
     }
     // Change local links only after all three uploaded files have been verified.
     for (const version of ['thumb', 'web', 'zoom']) {
