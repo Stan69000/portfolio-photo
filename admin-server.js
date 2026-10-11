@@ -1520,7 +1520,11 @@ ${errHtml}
     <div style="font-size:.8rem">ou cliquer — JPEG, PNG, TIFF, WebP</div>
   </div>
   <div class="upload-preview" id="preview"></div>
-  <div class="progress" id="prog-wrap" style="display:none"><div class="progress-bar" id="prog-bar"></div></div>
+  <div id="upload-progress" hidden style="margin-top:1rem">
+    <p id="upload-progress-label" role="status" aria-live="polite">Préparation de l’import…</p>
+    <progress id="upload-progress-meter" max="100" value="0" aria-label="Avancement de l’import" style="width:100%;height:14px;accent-color:#d3ad78"></progress>
+    <p id="upload-progress-detail" style="font-size:.8rem;color:#9fb2d4">Garde cette page ouverte pendant l’import.</p>
+  </div>
   <div id="upload-summary" style="display:none;margin-top:.75rem;display:none;gap:.5rem;flex-wrap:wrap;align-items:center"></div>
   <div id="upload-log" style="font-size:.8rem;color:#9fb2d4;margin-top:.5rem"></div>
   <div style="margin-top:1.5rem">
@@ -1535,7 +1539,7 @@ const drop=document.getElementById('drop-zone'),input=document.getElementById('f
 input.addEventListener('change',showPreviews);
 drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover')});
 drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));
-drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');const dt=e.dataTransfer;if(dt.files.length){const fil=dt.files;input.files=fil;showPreviews();}});
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');if(uploading)return;const dt=e.dataTransfer;if(dt.files.length){const fil=dt.files;input.files=fil;showPreviews();}});
 function openLb(src){document.getElementById('lb-img').src=src;document.getElementById('lb-overlay').classList.add('open');}
 function showPreviews(){
   preview.innerHTML='';
@@ -1554,7 +1558,9 @@ function showPreviews(){
     preview.appendChild(wrap);
   }
 }
+let uploading=false;
 function doUpload(){
+  if(uploading)return;
   const ser=document.getElementById('series-sel').value;
   const stat=document.getElementById('status-sel').value;
   if(!ser){alert('Choisis une série.');return;}
@@ -1564,10 +1570,66 @@ function doUpload(){
   fd.append('series',ser);fd.append('status',stat);fd.append('tags',uploadTags);
   for(const f of input.files)fd.append('photos',f);
   const xhr=new XMLHttpRequest();xhr.open('POST','/upload');
-  document.getElementById('prog-wrap').style.display='block';
-  xhr.upload.onprogress=e=>{if(e.lengthComputable)document.getElementById('prog-bar').style.width=(e.loaded/e.total*100)+'%';};
+  xhr.setRequestHeader('Accept','application/x-ndjson');
+  uploading=true;
+  const controls=[...document.querySelectorAll('#upload-form input,#upload-form select,#upload-form button')];
+  controls.forEach(control=>control.disabled=true);
+  document.getElementById('upload-summary').style.display='none';
+  document.getElementById('upload-log').textContent='';
+  const panel=document.getElementById('upload-progress'),meter=document.getElementById('upload-progress-meter');
+  const label=document.getElementById('upload-progress-label'),detail=document.getElementById('upload-progress-detail');
+  panel.hidden=false;
+  meter.value=0;
+  label.textContent='Transfert des fichiers — 0 %';
+  detail.textContent=input.files.length+' photo(s) sélectionnée(s). Garde cette page ouverte.';
+  let offset=0,finalResponse=null,streamError=null;
+  function unlock(){uploading=false;controls.forEach(control=>control.disabled=false);}
+  function failure(message){
+    label.textContent='Import interrompu';
+    detail.textContent=message+' Vérifie les photos dans la galerie avant de relancer l’import.';
+    meter.removeAttribute('value');
+    unlock();
+  }
+  function readUpdates(){
+    let newline;
+    while((newline=xhr.responseText.indexOf('\\n',offset))!==-1){
+      const line=xhr.responseText.slice(offset,newline);offset=newline+1;
+      if(!line.trim())continue;
+      const update=JSON.parse(line);
+      if(update.type==='complete'){finalResponse=update.result;continue;}
+      if(update.type==='error'){streamError=update.error;continue;}
+      if(update.type==='progress'){
+        if(update.phase==='finalizing'){
+          meter.removeAttribute('value');label.textContent='Finalisation de l’import…';
+          detail.textContent=update.completed+' / '+update.total+' photos traitées. Sauvegarde en cours.';
+        }else{
+          const percent=Math.floor(update.completed/update.total*100);
+          meter.value=percent;
+          label.textContent='Traitement des photos — '+percent+' %';
+          detail.textContent=update.completed+' / '+update.total+' terminées · '+(update.phase==='transfer'?'Envoi des versions de ':'Préparation de ')+(update.filename||'');
+        }
+      }
+    }
+  }
+  xhr.upload.onprogress=e=>{
+    if(e.lengthComputable){const percent=Math.floor(e.loaded/e.total*100);meter.value=percent;label.textContent='Transfert des fichiers — '+percent+' %';}
+    else {meter.removeAttribute('value');label.textContent='Transfert des fichiers…';}
+  };
+  xhr.upload.onload=()=>{meter.removeAttribute('value');label.textContent='Fichiers transférés · préparation des photos…';};
+  xhr.onprogress=()=>{try{readUpdates();}catch{failure('Réponse du serveur illisible.');xhr.abort();}};
+  xhr.onerror=()=>failure('La connexion au serveur a été perdue.');
+  xhr.onabort=()=>{if(uploading)failure('Le transfert a été arrêté.');};
   xhr.onload=()=>{
-    const r=JSON.parse(xhr.responseText);
+    let r;
+    try{
+      readUpdates();
+      r=finalResponse||JSON.parse(xhr.responseText);
+      if(xhr.status<200||xhr.status>=300||streamError||!Array.isArray(r.results))throw new Error(streamError||r.error||'Le serveur n’a pas confirmé l’import.');
+    }catch(error){failure(streamError||error.message||'Import non confirmé.');return;}
+    unlock();
+    meter.value=100;
+    label.textContent=r.results.some(item=>!item.ok||item.sftp===false)?'Import terminé avec des erreurs — 100 %':'Import terminé — 100 %';
+    detail.textContent='Toutes les photos ont été traitées. Consulte le bilan ci-dessous avant de déployer.';
     const ok=r.results.filter(x=>x.ok).length;
     const fail=r.results.filter(x=>!x.ok).length;
     const sum=document.getElementById('upload-summary');
@@ -1579,7 +1641,7 @@ function doUpload(){
       (r.gitStatus==='git-error' ? '<span style="background:#3d2a00;border:1px solid #6b4a00;color:#ffb347;border-radius:.5rem;padding:.35rem .85rem;font-size:.88rem">⚠️ Erreur git commit</span>' : '');
     const lines=r.results.map(x=>'<span style="color:'+(x.ok?'#9fb2d4':'#ff7a7a')+'">'+(x.ok?'✓':'✗')+' '+x.slug+(x.ok&&x.sftp===false?' <em style="color:#ffb347">(FTP: échec)</em>':'')+'</span>').join('<br>');
     document.getElementById('upload-log').innerHTML=lines;
-    if(r.ok)document.getElementById('prog-bar').style.background='#7aff7a';
+
   };
   xhr.send(fd);
 }
@@ -1665,6 +1727,11 @@ function seriesEditPage(serie={}, file='', msg='') {
   const currentTags = Array.isArray(serie.tags) ? serie.tags : (serie.tags ? [serie.tags] : []);
   const allPhotoTags = [...new Set(readPhotos().flatMap(p=>p.tags||[]))].sort();
   const tagsWidget = tagInputWidget('tags', currentTags, allPhotoTags, 'ti-serie');
+  const coverPhotos = readPhotos().filter(photo => photo.series === serie.slug && (photo.status || 'published') === 'published' && photo.url);
+  const coverChoices = coverPhotos.map(photo => {
+    const url = photo.url_web || photo.url;
+    return `<button type="button" class="cover-choice" data-cover-url="${escAttr(url)}" data-cover-title="${escAttr(photo.title || photo.slug)}" data-cover-thumb="${escAttr(photo.url_thumb || url)}" aria-pressed="${serie.cover_url === url}" aria-label="Choisir ${escAttr(photo.title || photo.slug)} comme couverture"><img src="${escAttr(photo.url_thumb || url)}" alt="" loading="lazy"><span>${escAttr(photo.title || photo.slug)}</span><span class="cover-selected">✓ Couverture</span></button>`;
+  }).join('');
   const serieLinks = Array.isArray(serie.links) ? serie.links : [];
   const mapInputType = serie.map_input_type === 'address' ? 'address' : 'coords';
   const mapAddress = escAttr(serie.map_address || '');
@@ -1700,7 +1767,64 @@ ${msgHtml}
     <label>Tags</label>
     ${tagsWidget}
   </div>
-  <div class="field full"><label>URL de la photo de couverture</label><input name="cover_url" value="${serie.cover_url||''}" placeholder="https://photos.mondomaine.fr/serie/web/photo.webp"></div>
+  <fieldset class="field full cover-picker">
+    <legend>Photo de couverture</legend>
+    <p>Choisis une photo publiée de cette série. Elle apparaîtra sur les cartes des albums.</p>
+    <div class="cover-preview" id="cover-preview" ${serie.cover_url ? '' : 'hidden'}><img id="cover-preview-image" src="${escAttr(serie.cover_url || '')}" alt="Couverture choisie"><span id="cover-preview-title">Couverture actuelle</span></div>
+    <p id="cover-status" role="status" aria-live="polite">${serie.cover_url ? 'Une couverture est définie.' : 'Choix automatique : une photo de la série sera utilisée.'}</p>
+    ${coverPhotos.length ? `<label for="cover-search">Retrouver une photo</label><input type="search" id="cover-search" placeholder="Rechercher par titre…"><div class="cover-grid" id="cover-grid">${coverChoices}</div><p id="cover-empty" hidden>Aucune photo ne correspond à ta recherche.</p>` : `<p>${isNew ? 'Enregistre la série, puis ajoute des photos pour choisir sa couverture.' : 'Publie une photo de cette série pour la retrouver ici.'}</p>`}
+    <button type="button" class="btn" id="cover-reset">Utiliser le choix automatique</button>
+    <details><summary>Utiliser une autre adresse d’image</summary><label for="cover-url">URL de la photo de couverture</label><input id="cover-url" name="cover_url" value="${escAttr(serie.cover_url || '')}" placeholder="https://photos.mondomaine.fr/serie/web/photo.webp"></details>
+    <p>La couverture sera enregistrée avec les autres modifications de la série.</p>
+  </fieldset>
+  <style>
+    .cover-picker { min-width:0; border:1px solid #243a65; border-radius:8px; padding:1rem; }
+    .cover-picker legend { padding:0 .4rem; font-weight:600; }
+    .cover-picker p { color:#9fb2d4; font-size:.85rem; line-height:1.5; }
+    .cover-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.75rem; max-height:460px; overflow:auto; padding:6px; margin:.75rem 0; }
+    .cover-choice { position:relative; padding:0; border:2px solid #243a65; border-radius:6px; overflow:hidden; color:#edf4ff; background:#0f1f3d; cursor:pointer; text-align:left; min-height:44px; }
+    .cover-choice img { display:block; width:100%; height:100px; object-fit:cover; }
+    .cover-choice span { display:block; padding:.45rem; font-size:.75rem; overflow-wrap:anywhere; }
+    .cover-choice[aria-pressed="true"] { border-color:#d3ad78; }
+    .cover-choice .cover-selected { display:none; color:#d3ad78; }
+    .cover-choice[aria-pressed="true"] .cover-selected { display:block; }
+    .cover-choice:focus-visible { outline:2px solid #d3ad78; outline-offset:2px; }
+    .cover-choice[hidden], .cover-preview[hidden] { display:none; }
+    .cover-preview { display:flex; gap:1rem; align-items:center; margin:.75rem 0; }
+    .cover-preview img { width:140px; max-height:140px; object-fit:contain; }
+    .cover-picker details { margin-top:1rem; }
+    .cover-picker summary { cursor:pointer; padding:.65rem 0; }
+    .cover-picker #cover-reset { min-height:44px; }
+  </style>
+  <script>
+  (function(){
+    const input=document.getElementById('cover-url');
+    const preview=document.getElementById('cover-preview');
+    const image=document.getElementById('cover-preview-image');
+    const title=document.getElementById('cover-preview-title');
+    const status=document.getElementById('cover-status');
+    const choices=[...document.querySelectorAll('.cover-choice')];
+    function sync(){
+      const value=input.value.trim();
+      const selected=choices.find(choice=>choice.dataset.coverUrl===value);
+      choices.forEach(choice=>choice.setAttribute('aria-pressed',String(choice===selected)));
+      preview.hidden=!value;
+      if(value) image.src=selected?.dataset.coverThumb||value;
+      else image.removeAttribute('src');
+      title.textContent=selected?.dataset.coverTitle||'Couverture personnalisée';
+      status.textContent=value?'Couverture choisie. Enregistre la série pour conserver ce choix.':'Choix automatique : une photo de la série sera utilisée.';
+    }
+    choices.forEach(choice=>choice.addEventListener('click',()=>{input.value=choice.dataset.coverUrl;sync();}));
+    input.addEventListener('input',sync);
+    document.getElementById('cover-reset').addEventListener('click',()=>{input.value='';sync();});
+    const search=document.getElementById('cover-search');
+    search?.addEventListener('input',()=>{
+      const query=search.value.trim().toLocaleLowerCase('fr');
+      choices.forEach(choice=>{choice.hidden=!choice.dataset.coverTitle.toLocaleLowerCase('fr').includes(query);});
+      document.getElementById('cover-empty').hidden=choices.some(choice=>!choice.hidden);
+    });
+  })();
+  </script>
   <div class="field"><label>Statut</label><select name="status">
     <option value="published"${(serie.status||'published')==='published'?' selected':''}>En ligne</option>
     <option value="draft"${serie.status==='draft'?' selected':''}>Brouillon</option>
@@ -2606,17 +2730,27 @@ a:hover{background:#748fff33}</style></head><body>
 
   // ── Upload handler
   } else if (req.method==='POST' && p==='/upload') {
+    const streaming=String(req.headers.accept||'').includes('application/x-ndjson');
+    let streamStarted=false;
+    const sendUpdate=(update)=>{if(streamStarted&&!res.destroyed)res.write(JSON.stringify(update)+'\n');};
     try {
       const {fields,files}=await parseUpload(req);
       const seriesSlug=fields.series, status=normalizeStatus(fields.status||'draft');
       const { tags: uploadTags } = filterKnownTags(parseTagsString(fields.tags), false);
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
       if(!fs.existsSync(path.join(CFG.seriesDir, `${seriesSlug}.yaml`))){res.writeHead(400);res.end('Série invalide');return;}
+      if(!files.length){json({ok:false,error:'Aucune photo compatible reçue.'},400);return;}
+      if(streaming){
+        res.writeHead(200,{'Content-Type':'application/x-ndjson; charset=utf-8','Cache-Control':'no-store','X-Accel-Buffering':'no'});
+        streamStarted=true;
+      }
       const results=[];
+      const report=(phase,filename='')=>sendUpdate({type:'progress',phase,filename,completed:results.length,total:files.length});
       const seriesYamlPath=path.join(CFG.seriesDir,`${seriesSlug}.yaml`);
       const seriesDateFallback=fs.existsSync(seriesYamlPath)?(readYaml(seriesYamlPath).date||null):null;
       const usedSlugs=new Set(readPhotos().map(p=>p.slug).filter(Boolean));
       for(const file of files){
+        report('processing',file.filename);
         const origTitle=buildPhotoTitleFromFilename(file.filename);
         const exifDateStr=await readExifDate(file.path);
         const dateStr=exifDateStr||seriesDateFallback||new Date().toISOString().split('T')[0];
@@ -2627,6 +2761,7 @@ a:hover{background:#748fff33}</style></head><body>
         usedSlugs.add(photoSlug);
         try{
           const [versions, exif]=await Promise.all([processImage(file.path,seriesSlug,photoSlug), readExif(file.path)]);
+          report('transfer',file.filename);
           const sftpRes=await uploadViaSFTP(versions,seriesSlug,photoSlug);
           const urls=buildUrls(seriesSlug,photoSlug);
           const yamlFile=`${photoSlug}.yaml`;
@@ -2641,8 +2776,10 @@ a:hover{background:#748fff33}</style></head><body>
           fs.unlinkSync(file.path);
           results.push({slug:photoSlug,ok:true,sftp:sftpRes.ok});
         } catch(e){results.push({slug:photoSlug,ok:false,error:e.message});}
+        report('processing',file.filename);
       }
       // Commit local — le déploiement se fait via le bouton "Déployer" dans la nav
+      report('finalizing');
       const pushed = results.filter(r=>r.ok);
       let gitStatus = '';
       if (pushed.length) {
@@ -2650,8 +2787,12 @@ a:hover{background:#748fff33}</style></head><body>
         const res2 = gitCommit(`photos: ajout ${slugs}`);
         gitStatus = res2 === 'ok' ? 'committed' : res2 === 'nothing' ? '' : 'git-error';
       }
-      json({ok:true,results,gitStatus});
-    } catch(e){json({ok:false,error:e.message},500);}
+      if(streamStarted){sendUpdate({type:'complete',result:{ok:true,results,gitStatus}});res.end();}
+      else json({ok:true,results,gitStatus});
+    } catch(e){
+      if(streamStarted){sendUpdate({type:'error',error:e.message});res.end();}
+      else json({ok:false,error:e.message},500);
+    }
 
   // ── Series list
   } else if (req.method==='GET' && p==='/series') {
@@ -2697,7 +2838,10 @@ a:hover{background:#748fff33}</style></head><body>
       ...(mapLabel ? { map_label: mapLabel } : {}),
       map_public_visibility: mapPublicVisibility
     };
+    const previousSeries = !isNew && fs.existsSync(path.join(CFG.seriesDir, file)) ? readYaml(path.join(CFG.seriesDir, file)) : {};
     const data={
+      ...(Array.isArray(previousSeries.related_series) ? { related_series: previousSeries.related_series } : {}),
+      ...(typeof previousSeries.editorial_layout === 'boolean' ? { editorial_layout: previousSeries.editorial_layout } : {}),
       name:body.name,
       slug,
       description:body.description||'',

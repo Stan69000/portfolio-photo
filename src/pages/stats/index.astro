@@ -185,7 +185,7 @@ function starsFill(rating: number) {
     font-size: 0.78rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #748fff;
+    color: var(--accent);
     margin: 0 0 0.4rem;
   }
   .head h1 {
@@ -208,7 +208,7 @@ function starsFill(rating: number) {
   }
   .kpi-card {
     border: 1px solid var(--line);
-    background: linear-gradient(145deg, rgba(14,30,61,0.95), rgba(7,18,41,0.95));
+    background: var(--surface);
     border-radius: 0.85rem;
     padding: 1.1rem 0.85rem;
     display: grid;
@@ -279,7 +279,7 @@ function starsFill(rating: number) {
     color: inherit;
   }
   .top-item:hover {
-    background: rgba(116,143,255,0.08);
+    background: rgba(var(--accent-rgb),0.08);
   }
   .top-item img,
   .thumb-placeholder {
@@ -315,7 +315,7 @@ function starsFill(rating: number) {
     width: 5em;
     font-size: 0.85rem;
     line-height: 1;
-    color: #748fff33;
+    color: var(--accent)33;
   }
   .stars-bg { letter-spacing: 0.05em; }
   .stars-fg {
@@ -353,7 +353,7 @@ function starsFill(rating: number) {
     color: var(--text);
     text-decoration: none;
   }
-  .bar-name:hover { color: #748fff; }
+  .bar-name:hover { color: var(--accent); }
   .bar-count {
     font-size: 0.75rem;
     color: var(--muted);
@@ -361,13 +361,13 @@ function starsFill(rating: number) {
   }
   .bar-track {
     height: 6px;
-    background: rgba(116,143,255,0.12);
+    background: rgba(var(--accent-rgb),0.12);
     border-radius: 999px;
     overflow: hidden;
   }
   .bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #748fff, #9fb2ff);
+    background: linear-gradient(90deg, var(--accent), #9fb2ff);
     border-radius: 999px;
     min-width: 4px;
   }
@@ -387,7 +387,7 @@ function starsFill(rating: number) {
     transition: color 200ms;
     line-height: 1.4;
   }
-  .cloud-tag:hover { color: #748fff; }
+  .cloud-tag:hover { color: var(--accent); }
   .cloud-count {
     font-size: 0.6em;
     color: var(--muted);

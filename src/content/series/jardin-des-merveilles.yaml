@@ -13,3 +13,9 @@ map_label: Jardin des merveilles
 date: '2026-06-12'
 map_lat: 45.5586456
 map_lng: 5.3342007
+
+related_series:
+  - slug: gnolus-ars-sur-formans
+    invitation: Explorer un autre parcours
+  - slug: zoo-de-beauval
+    invitation: S’émerveiller autrement

@@ -171,7 +171,7 @@ const seriesList = seriesCollection
     position: relative;
     display: flex;
     align-items: center;
-    background: rgba(15, 31, 61, 0.75);
+    background: color-mix(in srgb, var(--surface) calc(0.75 * 100%), transparent);
     border: 1px solid var(--line);
     border-radius: 999px;
     padding: 0.1rem 1rem 0.1rem 1.1rem;
@@ -181,7 +181,7 @@ const seriesList = seriesCollection
 
   .search-bar-wrap:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(116, 143, 255, 0.12);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
   }
 
   .search-icon {
@@ -256,7 +256,7 @@ const seriesList = seriesCollection
   }
 
   .pill:hover  { color: var(--text); border-color: var(--muted); }
-  .pill.active { color: var(--text); border-color: var(--accent); background: rgba(116, 143, 255, 0.1); }
+  .pill.active { color: var(--text); border-color: var(--accent); background: rgba(var(--accent-rgb), 0.1); }
 
   .sort-sel {
     background: rgba(6, 16, 36, 0.8);
@@ -301,7 +301,7 @@ const seriesList = seriesCollection
   }
 
   .tag-pill:hover  { color: var(--text); border-color: var(--muted); }
-  .tag-pill.active { color: var(--accent); border-color: var(--accent); background: rgba(116, 143, 255, 0.1); }
+  .tag-pill.active { color: var(--accent); border-color: var(--accent); background: rgba(var(--accent-rgb), 0.1); }
 
   .tag-count {
     font-size: 0.65em;
@@ -316,7 +316,7 @@ const seriesList = seriesCollection
 
   .r-card {
     break-inside: avoid;
-    background: linear-gradient(160deg, rgba(14, 30, 62, 0.85), rgba(9, 20, 43, 0.85));
+    background: var(--surface);
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--line);
@@ -327,7 +327,7 @@ const seriesList = seriesCollection
   }
 
   .r-card:hover {
-    border-color: rgba(116, 143, 255, 0.3);
+    border-color: rgba(var(--accent-rgb), 0.3);
     transform: translateY(-2px);
   }
 
@@ -394,7 +394,7 @@ const seriesList = seriesCollection
 
   .r-tag {
     border: none;
-    background: rgba(116, 143, 255, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     color: rgba(159, 178, 212, 0.75);
     border-radius: 999px;
     padding: 0.1rem 0.5rem;
@@ -404,8 +404,8 @@ const seriesList = seriesCollection
     transition: color 150ms ease, background 150ms ease;
   }
 
-  .r-tag:hover    { color: var(--accent); background: rgba(116, 143, 255, 0.15); }
-  .r-tag.active   { color: var(--accent); background: rgba(116, 143, 255, 0.18); }
+  .r-tag:hover    { color: var(--accent); background: rgba(var(--accent-rgb), 0.15); }
+  .r-tag.active   { color: var(--accent); background: rgba(var(--accent-rgb), 0.18); }
 
   /* ── Empty state ────────────────────────────────────────── */
   .empty-state {

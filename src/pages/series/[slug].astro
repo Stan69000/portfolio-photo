@@ -12,9 +12,10 @@ export async function getStaticPaths() {
 }
 
 const { series } = Astro.props;
-const photos = (await getCollection('photos'))
+const publishedPhotos = (await getCollection('photos')).filter(photo => photo.data.status === 'published');
+const photos = publishedPhotos
   .filter((photo) => photo.data.series === series.data.slug && photo.data.status === 'published')
-  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))
   .map((photo) => ({
     id: photo.id,
     slug: photo.data.slug,
@@ -23,6 +24,21 @@ const photos = (await getCollection('photos'))
     url: photo.data.url,
     tags: photo.data.tags ?? []
   }));
+
+// Keep the opening image in the hero; subsequent photographs retain their lightbox indices.
+const sequence = photos.slice(1).map((photo, offset) => ({ ...photo, index: offset + 1 }));
+const chapters = Array.from({ length: Math.ceil(sequence.length / 12) }, (_, index) => sequence.slice(index * 12, (index + 1) * 12));
+
+const availableSeries = (await getCollection('series')).filter(entry => entry.data.published && entry.data.status === 'published' && entry.data.slug !== series.data.slug);
+const curated = series.data.related_series ?? [];
+const suggestions = availableSeries.map(entry => {
+  const images = publishedPhotos.filter(photo => photo.data.series === entry.data.slug);
+  const selected = curated.find(item => item.slug === entry.data.slug);
+  const sharedTags = entry.data.tags.filter(tag => series.data.tags.includes(tag)).length;
+  return { slug: entry.data.slug, name: entry.data.name, cover: entry.data.cover_url || images[0]?.data.url_web || images[0]?.data.url,
+    count: images.length, invitation: selected?.invitation || (sharedTags ? 'Explorer un univers proche' : 'Découvrir un autre regard'),
+    score: selected ? 100 - curated.indexOf(selected) : sharedTags };
+}).filter(entry => entry.count > 0 && entry.cover).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'fr')).slice(0, 2);
 
 const allTags = (series.data.tags ?? []).slice(0, 10);
 const hero = photos[0];
@@ -63,7 +79,7 @@ const breadcrumbJsonLd = {
   canonicalPath={canonicalPath}
   jsonLd={[collectionJsonLd, breadcrumbJsonLd]}
 >
-  <section class="hero reveal">
+  <section class="hero album-opening reveal">
     {hero && (
       <button
         type="button"
@@ -71,7 +87,7 @@ const breadcrumbJsonLd = {
         data-lightbox-index="0"
         aria-label={`Ouvrir ${hero.title} en plein écran`}
       >
-        <img src={hero.url} alt={hero.title} loading="eager" decoding="async" style={`view-transition-name: photo-${hero.slug};`} />
+        <img src={hero.url} alt={hero.title} loading="eager" decoding="async" />
       </button>
     )}
     <div class="hero-copy">
@@ -145,24 +161,32 @@ const breadcrumbJsonLd = {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   )}
 
-  <section class="mosaic">
-    {photos.map((photo, index) => (
-      <button
-        type="button"
-        class={`tile ${index % 7 === 0 ? 'large' : ''} reveal`}
-        data-lightbox-index={index}
-        aria-label={`Ouvrir ${photo.title} en plein écran`}
-        style={`animation-delay: ${Math.min(index * 40, 400)}ms`}
-      >
-        <img src={photo.url} alt={photo.title} loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
-        <div class="caption">
-          <strong>{photo.title}</strong>
-          {photo.description && <span>{photo.description}</span>}
-        </div>
-      </button>
-    ))}
-  </section>
+  {sequence.length > 0 && <section id="album" class="album-reading" aria-label={`Photographies de ${series.data.name}`}>
+    <div class="reading-heading"><div><p class="story-kicker">Le fil des images</p><h2>Prendre le temps de regarder</h2><p>Chaque image s’ouvre en plein écran.</p></div>
+      <div class="reading-switch" role="group" aria-label="Présentation de l’album" hidden>
+        <button type="button" data-album-view="story" aria-pressed="true">Au fil des images</button>
+        <button type="button" data-album-view="overview" aria-pressed="false">Vue d’ensemble</button>
+      </div>
+    </div>
+    {chapters.map((chapter, chapterIndex) => <section class="album-chapter" aria-label={`Séquence ${chapterIndex + 1}`}>
+      {chapters.length > 1 && <div class="chapter-marker"><span>Séquence {String(chapterIndex + 1).padStart(2, '0')}</span><span>Images {chapter[0].index + 1}–{chapter[chapter.length - 1].index + 1}</span></div>}
+      <div class="reading-grid">{chapter.map((photo, position) => <figure class:list={['reading-photo', { 'reading-wide': position % 6 === 0, 'reading-pause': position % 6 === 3 }]}>
+        <button type="button" class="reading-trigger" data-lightbox-index={photo.index} aria-label={`Ouvrir ${photo.title} en plein écran`}>
+          <img src={photo.url} alt={photo.title} loading="lazy" decoding="async" style={`view-transition-name: photo-${photo.slug};`} />
+          <span class="expand-hint" aria-hidden="true">↗</span>
+        </button>
+        <figcaption><span class="photo-number">{String(photo.index + 1).padStart(2, '0')}</span><div><span class="reading-title">{photo.title}</span>{photo.description && <p>{photo.description}</p>}</div></figcaption>
+      </figure>)}</div>
+    </section>)}
+  </section>}
 
+  <section class="continue-exploring" aria-labelledby="continue-title">
+    <div class="continue-heading"><div><p class="story-kicker">La découverte continue</p><h2 id="continue-title">Encore un peu de chemin ?</h2></div><a class="all-series-link" href="/series/">Toutes les séries →</a></div>
+    <div class="continue-grid">{suggestions.map(item => <a class="continue-card" href={`/series/${item.slug}/`}>
+      <div class="continue-image"><img src={item.cover} alt={item.name} loading="lazy" decoding="async" /></div>
+      <p class="continue-invitation">{item.invitation} <span aria-hidden="true">↗</span></p><h3>{item.name}</h3><span class="continue-count">{item.count} photographies</span>
+    </a>)}</div>
+  </section>
   <Lightbox photos={photos} />
 </Base>
 
@@ -204,7 +228,7 @@ const breadcrumbJsonLd = {
   }
 
   .hero-copy {
-    background: linear-gradient(150deg, rgba(15, 33, 67, 0.95), rgba(8, 19, 41, 0.95));
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 1.4rem;
@@ -251,7 +275,7 @@ const breadcrumbJsonLd = {
     padding: 0.2rem 0.55rem;
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    color: #c9dbff;
+    color: var(--muted);
   }
 
   .mosaic {
@@ -325,7 +349,7 @@ const breadcrumbJsonLd = {
     font-family: var(--font-display);
     font-size: 1.05rem;
     font-weight: 400;
-    color: #eef5ff;
+    color: #f5f0e7;
   }
 
   .caption span {
@@ -401,7 +425,7 @@ const breadcrumbJsonLd = {
     box-shadow: 0 4px 16px rgba(0,0,0,.18);
   }
   :global(.leaflet-popup-tip) { background: #fff; }
-  :global(.leaflet-popup-close-button) { color: #748fff !important; }
+  :global(.leaflet-popup-close-button) { color: var(--accent) !important; }
 
   /* Links */
   .links-col {
@@ -418,8 +442,8 @@ const breadcrumbJsonLd = {
     font-family: var(--font-mono);
     font-size: 0.78rem;
     color: var(--text);
-    background: rgba(116, 143, 255, 0.08);
-    border: 1px solid rgba(116, 143, 255, 0.25);
+    background: rgba(var(--accent-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
     border-radius: 8px;
     padding: 0.45rem 0.8rem;
     transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
@@ -427,7 +451,7 @@ const breadcrumbJsonLd = {
   }
 
   .ext-link:hover {
-    background: rgba(116, 143, 255, 0.18);
+    background: rgba(var(--accent-rgb), 0.18);
     border-color: var(--accent);
     color: var(--accent);
   }
@@ -437,3 +461,92 @@ const breadcrumbJsonLd = {
     flex-shrink: 0;
   }
 </style>
+
+<style>
+  .story-heading { margin: 5rem auto 3rem; max-width: 620px; text-align: center; }
+  .story-kicker { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+  .story-heading h2, .story-end h2 { font-size: clamp(2rem, 4vw, 3.3rem); }
+  .story-heading a, .story-end a { display: inline-block; padding: .8rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .editorial-mosaic { columns: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1rem, 3vw, 2.5rem); align-items: center; scroll-margin-top: 6rem; }
+  .editorial-mosaic .tile { margin: 0; border: 0; border-radius: 2px; }
+  .editorial-mosaic .tile:nth-child(7n + 1) { grid-column: 1 / -1; width: 100%; margin: 1.5rem 0; }
+  .editorial-mosaic img { max-height: 85svh; object-fit: contain; }
+  .story-end { text-align: center; padding: 5rem 1rem; }
+  .story-end a { margin: 1rem; }
+  .tile:focus-visible, .hero-image:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+  .tile:focus-visible::before, .tile:focus-visible .caption { opacity: 1; transform: none; }
+  @media (hover: none) { .tile::before, .tile .caption { opacity: 1; transform: none; } }
+  @media (max-width: 600px) { .editorial-mosaic { grid-template-columns: 1fr; } .editorial-mosaic .tile:nth-child(7n + 1) { margin: .5rem 0; } .story-heading { margin-top: 3rem; } }
+  @media (prefers-reduced-motion: reduce) { .tile img, .tile .caption, .hero-image img { transition: none; } }
+</style>
+
+<style>
+  .continue-exploring { margin-top: clamp(3rem, 8vw, 7rem); padding-top: 2.5rem; border-top: 1px solid var(--line); }
+  .continue-heading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; }
+  .continue-heading h2 { font-size: clamp(2rem, 4vw, 3.3rem); }
+  .all-series-link { padding: .8rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; white-space: nowrap; }
+  .continue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+  .continue-image { overflow: hidden; background: var(--surface); }
+  .continue-image img { width: 100%; aspect-ratio: 16 / 10; display: block; object-fit: cover; transition: transform 400ms ease; }
+  .continue-card:hover img { transform: scale(1.025); }
+  .continue-invitation { display: flex; justify-content: space-between; gap: 1rem; color: var(--accent); font-size: .85rem; margin: 1.2rem 0 .5rem; }
+  .continue-card h3 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+  .continue-count { display: block; margin-top: .65rem; color: var(--muted); font-family: var(--font-mono); font-size: .7rem; }
+  @media (max-width: 600px) { .continue-grid { grid-template-columns: 1fr; gap: 2.5rem; } .continue-heading { align-items: start; flex-direction: column; gap: 1rem; } }
+  @media (prefers-reduced-motion: reduce) { .continue-image img { transition: none; } }
+</style>
+
+<style>
+  .album-opening { gap: clamp(1.5rem, 4vw, 3rem); margin-bottom: 4rem; align-items: center; }
+  .album-opening .hero-image { min-height: 0; border: 0; border-radius: 2px; background: transparent; }
+  .album-opening .hero-image img { position: static; width: 100%; height: auto; max-height: 80svh; object-fit: contain; }
+  .album-opening .hero-copy { background: none; border: 0; padding: 1rem 0; }
+  .album-opening .hero-copy h1 { font-size: clamp(2.2rem, 4vw, 3.8rem); }
+  .album-reading { scroll-margin-top: 7rem; }
+  .reading-heading { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin: 3rem 0; }
+  .reading-heading h2 { font-size: clamp(1.8rem, 3.5vw, 2.8rem); }
+  .reading-heading p:last-child { font-size: .85rem; }
+  .reading-switch { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .reading-switch[hidden] { display: none; }
+  .reading-switch button { border: 1px solid var(--line); border-radius: 2px; background: transparent; color: var(--muted); padding: .65rem .9rem; min-height: 44px; cursor: pointer; font-size: .8rem; }
+  .reading-switch button[aria-pressed='true'] { border-color: var(--accent); color: var(--text); }
+  .album-chapter + .album-chapter { margin-top: clamp(4rem, 8vw, 7rem); }
+  .chapter-marker { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--line); padding: 1rem 0 2rem; color: var(--muted); font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em; }
+  .reading-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(2rem, 5vw, 4rem) clamp(1rem, 3vw, 2.5rem); align-items: center; }
+  .reading-photo { margin: 0; min-width: 0; }
+  .reading-wide { grid-column: 1 / -1; }
+  .reading-pause { grid-column: 1 / -1; width: 70%; justify-self: center; margin: 1.5rem 0; }
+  .reading-trigger { display: block; position: relative; width: 100%; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
+  .reading-trigger img { display: block; width: 100%; height: auto; max-height: 80svh; object-fit: contain; }
+  .expand-hint { position: absolute; bottom: .65rem; right: .65rem; display: grid; place-items: center; width: 30px; height: 30px; background: rgba(20,19,17,.7); color: #fff; border-radius: 50%; opacity: 0; transition: opacity 180ms ease; }
+  .reading-trigger:hover .expand-hint, .reading-trigger:focus-visible .expand-hint { opacity: 1; }
+  .reading-photo figcaption { display: flex; align-items: baseline; gap: 1rem; padding-top: .85rem; color: var(--muted); font-size: .82rem; }
+  .photo-number { font-family: var(--font-mono); font-size: .65rem; color: var(--accent); flex-shrink: 0; }
+  .reading-photo figcaption p { margin: .35rem 0 0; max-width: 65ch; }
+  .album-reading[data-view='overview'] .reading-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+  .album-reading[data-view='overview'] .reading-photo { grid-column: auto; width: 100%; margin: 0; }
+  .album-reading[data-view='overview'] .reading-trigger img { max-height: 40svh; }
+  @media (max-width: 700px) {
+    .reading-heading { align-items: start; flex-direction: column; gap: 1rem; }
+    .reading-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+    .reading-wide, .reading-pause { grid-column: auto; }
+    .reading-pause { width: 86%; margin: .75rem 0; }
+    .album-reading[data-view='overview'] .reading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem .75rem; }
+    .album-reading[data-view='overview'] figcaption { gap: .4rem; font-size: .75rem; overflow-wrap: anywhere; }
+    .album-reading[data-view='overview'] figcaption p { display: none; }
+    .expand-hint { opacity: 1; }
+  }
+</style>
+<script>
+  const album = document.querySelector<HTMLElement>('.album-reading');
+  const viewSwitch = album?.querySelector<HTMLElement>('.reading-switch');
+  if (album && viewSwitch) {
+    viewSwitch.hidden = false;
+    viewSwitch.querySelectorAll<HTMLButtonElement>('[data-album-view]').forEach(button => {
+      button.addEventListener('click', () => {
+        album.dataset.view = button.dataset.albumView;
+        viewSwitch.querySelectorAll('[data-album-view]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      });
+    });
+  }
+</script>

@@ -17,3 +17,9 @@ links:
     url: https://www.lesgnolus.fr/parcours/sacree-fripouille-chez-les-grenouilles
   - label: Office de tourisme
     url: https://www.ain-tourisme.com/
+
+related_series:
+  - slug: yzeron-le-cret-de-py-froid
+    invitation: Continuer à pied
+  - slug: jardin-des-merveilles
+    invitation: Faire une nouvelle découverte

@@ -15,3 +15,9 @@ links:
     url: https://www.redbull.com/fr-fr/events/red-bull-motormania
 map_lat: 46.8637548
 map_lng: 3.1662123
+
+related_series:
+  - slug: concert-erikris-fevrier-2026
+    invitation: Garder le rythme, changer de scène
+  - slug: concert-fete-de-la-musique-2025
+    invitation: Retrouver l’ambiance d’un événement

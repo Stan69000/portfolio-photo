@@ -13,3 +13,9 @@ date: '2026-05-22'
 links:
   - label: Lien de la rando
     url: https://www.alltrails.com/fr/randonnee/france/rhone/le-cret-de-py-froid
+
+related_series:
+  - slug: gnolus-ars-sur-formans
+    invitation: Suivre un autre chemin
+  - slug: normandie
+    invitation: Découvrir un autre paysage

@@ -47,6 +47,8 @@ const photos = defineCollection({
 const series = defineCollection({
   loader: glob({ pattern: '**/*.{yml,yaml}', base: './src/content/series' }),
   schema: z.object({
+    related_series: z.array(z.object({ slug: z.string(), invitation: z.string() })).default([]),
+    editorial_layout: z.boolean().default(false),
     name: z.string(),
     slug: z.string(),
     description: z.string(),
@@ -80,6 +82,7 @@ const settings = defineCollection({
     series_title: z.string().optional(),
     series_subtitle: z.string().optional(),
     featured_photo_slug: z.string().optional(),
+    featured_series: z.array(z.string()).default([]),
     seo_description: z.string().optional(),
     seo_og_image: z.string().optional(),
     seo_noindex: z.boolean().optional()

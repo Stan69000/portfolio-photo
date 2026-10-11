@@ -391,7 +391,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   .map-copy {
-    background: linear-gradient(148deg, rgba(18, 37, 74, 0.92), rgba(8, 18, 42, 0.95));
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 1.2rem;
@@ -423,8 +423,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   .stats span {
-    border: 1px solid rgba(116, 143, 255, 0.28);
-    background: rgba(116, 143, 255, 0.12);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    background: rgba(var(--accent-rgb), 0.12);
     border-radius: 999px;
     padding: .2rem .62rem;
     font-family: var(--font-mono);
@@ -439,8 +439,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   .mode-btn {
-    border: 1px solid rgba(116, 143, 255, 0.35);
-    background: rgba(8, 19, 41, 0.6);
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    background: color-mix(in srgb, var(--surface) calc(0.6 * 100%), transparent);
     color: var(--muted);
     border-radius: 999px;
     padding: .34rem .82rem;
@@ -454,14 +454,14 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   .mode-btn.active {
     border-color: var(--accent);
     color: var(--text);
-    background: rgba(116, 143, 255, 0.15);
+    background: rgba(var(--accent-rgb), 0.15);
   }
 
   .legend {
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 1rem;
-    background: linear-gradient(145deg, rgba(14, 30, 62, .82), rgba(7, 16, 37, .88));
+    background: var(--surface);
     display: grid;
     align-content: start;
     gap: .55rem;
@@ -632,8 +632,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   :global(.leaflet-tooltip) {
-    background: rgba(9, 21, 46, 0.92);
-    border: 1px solid rgba(116, 143, 255, 0.5);
+    background: color-mix(in srgb, var(--surface) calc(0.92 * 100%), transparent);
+    border: 1px solid rgba(var(--accent-rgb), 0.5);
     color: #dce8ff;
     border-radius: 999px;
     padding: .25rem .55rem;
@@ -641,7 +641,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   :global(.leaflet-tooltip:before) {
-    border-top-color: rgba(116, 143, 255, 0.5) !important;
+    border-top-color: rgba(var(--accent-rgb), 0.5) !important;
   }
 
   :global(.map-hover-link) {

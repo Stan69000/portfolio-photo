@@ -12,3 +12,9 @@ links:
     url: https://www.zoobeauval.com/
 map_lat: 47.2464882
 map_lng: 1.34809
+
+related_series:
+  - slug: jardin-des-merveilles
+    invitation: Poursuivre les découvertes
+  - slug: yzeron-le-cret-de-py-froid
+    invitation: Retrouver le grand air

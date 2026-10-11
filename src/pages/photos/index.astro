@@ -226,7 +226,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     border-radius: 0.6rem;
     overflow: hidden;
     display: block;
-    background: rgba(15, 31, 61, 0.45);
+    background: color-mix(in srgb, var(--surface) calc(0.45 * 100%), transparent);
   }
 
   .recent-item img {
@@ -311,7 +311,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
 
   .result-card {
     break-inside: avoid;
-    background: linear-gradient(160deg, rgba(14, 30, 62, 0.85), rgba(9, 20, 43, 0.85));
+    background: var(--surface);
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--line);
@@ -323,7 +323,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
   }
 
   .result-card:hover {
-    border-color: rgba(116, 143, 255, 0.3);
+    border-color: rgba(var(--accent-rgb), 0.3);
     transform: translateY(-2px);
   }
 
@@ -400,7 +400,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
     font-family: var(--font-mono);
     font-size: 0.67rem;
     color: rgba(159, 178, 212, 0.6);
-    background: rgba(116, 143, 255, 0.07);
+    background: rgba(var(--accent-rgb), 0.07);
     border-radius: 999px;
     padding: 0.1rem 0.45rem;
     transition: color 150ms ease, background 150ms ease;
@@ -408,7 +408,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
 
   .card-tag:hover {
     color: var(--accent);
-    background: rgba(116, 143, 255, 0.15);
+    background: rgba(var(--accent-rgb), 0.15);
   }
 
   .tools-row {

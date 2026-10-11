@@ -19,3 +19,9 @@ links:
     url: https://rvaz2022.rvaz.fr/
   - label: Diaporama avec mes photos
     url: https://www.youtube.com/watch?v=P1x33E6dF60
+
+related_series:
+  - slug: concert-de-daniel-pastor
+    invitation: Retrouver la scène
+  - slug: concert-erikris-fevrier-2026
+    invitation: Continuer au rythme de la musique

@@ -37,7 +37,8 @@ const { photos } = Astro.props;
     <div class="lb-img-wrap">
       <img src="" alt="" class="lb-image" />
     </div>
-    <figcaption class="lb-caption"></figcaption>
+    <button type="button" class="lb-btn caption-toggle" aria-expanded="false" aria-controls="lb-caption">Lire la légende</button>
+    <figcaption id="lb-caption" class="lb-caption"></figcaption>
     <div class="lb-stars-wrap">
       <div class="lb-stars" role="group" aria-label="Noter cette photo">
         <button type="button" class="lb-star" data-n="1" aria-label="1 étoile">★</button>
@@ -344,7 +345,15 @@ const { photos } = Astro.props;
   const counter = root.querySelector('.lb-counter');
 
   let index = 0;
+  let openingIndex = 0;
   let touchStartX = 0;
+  let touchStartY = 0;
+  let touchActive = false;
+  let scrollBeforeOpen = 0;
+  let previousBodyStyle = '';
+  const captionToggle = root.querySelector('.caption-toggle');
+  const mainContent = document.querySelector('main');
+  let mainWasInert = false;
   let zoom = 1;
   let panX = 0;
   let panY = 0;
@@ -421,6 +430,9 @@ const { photos } = Astro.props;
     img.src = item.url;
     img.alt = item.title;
     if (caption) caption.textContent = item.description || item.title;
+    root.classList.remove('caption-expanded');
+    captionToggle?.setAttribute('aria-expanded', 'false');
+    if (captionToggle) captionToggle.textContent = 'Lire la légende';
     if (detailLink) detailLink.href = `/photo/${item.slug}/`;
     if (counter) counter.textContent = `${index + 1} / ${items.length}`;
     refreshLbStars(item.slug);
@@ -429,20 +441,36 @@ const { photos } = Astro.props;
   const open = (nextIndex) => {
     lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     index = (nextIndex + items.length) % items.length;
+    openingIndex = index;
     zoom = 1; panX = 0; panY = 0;
     sync();
     applyTransform();
     root.hidden = false;
     root.setAttribute('aria-hidden', 'false');
+    scrollBeforeOpen = window.scrollY;
+    previousBodyStyle = document.body.getAttribute('style') || '';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollBeforeOpen}px`;
+    document.body.style.width = '100%';
     document.body.style.overflow = 'hidden';
+    // Some pages place the dialog inside main; never make its ancestor inert.
+    if (mainContent && !mainContent.contains(root)) { mainWasInert = mainContent.inert; mainContent.inert = true; }
     (closeBtn || root).focus();
   };
 
   const close = () => {
     root.hidden = true;
     root.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    if (lastFocused) lastFocused.focus();
+    document.body.setAttribute('style', previousBodyStyle);
+    if (mainContent && !mainContent.contains(root)) mainContent.inert = mainWasInert;
+    window.scrollTo({ top: scrollBeforeOpen, behavior: 'instant' });
+    const viewedTrigger = document.querySelector(`[data-lightbox-index="${index}"]`);
+    const target = index === openingIndex ? (lastFocused || viewedTrigger) : (viewedTrigger || lastFocused);
+    if (target) {
+      target.focus({ preventScroll: true });
+      const rect = target.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) target.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
   };
 
   const navigate = (step) => {
@@ -483,6 +511,11 @@ const { photos } = Astro.props;
     open(Number(trigger.dataset.lightboxIndex || 0));
   });
 
+  captionToggle?.addEventListener('click', () => {
+    const expanded = root.classList.toggle('caption-expanded');
+    captionToggle.setAttribute('aria-expanded', String(expanded));
+    captionToggle.textContent = expanded ? 'Masquer la légende' : 'Lire la légende';
+  });
   if (closeBtn) closeBtn.addEventListener('click', close);
   if (prevBtn) prevBtn.addEventListener('click', () => navigate(-1));
   if (nextBtn) nextBtn.addEventListener('click', () => navigate(1));
@@ -499,7 +532,7 @@ const { photos } = Astro.props;
     if (root.hidden) return;
     if (event.key === 'Tab') {
       const focusables = Array.from(root.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])'))
-        .filter((el) => !el.hasAttribute('disabled'));
+        .filter((el) => !el.hasAttribute('disabled') && el.getClientRects().length > 0);
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
       if (!first || !last) return;
@@ -520,13 +553,29 @@ const { photos } = Astro.props;
   });
 
   // ── Touch swipe (navigation only when not zoomed) ─────────────────────────
-  root.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
-  root.addEventListener('touchend', (e) => {
-    if (zoom > 1) return;
-    const delta = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(delta) < 40) return;
-    navigate(delta < 0 ? 1 : -1);
-  });
+  wrap.addEventListener('touchstart', (e) => {
+    touchActive = e.touches.length === 1;
+    if (!touchActive) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    if (zoom > 1) { panAnchorX = touchStartX - panX; panAnchorY = touchStartY - panY; }
+  }, { passive: true });
+  wrap.addEventListener('touchmove', (e) => {
+    if (!touchActive || zoom <= 1 || e.touches.length !== 1) return;
+    e.preventDefault();
+    panX = e.touches[0].clientX - panAnchorX;
+    panY = e.touches[0].clientY - panAnchorY;
+    applyTransform();
+  }, { passive: false });
+  wrap.addEventListener('touchcancel', () => { touchActive = false; });
+  wrap.addEventListener('touchend', (e) => {
+    if (!touchActive || zoom > 1 || e.touches.length > 0) { touchActive = false; return; }
+    touchActive = false;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    navigate(dx < 0 ? 1 : -1);
+  }, { passive: true });
 
   // ── Wheel zoom ────────────────────────────────────────────────────────────
   root.addEventListener('wheel', (e) => {
@@ -536,3 +585,40 @@ const { photos } = Astro.props;
   }, { passive: false });
 })();
 </script>
+
+<style>
+  .caption-toggle { display: none; }
+  .lb-btn, .lb-star { min-width: 44px; min-height: 44px; justify-content: center; touch-action: manipulation; }
+  .lb-backdrop { background: rgba(20, 19, 17, .98); }
+  .lb-caption { color: #ded8cc; }
+  .lb-btn:focus-visible, .lb-nav:focus-visible, .lb-star:focus-visible { outline-color: var(--accent); }
+  .lb-stars[data-glow] { box-shadow: none; border-color: rgba(255,255,255,.15); }
+  .lb-star.hovered { transform: none; }
+  @media (max-width: 760px) {
+    .lightbox { display: flex; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 68px) 12px calc(env(safe-area-inset-bottom, 0px) + 72px); height: 100dvh; gap: 0; }
+    .lb-toolbar { top: calc(env(safe-area-inset-top, 0px) + 8px); left: 12px; right: 12px; justify-content: space-between; gap: 4px; }
+    .lb-zoom-controls { display: flex; gap: 2px; }
+    .lb-btn { padding: .45rem .6rem; font-family: var(--font-sans); font-size: .8rem; }
+    .close { padding: .45rem .65rem; }
+    .lb-figure { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; gap: .65rem; }
+    .lb-img-wrap { width: 100%; flex-shrink: 0; }
+    .lb-image { max-width: 100%; max-height: max(100px, calc(100dvh - 290px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); border-radius: 2px; }
+    .lb-nav { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); width: 48px; height: 48px; }
+    .lb-prev { left: 24px; } .lb-next { right: 24px; }
+    .lb-counter { bottom: calc(env(safe-area-inset-bottom, 0px) + 29px); color: #ded8cc; }
+    .caption-toggle { display: inline-flex; flex-shrink: 0; background: transparent; border-color: transparent; text-decoration: underline; text-underline-offset: 4px; }
+    .lb-caption { display: none; font-size: 1rem; padding: 0 .5rem; }
+    .caption-expanded .lb-caption { display: block; }
+    .lb-stars-wrap { flex-shrink: 0; margin: 0; gap: 0; }
+    .lb-stars { padding: 0 .25rem; background: none; border: 0; }
+    .lb-star { font-size: 23px; }
+  }
+</style>
+
+<style>
+  @media (max-width: 380px) { .close-label { display: none; } .lb-toolbar .close { padding: .45rem; } }
+</style>
+
+<style>
+  .lb-star { color: rgba(255,255,255,.5); }
+</style>

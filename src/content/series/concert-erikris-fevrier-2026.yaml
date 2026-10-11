@@ -13,3 +13,9 @@ links:
     url: https://erikris.fr/concert-live/
 map_lat: 45.877283
 map_lng: 4.7116964
+
+related_series:
+  - slug: concert-de-daniel-pastor
+    invitation: Rencontrer un autre univers musical
+  - slug: concert-fete-de-la-musique-2025
+    invitation: Prolonger la fête

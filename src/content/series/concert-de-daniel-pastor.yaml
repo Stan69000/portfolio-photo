@@ -15,3 +15,9 @@ links:
     url: https://www.youtube.com/channel/UCJT-J2A2ha5A02uzBeOZfLA/videos
   - label: Site RVAz
     url: https://rvaz2022.rvaz.fr/
+
+related_series:
+  - slug: concert-erikris-fevrier-2026
+    invitation: Retrouver l’énergie de la scène
+  - slug: concert-fete-de-la-musique-2025
+    invitation: Continuer en musique

@@ -83,7 +83,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   <body>
     <header class="site-header">
       <div class="header-inner">
-        <a href="/" class="wordmark">{wordmark}</a>
+        <a href="/" class="wordmark"><span class="wordmark-name">{wordmark}</span><span class="wordmark-caption">Carnets photographiques</span></a>
 
         <!-- Desktop nav -->
         <nav class="nav" id="main-nav" aria-label="Navigation principale">
@@ -147,8 +147,8 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     z-index: 100;
     backdrop-filter: blur(18px) saturate(1.4);
     -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    background: rgba(5, 11, 26, 0.72);
-    border-bottom: 1px solid rgba(36, 58, 101, 0.5);
+    background: rgba(25, 24, 22, 0.72);
+    border-bottom: 1px solid rgba(125, 113, 94, 0.5);
   }
 
   .header-inner {
@@ -190,13 +190,13 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   .nav-link:hover {
     color: var(--text);
     border-color: var(--line);
-    background: rgba(36, 58, 101, 0.3);
+    background: rgba(125, 113, 94, 0.3);
   }
 
   .nav-link.active {
     color: var(--text);
     border-color: var(--line);
-    background: rgba(116, 143, 255, 0.12);
+    background: rgba(var(--accent-rgb), 0.12);
   }
 
   .nav-search {
@@ -260,7 +260,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     display: none;
     flex-direction: column;
     padding: 0.5rem 1rem 1rem;
-    border-top: 1px solid rgba(36, 58, 101, 0.4);
+    border-top: 1px solid rgba(125, 113, 94, 0.4);
     gap: 0.15rem;
   }
 
@@ -285,12 +285,12 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   .mobile-link:hover,
   .mobile-link.active {
     color: var(--text);
-    background: rgba(116, 143, 255, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     border-color: var(--line);
   }
 
   .mobile-link.active {
-    background: rgba(116, 143, 255, 0.12);
+    background: rgba(var(--accent-rgb), 0.12);
   }
 
   .mobile-rss {
@@ -404,3 +404,18 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     document.addEventListener('dragstart', protect);
   })();
 </script>
+
+<style>
+  .site-header { background: color-mix(in srgb, var(--bg) 94%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
+  .header-inner { padding-top: 1.2rem; padding-bottom: 1.2rem; }
+  .wordmark { display: grid; gap: .25rem; flex-shrink: 0; letter-spacing: .01em; }
+  .wordmark-name { font-size: 1.45rem; line-height: 1.1; }
+  .wordmark-caption { font-family: var(--font-sans); font-size: .58rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .nav-link { font-family: var(--font-sans); font-size: .83rem; letter-spacing: .01em; border-radius: 0; padding: .6rem .5rem; border: 0; border-bottom: 1px solid transparent; }
+  .nav-link:hover, .nav-link.active { background: none; border-color: var(--accent); }
+  .nav-link.active { color: var(--accent); }
+  .mobile-link { font-family: var(--font-sans); border-radius: 2px; }
+  .site-footer { padding-top: 3rem; padding-bottom: 3rem; }
+  @media (max-width: 1050px) { .nav { display: none; } .burger { display: flex; width: 44px; height: 44px; } }
+  @media (max-width: 600px) { .wordmark-name { font-size: 1.15rem; } .wordmark-caption { font-size: .52rem; } }
+</style>

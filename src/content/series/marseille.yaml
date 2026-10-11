@@ -9,3 +9,9 @@ map_public_visibility: approx
 date: '2025-08-29'
 map_lat: 43.2963986
 map_lng: 5.3777888
+
+related_series:
+  - slug: normandie
+    invitation: Faire une autre escale
+  - slug: yzeron-le-cret-de-py-froid
+    invitation: Prendre les chemins de traverse

@@ -23,7 +23,7 @@ const featured = featuredSlug
   ? (allPhotos.find(p => p.data.slug === featuredSlug) ?? latestPhoto)
   : latestPhoto;
 
-const featuredLabel = featuredSlug ? 'Photo du jour' : 'Derni\u00e8re photo';
+const featuredLabel = featuredSlug ? 'À la une' : 'Derni\u00e8re photo';
 
 const instants = allPhotos.filter(p => p.data.kind === 'instant').sort((a,b) => (b.data.published_at?.getTime() ?? 0) - (a.data.published_at?.getTime() ?? 0)).slice(0,3);
 
@@ -32,46 +32,49 @@ const cards = allSeries
     const photos = allPhotos.filter((photo) => photo.data.series === series.data.slug);
     const topTags = (series.data.tags ?? []).slice(0, 3);
 
-    // fallback cover : première photo publiée de la série si cover_url absent
-    const coverFallback = photos.find(p => p.data.status === 'published')?.data.url_thumb
-      || photos.find(p => p.data.status === 'published')?.data.url
-      || '';
+    // Large covers use the web image; thumbnails are reserved for small previews.
+    const coverPhoto = photos.find(photo => [photo.data.url, photo.data.url_thumb, photo.data.url_web, photo.data.url_zoom].includes(series.data.cover_url)) || photos[0];
+    const coverFallback = coverPhoto?.data.url_web || coverPhoto?.data.url || '';
+    const cover = series.data.cover_url && ![coverPhoto?.data.url_thumb].includes(series.data.cover_url) ? series.data.cover_url : coverFallback;
 
     return {
       slug: series.data.slug,
       name: series.data.name,
       description: series.data.description,
-      cover: series.data.cover_url || coverFallback,
+      cover,
       count: photos.length,
       topTags
     };
   })
   .filter((item) => item.count > 0)
   .sort((a, b) => b.count - a.count);
+const selectedCards = (siteSettings.featured_series ?? []).map(slug => cards.find(card => card.slug === slug)).filter(Boolean).slice(0, 3);
+const otherCards = cards.filter(card => !selectedCards.some(selected => selected.slug === card.slug));
 ---
 
 <Base title="Portfolio | Accueil" description="Galerie photo personnelle de Stan">
   <section class="hero">
+    {featured && <a href={featured.data.series ? `/series/${featured.data.series}/` : `/photo/${featured.data.slug}/`} class="hero-image" aria-label={`Découvrir ${featured.data.title}`}>
+      <img src={featured.data.url} alt={featured.data.title} loading="eager" fetchpriority="high" decoding="async" />
+      <div class="caption"><span>{featuredLabel}</span><strong>{featured.data.title}</strong></div>
+    </a>}
     <div class="hero-copy">
-      <p class="kicker">{siteTitle} &middot; Galerie personnelle</p>
-      <h1>{heroTitle}</h1>
-      <p>{aboutText}</p>
-      <div class="hero-actions">
-        <a href="/photos">Explorer les photos</a>
-        <a href="/series">Voir les séries</a>
-      </div>
+      <p class="kicker">{siteTitle}</p>
+      <h1>Des lieux, des rencontres.<br /><em>Des instants à partager.</em></h1>
+      <a class="gallery-link" href="#selection">Entrer dans la galerie <span aria-hidden="true">↓</span></a>
     </div>
-
-    {featured && (
-      <a href={featured.data.series ? `/series/${featured.data.series}/` : `/photo/${featured.data.slug}/`} class="hero-image">
-        <img src={featured.data.url} alt={featured.data.title} loading="eager" decoding="async" />
-        <div class="caption">
-          <span>{featuredLabel}</span>
-          <strong>{featured.data.title}</strong>
-        </div>
-      </a>
-    )}
   </section>
+  <section class="introduction" aria-label="Bienvenue">
+    <p class="kicker">Derrière les images</p>
+    <div><h2>{heroTitle}</h2><p>{aboutText}</p><a class="text-link" href="/a-propos">Faire connaissance avec Stan →</a></div>
+  </section>
+  {selectedCards.length > 0 && <section id="selection" class="selection">
+    <div class="section-heading"><div><p class="kicker">Pour commencer</p><h2>Quelques séries à découvrir</h2></div><a class="text-link" href="/series">Toutes les séries →</a></div>
+    <div class="selection-grid">{selectedCards.map((card, index) => <a href={`/series/${card.slug}/`} class="selected-card">
+      <div class="selected-image"><img src={card.cover} alt={card.name} loading="lazy" decoding="async" /></div>
+      <span class="selection-number">0{index + 1} / {card.count} photographies</span><h3>{card.name}</h3><p>{card.description}</p><span class="text-link">Découvrir la série ↗</span>
+    </a>)}</div>
+  </section>}
 
   {instants.length > 0 && <section style="margin:3rem 0">
     <h2><a href="/instants">Instants →</a></h2><p>Des images glanées au fil des jours.</p>
@@ -83,7 +86,7 @@ const cards = allSeries
   </section>
 
   <section class="series-grid">
-    {cards.map((card) => (
+    {otherCards.map((card) => (
       <a href={`/series/${card.slug}/`} class="series-card">
         <img src={card.cover} alt={card.name} loading="lazy" decoding="async" />
         <div class="overlay">
@@ -111,7 +114,7 @@ const cards = allSeries
   .hero-copy {
     display: grid;
     gap: 0.8rem;
-    background: linear-gradient(145deg, rgba(14, 30, 61, 0.95), rgba(7, 18, 41, 0.95));
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 0.9rem;
     padding: 1rem;
@@ -123,7 +126,7 @@ const cards = allSeries
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.8rem;
     letter-spacing: 0.04em;
-    color: #bdd2fb;
+    color: #ded3c1;
     text-transform: uppercase;
   }
 
@@ -151,7 +154,7 @@ const cards = allSeries
     padding: 0.4rem 0.8rem;
     font-size: 0.85rem;
     font-family: 'IBM Plex Mono', monospace;
-    background: rgba(8, 20, 44, 0.75);
+    background: color-mix(in srgb, var(--surface) calc(0.75 * 100%), transparent);
   }
 
   .hero-image {
@@ -195,14 +198,14 @@ const cards = allSeries
   .caption span {
     font-size: 0.76rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: #b9cef8;
+    color: #ded3c1;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   .caption strong {
     font-size: 1.05rem;
-    color: #f2f7ff;
+    color: #f5f0e7;
   }
 
   .hero-image:hover img {
@@ -273,7 +276,7 @@ const cards = allSeries
   }
 
   .overlay p {
-    color: #dbe6fb;
+    color: #e9e2d6;
     max-width: 65ch;
   }
 
@@ -331,4 +334,52 @@ const cards = allSeries
       display: none;
     }
   }
+</style>
+
+<style>
+  .hero { display: block; position: relative; min-height: min(76svh, 820px); margin-bottom: 5rem; isolation: isolate; }
+  .hero-image { position: absolute; inset: 0; min-height: 100%; max-height: none; border: 0; border-radius: 2px; }
+  .hero-image::before { background: linear-gradient(90deg, rgba(0,0,0,.65), rgba(0,0,0,.08)), linear-gradient(0deg, rgba(0,0,0,.55), transparent 35%); }
+  .hero-image img { object-position: center; }
+  .hero-copy { position: relative; z-index: 2; min-height: inherit; padding: clamp(1.5rem, 5vw, 5rem); background: none; border: 0; align-content: center; pointer-events: none; color: #fff; }
+  .hero-copy .kicker { color: #e3e3e3; }
+  .hero-copy h1 { font-size: clamp(2.5rem, 5.5vw, 4.9rem); max-width: 18ch; line-height: 1.05; text-wrap: balance; }
+  .hero-copy em { font-weight: 300; }
+  .gallery-link { pointer-events: auto; justify-self: start; margin-top: 1.6rem; padding: .8rem 0; border-bottom: 1px solid #ffffff80; display: flex; gap: 2rem; min-height: 44px; }
+  .caption { padding: 1.2rem 1.5rem; align-items: end; text-align: right; }
+  .introduction { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; max-width: 920px; margin: 0 auto 6rem; }
+  .introduction p { white-space: pre-line; }
+  .introduction .kicker, .selection .kicker { color: var(--muted); }
+  .text-link { display: inline-block; padding: .5rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .selection { scroll-margin-top: 7rem; margin-bottom: 6rem; }
+  .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 2rem; }
+  .section-heading .kicker { margin-bottom: .7rem; }
+  .selection-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; }
+  .selected-image { overflow: hidden; background: var(--surface); }
+  .selected-image img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; transition: transform .5s ease; }
+  .selected-card:hover img { transform: scale(1.025); }
+  .selection-number { display: block; color: var(--muted); font-family: var(--font-mono); font-size: .7rem; margin: 1.3rem 0 .7rem; }
+  .selected-card h3 { font-size: 2rem; }
+  .selected-card p { font-size: .9rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .series-head { margin-bottom: 1.5rem; }
+  .series-card { border: 0; border-radius: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+  @media (max-width: 700px) {
+    .hero { min-height: 72svh; margin-bottom: 3rem; }
+    .hero-copy { padding: 1.5rem; }
+    .hero-copy h1 { font-size: clamp(2.2rem, 8vw, 3.5rem); }
+    .introduction { grid-template-columns: 1fr; gap: 1rem; margin-bottom: 3rem; }
+    .section-heading { align-items: start; flex-direction: column; }
+    .selection-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+    .selected-image img { aspect-ratio: 4 / 3; }
+    .selection { margin-bottom: 3rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .hero-image img, .selected-image img { transition: none; } }
+</style>
+
+<style>
+  .selection-grid { align-items: start; }
+  .selected-image img { aspect-ratio: auto; height: auto; max-height: 520px; object-fit: contain; }
+  .selected-image { background: transparent; }
+  @media (max-width: 700px) { .selected-image img { aspect-ratio: auto; max-height: 70svh; } }
 </style>

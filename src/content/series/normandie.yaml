@@ -10,3 +10,11 @@ map_public_visibility: approx
 date: '2025-11-24'
 map_lat: 49.4077365
 map_lng: 0.6096663
+
+editorial_layout: true
+
+related_series:
+  - slug: marseille
+    invitation: Changer d’horizon
+  - slug: yzeron-le-cret-de-py-froid
+    invitation: Prolonger la promenade

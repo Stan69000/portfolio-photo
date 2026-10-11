@@ -16,19 +16,16 @@ const { photo, index } = Astro.props;
 ---
 
 <article class="photo-card reveal">
-  <button
-    type="button"
+  <div
     class="card-trigger"
-    data-lightbox-index={index}
-    aria-label={`Ouvrir ${photo.title} en plein écran`}
   >
-    <img
+    <button type="button" class="image-trigger" data-lightbox-index={index} aria-label={`Ouvrir ${photo.title} en plein écran`}><img
       src={photo.url}
       alt={photo.title}
       loading="lazy"
       decoding="async"
       style={`view-transition-name: photo-${photo.slug};`}
-    />
+    /></button>
     <div class="overlay">
       <div class="overlay-top">
         <button type="button" class="vote-btn" data-vote-btn data-vote-slug={photo.slug} aria-label="Voter">
@@ -41,7 +38,7 @@ const { photo, index } = Astro.props;
         {photo.description && <p class="card-desc">{photo.description}</p>}
       </div>
     </div>
-  </button>
+  </div>
 </article>
 
 <style>
@@ -117,8 +114,8 @@ const { photo, index } = Astro.props;
   }
 
   .vote-btn:hover {
-    background: rgba(116, 143, 255, 0.35);
-    border-color: rgba(116, 143, 255, 0.6);
+    background: rgba(var(--accent-rgb), 0.35);
+    border-color: rgba(var(--accent-rgb), 0.6);
   }
 
   .vote-btn:disabled {
@@ -139,7 +136,7 @@ const { photo, index } = Astro.props;
     font-family: var(--font-display);
     font-size: 1.05rem;
     font-weight: 400;
-    color: #f2f7ff;
+    color: #f5f0e7;
     line-height: 1.2;
     display: block;
   }
@@ -159,4 +156,12 @@ const { photo, index } = Astro.props;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+</style>
+
+<style>
+  .image-trigger { display: block; border: 0; padding: 0; width: 100%; background: none; cursor: zoom-in; }
+  .overlay { pointer-events: none; }
+  .overlay a, .overlay button { pointer-events: auto; }
+  .card-trigger:focus-within .overlay { opacity: 1; }
+  @media (hover: none) { .overlay { opacity: 1; } .vote-btn { min-width: 44px; min-height: 44px; } }
 </style>
