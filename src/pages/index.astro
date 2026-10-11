@@ -349,7 +349,8 @@ const otherCards = cards.filter(card => !selectedCards.some(selected => selected
   .hero { display: block; position: relative; min-height: min(76svh, 820px); margin-bottom: 5rem; isolation: isolate; }
   .hero-image { position: absolute; inset: 0; min-height: 100%; max-height: none; border: 0; border-radius: 2px; }
   .hero-image::before { background: linear-gradient(90deg, rgba(0,0,0,.65), rgba(0,0,0,.08)), linear-gradient(0deg, rgba(0,0,0,.55), transparent 35%); }
-  .hero-image img { object-position: center; }
+  .hero-image img { object-position: center 25%; }
+  .hero-image:hover img { transform: none; }
   .hero-copy { position: relative; z-index: 2; min-height: inherit; padding: clamp(1.5rem, 5vw, 5rem); background: none; border: 0; align-content: center; pointer-events: none; color: #fff; }
   .hero-copy .kicker { color: #e3e3e3; }
   .hero-copy h1 { font-size: clamp(2.5rem, 5.5vw, 4.9rem); max-width: 18ch; line-height: 1.05; text-wrap: balance; }
@@ -374,8 +375,13 @@ const otherCards = cards.filter(card => !selectedCards.some(selected => selected
   .series-card { border: 0; border-radius: 2px; }
   a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
   @media (max-width: 700px) {
-    .hero { min-height: 72svh; margin-bottom: 3rem; }
-    .hero-copy { padding: 1.5rem; }
+    .hero { min-height: 0; margin-bottom: 3rem; }
+    .hero-image { position: relative; inset: auto; min-height: 0; max-height: none; }
+    .hero-image img { height: auto; object-fit: contain; }
+    .hero-image::before { background: linear-gradient(0deg, rgba(0,0,0,.6), transparent 35%); }
+    .hero-image .caption { padding: .75rem 1rem; }
+    .hero-image .caption strong { font-size: .9rem; }
+    .hero-copy { min-height: 0; padding: 1.5rem; }
     .hero-copy h1 { font-size: clamp(2.2rem, 8vw, 3.5rem); }
     .introduction { grid-template-columns: 1fr; gap: 1rem; margin-bottom: 3rem; }
     .section-heading { align-items: start; flex-direction: column; }
