@@ -1,0 +1,35 @@
+<a class="back-to-top" href="#page-top" aria-label="Retour en haut de page" title="Retour en haut" data-back-to-top hidden>
+  <svg class="camera-icon" width="72" height="58" viewBox="0 0 72 58" fill="none" aria-hidden="true">
+    <path class="camera-body" d="M7 16H21L26 8H45L50 16H65C68 16 70 18 70 21V49C70 52 68 54 65 54H7C4 54 2 52 2 49V21C2 18 4 16 7 16Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+    <path d="M9 15V11H18V15M30 12H41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+    <circle cx="36" cy="35" r="13" stroke="currentColor" stroke-width="1.4" />
+    <path d="M36 43V27M30.5 32.5L36 27L41.5 32.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    <circle cx="59" cy="24" r="2" fill="currentColor" />
+  </svg>
+  <span>En haut</span>
+</a>
+<script>
+  const button = document.querySelector<HTMLAnchorElement>('[data-back-to-top]');
+  if (button) {
+    const update = () => { button.hidden = window.scrollY < window.innerHeight * .7; };
+    window.addEventListener('scroll', update, {passive:true});
+    window.addEventListener('resize', update);
+    update();
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      window.scrollTo({top:0, behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+      document.querySelector<HTMLElement>('#page-top')?.focus({preventScroll:true});
+    });
+  }
+</script>
+<style>
+.back-to-top { position:fixed; z-index:90; right:max(1rem,env(safe-area-inset-right)); bottom:max(1rem,env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.15rem; width:72px; min-height:72px; padding:0; color:var(--accent); background:transparent; transition:background 180ms ease,transform 180ms ease; }
+.back-to-top[hidden] { display:none; }
+.back-to-top span { font-size:.6rem; }
+.camera-icon { display:block; overflow:visible; filter:drop-shadow(0 4px 8px #0005); }
+.camera-body { fill:var(--bg); transition:fill 180ms ease; }
+.back-to-top:hover { transform:translateY(-3px); }
+.back-to-top:hover .camera-body { fill:var(--surface); }
+@media(prefers-reduced-motion:reduce) { .back-to-top, .camera-body { transition:none; } }
+@media print { .back-to-top { display:none; } }
+</style>

@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import '../styles/global.css';
+import BackToTop from '../components/BackToTop.astro';
 
 interface Props {
   title?: string;
@@ -81,6 +82,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     ))}
   </head>
   <body>
+    <div id="page-top" tabindex="-1"></div>
     <header class="site-header">
       <div class="header-inner">
         <a href="/" class="wordmark"><span class="wordmark-name">{wordmark}</span><span class="wordmark-caption">Carnets photographiques</span></a>
@@ -137,6 +139,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         — Attribution, Pas d'Utilisation Commerciale, Pas de Modification.
       </p>
     </footer>
+    <BackToTop />
   </body>
 </html>
 

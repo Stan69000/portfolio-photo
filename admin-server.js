@@ -282,8 +282,13 @@ function normalizeTags(tags) {
   return out;
 }
 
+const TAG_COLLECTIONS_FILE = path.join(__dirname, 'src/content/tag-collections.json');
+function readTagCollections() {
+  return JSON.parse(fs.readFileSync(TAG_COLLECTIONS_FILE, 'utf8'));
+}
+
 function getTagCatalog() {
-  return [...new Set(readPhotos().flatMap((p) => Array.isArray(p.tags) ? p.tags : []))].sort((a, b) => a.localeCompare(b));
+  return [...new Set([...readPhotos(), ...readSeries()].flatMap((p) => Array.isArray(p.tags) ? p.tags : []).concat(readTagCollections().flatMap(collection => collection.tags)))].sort((a, b) => a.localeCompare(b));
 }
 
 function filterKnownTags(inputTags, strict = false) {
@@ -848,15 +853,23 @@ function parseTag(t) {
 // Widget chips avec catégories optionnelles (syntaxe "Catégorie:valeur")
 // Ex: "Lieu:Lyon", "Style:Nuit", "paysage" (sans catégorie)
 function tagInputWidget(inputName, currentTags, allTags, id='ti') {
-  const tagsJson = JSON.stringify(currentTags);
+  const collections = readTagCollections();
+  allTags = normalizeTags([...allTags, ...collections.flatMap(collection => collection.tags)]);
+  const tagsJson = JSON.stringify(currentTags).replace(/</g, String.fromCharCode(92)+'u003c');
   // Extraire les catégories connues depuis tous les tags existants
   const cats = [...new Set(allTags.map(t => parseTag(t).cat).filter(Boolean))].sort();
   const catsJson = JSON.stringify(cats);
   const dlId = id + '-dl';
-  const suggestions = allTags.map(t => '<option value="' + t.replace(/"/g,'&quot;') + '">').join('');
-  const catOpts = cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+  const suggestions = allTags.map(t => '<option value="' + esc(t) + '">').join('');
+  const catOpts = cats.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
   return `
 <div style="display:flex;flex-direction:column;gap:.5rem">
+  <details class="tag-collection-picker" style="border:1px solid #243a65;border-radius:.5rem;padding:.65rem">
+    <summary style="cursor:pointer;color:#9fb2d4">Collections de mots-clés liées aux parcours</summary>
+    <p style="font-size:.78rem;color:#9fb2d4">Choisir les mots qui décrivent l’image. Un clic ajoute le mot-clé et sélectionne le parcours associé ; enregistrer pour appliquer.</p>
+    ${collections.map(collection => '<div style="margin:.75rem 0"><strong style="font-size:.82rem">'+esc(collection.name)+'</strong><div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">'+collection.tags.map(tag => '<button type="button" class="btn btn-sm" data-collection-tag="'+esc(tag)+'" data-collection="'+esc(collection.slug)+'">+ '+esc(tag)+'</button>').join('')+'</div></div>').join('')}
+    <a href="/tags#tag-collections" style="font-size:.78rem">Gérer ces collections →</a>
+  </details>
   <div class="ti-wrap" id="${id}-wrap" onclick="document.getElementById('${id}-input').focus()">
     <div id="${id}-chips" style="display:contents"></div>
     <input class="ti-input" id="${id}-input" list="${dlId}" placeholder="tag ou Catégorie:valeur…" autocomplete="off">
@@ -877,10 +890,11 @@ function tagInputWidget(inputName, currentTags, allTags, id='ti') {
   const hidden=document.getElementById(id+'-hidden');
   const input=document.getElementById(id+'-input');
   const catSel=document.getElementById(id+'-catsel');
+  function escapeChip(value){ return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function chipHtml(t,i){
     const p=parseTagClient(t);
     const col=p.cat?(catColors[p.cat]||'#748fff'):'#748fff';
-    const label=p.cat?('<span style="opacity:.6;font-size:.68em;margin-right:.2rem">'+p.cat+':</span>'+p.val):t;
+    const label=p.cat?('<span style="opacity:.6;font-size:.68em;margin-right:.2rem">'+escapeChip(p.cat)+':</span>'+escapeChip(p.val)):escapeChip(t);
     return '<span class="ti-chip" style="border-color:'+col+'44;color:'+col+'">'+label+'<button type="button" onclick="window[\\'tiRemove_'+id+'\\']('+(i)+')">×</button></span>';
   }
   function parseTagClient(t){const i=t.indexOf(':');return i>0?{cat:t.slice(0,i),val:t.slice(i+1)}:{cat:'',val:t};}
@@ -889,15 +903,22 @@ function tagInputWidget(inputName, currentTags, allTags, id='ti') {
     hidden.value=tags.join(',');
   }
   window['tiRemove_'+id]=function(i){tags.splice(i,1);render();};
-  function addTag(v){
+  function addTag(v, useCategory=true){
     let t=v.trim();
     if(!t)return;
     // Préfixer avec la catégorie sélectionnée si pas déjà préfixé
-    if(catSel&&catSel.value&&!t.includes(':')){t=catSel.value+':'+t;}
-    if(!tags.includes(t)){tags.push(t);}
+    if(useCategory&&catSel&&catSel.value&&!t.includes(':')){t=catSel.value+':'+t;}
+    if(!tags.some(tag=>tag.toLowerCase()===t.toLowerCase())){tags.push(t);}
     input.value='';
     render();
   }
+  hidden.closest('form').querySelectorAll('[data-collection-tag]').forEach(button => {
+    button.addEventListener('click', () => {
+      addTag(button.dataset.collectionTag, false);
+      const emotion = hidden.closest('form').querySelector('select[name="emotions"], select[name="series_emotion"]');
+      if (emotion) emotion.value = button.dataset.collection;
+    });
+  });
   input.addEventListener('keydown',e=>{
     if(e.key==='Enter'||e.key===','){e.preventDefault();addTag(input.value);}
     if(e.key==='Backspace'&&input.value===''&&tags.length){tags.pop();render();}
@@ -1329,6 +1350,10 @@ ${thumbHtml}
     <option value="archived"${st==='archived'?' selected':''}>Archivée</option>
   </select></div>
   <div class="field full"><label>Description</label><textarea name="description">${photo.description||''}</textarea></div>
+  <div class="field full"><label>Derrière cette photo — anecdote facultative</label><textarea name="anecdote">${String(photo.anecdote||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea></div>
+  <div class="field full"><label>Parcours par émotion</label><select name="emotions"><option value="">Automatique selon les tags</option>${[['ralentir','Ralentir'],['se-perdre','Se perdre'],['rencontres','Croiser des regards'],['vibrer','Vibrer']].map(([value,label])=>'<option value="'+value+'"'+((photo.emotions||[]).includes(value)?' selected':'')+'>'+label+'</option>').join('')}</select></div>
+  <div class="field full"><label>Diptyque — slug de la photo à associer</label><input name="diptych_with" value="${String(photo.diptych_with||'').replace(/[^a-zA-Z0-9_-]/g,'')}" placeholder="Facultatif : une photo de la même série"></div>
+  <div class="field full"><label><input type="checkbox" name="spotlight" value="true"${photo.spotlight?' checked':''}> Épingler cette photo en grand dans sa série</label></div>
   <div class="field full">
     <label>Tags</label>
     ${tagsWidget}
@@ -1900,6 +1925,7 @@ ${msgHtml}
     <p id="cover-status" role="status" aria-live="polite">${serie.cover_url ? 'Une couverture est définie.' : 'Choix automatique : une photo de la série sera utilisée.'}</p>
     ${coverPhotos.length ? `<label for="cover-search">Retrouver une photo</label><input type="search" id="cover-search" placeholder="Rechercher par titre…"><div class="cover-grid" id="cover-grid">${coverChoices}</div><p id="cover-empty" hidden>Aucune photo ne correspond à ta recherche.</p>` : `<p>${isNew ? 'Enregistre la série, puis ajoute des photos pour choisir sa couverture.' : 'Publie une photo de cette série pour la retrouver ici.'}</p>`}
     <button type="button" class="btn" id="cover-reset">Utiliser le choix automatique</button>
+    <div class="field full"><label>Parcours par émotion de la série</label><select name="series_emotion"><option value="">Automatique selon les tags</option>${[['ralentir','Ralentir'],['se-perdre','Se perdre'],['rencontres','Croiser des regards'],['vibrer','Vibrer']].map(([value,label])=>'<option value="'+value+'"'+((serie.emotions||[]).includes(value)?' selected':'')+'>'+label+'</option>').join('')}</select></div>
     <details><summary>Utiliser une autre adresse d’image</summary><label for="cover-url">URL de la photo de couverture</label><input id="cover-url" name="cover_url" value="${escAttr(serie.cover_url || '')}" placeholder="https://photos.mondomaine.fr/serie/web/photo.webp"></details>
     <p>La couverture sera enregistrée avec les autres modifications de la série.</p>
   </fieldset>
@@ -2135,6 +2161,7 @@ document.getElementById('slug-field').addEventListener('input',()=>document.getE
 function tagsPage(msg='') {
   const photos = readPhotos();
   const allSeries = readSeries();
+  const collections = readTagCollections();
 
   // photo data payload for JS (non-trash)
   const photoData = photos.filter(p=>p.status!=='trash').map(p=>({
@@ -2156,6 +2183,14 @@ function tagsPage(msg='') {
 
   return layout('Tags', `
 <h1>Gestion des tags</h1>
+<section id="tag-collections" style="max-width:960px;border:1px solid #243a65;border-radius:.8rem;padding:1rem;margin:1.5rem 0">
+<h2>Collections liées aux parcours</h2>
+<p style="color:#9fb2d4;font-size:.85rem">Ces mots-clés alimentent les suggestions dans les fiches photo et série, et le regroupement des parcours publics. Modifier une collection ne retague pas les photos existantes. Un parcours choisi manuellement reste prioritaire.</p>
+<form method="POST" action="/tags/collections/save">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem">
+${collections.map(collection => '<div class="field"><label for="collection-'+esc(collection.slug)+'">'+esc(collection.name)+'</label><textarea id="collection-'+esc(collection.slug)+'" name="tags_'+esc(collection.slug)+'" rows="3">'+esc(collection.tags.join(', '))+'</textarea><span class="hint">Mots-clés séparés par des virgules.</span></div>').join('')}
+</div><button type="submit" class="btn btn-primary" style="margin-top:1rem">Enregistrer les collections</button>
+</form></section>
 ${msgHtml}
 ${dupesHtml}
 <div style="display:flex;gap:.75rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap">
@@ -2511,7 +2546,7 @@ function renderGrid(){
 // ─── SETTINGS PAGE ────────────────────────────────────────────────────────────
 function settingsPage(settings, photos, allSeries, msg='') {
   // Photo du jour — build grouped select
-  const published = photos.filter(p => p.status !== 'trash');
+  const published = photos.filter(p => p.status === 'published');
   const seriesNames = {};
   allSeries.forEach(s => { seriesNames[s.slug] = s.name; });
   const grouped = {};
@@ -2536,7 +2571,7 @@ function settingsPage(settings, photos, allSeries, msg='') {
   const previewThumb = currentPhoto?.url_thumb || currentPhoto?.url_web || '';
   const previewHtml = previewThumb
     ? '<img id="featured-img" src="' + previewThumb + '" style="width:100%;max-height:200px;object-fit:cover;border-radius:.5rem;border:1px solid #243a65;display:block">'
-    : '<div id="featured-img" style="width:100%;height:120px;border-radius:.5rem;border:1px dashed #243a65;display:flex;align-items:center;justify-content:center;color:#6b7fa8;font-size:.8rem">Aucune sélection</div>';
+    : '<div id="featured-img" style="width:100%;height:120px;border-radius:.5rem;border:1px dashed #243a65;display:flex;align-items:center;justify-content:center;color:#6b7fa8;font-size:.8rem">Tirage automatique</div>';
 
   const msgHtml = msg ? '<div class="alert alert-success">✓ ' + msg + '</div>' : '';
   return layout('Réglages', `
@@ -2556,13 +2591,13 @@ ${msgHtml}
   <div class="field full"><label>Domaine images O2Switch <span class="hint">Sans slash final</span></label><input name="images_domain" value="${settings.images_domain||CFG.domain}" placeholder="https://photos.mondomaine.fr"></div>
 </div>
 
-<h2 style="margin-top:2rem;margin-bottom:1rem">📷 Photo du jour</h2>
+<h2 style="margin-top:2rem;margin-bottom:1rem">📷 Photo vedette</h2>
 <div style="display:grid;grid-template-columns:1fr 200px;gap:1rem;align-items:start;max-width:640px">
   <div style="display:flex;flex-direction:column;gap:.75rem">
     <div class="field">
       <label>Photo à mettre en avant <span class="hint">affichée en hero sur l'accueil</span></label>
       <select name="featured_photo_slug" id="featured-sel" onchange="updatePreview()" style="width:100%">
-        <option value="">— Dernière photo publiée (auto) —</option>
+        <option value="">— Tirage au hasard, stable pendant la visite —</option>
         ${optgroupsHtml}
       </select>
     </div>
@@ -2571,6 +2606,8 @@ ${msgHtml}
   <div id="featured-preview">${previewHtml}</div>
 </div>
 
+<div class="field full" style="margin-top:1rem"><label>Renouveler le tirage</label><button type="button" class="btn btn-sm" onclick="this.parentElement.querySelector('input').value=Date.now().toString(36)">Relancer la sélection au prochain enregistrement</button><p>Changer cette valeur renouvelle la sélection des visiteurs après publication. Une photo épinglée reste prioritaire.</p><input name="discovery_revision" value="${String(settings.discovery_revision||'0').replace(/[^a-zA-Z0-9_-]/g,'')}" placeholder="Exemple : 2"></div>
+<div class="field full"><label>Visite guidée — slugs des photos, dans l’ordre (12 maximum)</label><textarea name="tour_photos">${(settings.tour_photos||[]).join('\n')}</textarea><p>Laisser vide pour une sélection automatique répartie entre les séries.</p></div>
 <h2 style="margin-top:2rem;margin-bottom:1rem">Section Séries (page d'accueil)</h2>
 <div class="form-grid">
   <div class="field full"><label>Titre de la section</label><input name="series_title" value="${settings.series_title||'Séries'}" placeholder="Séries"></div>
@@ -2730,6 +2767,10 @@ a:hover{background:#748fff33}</style></head><body>
     savePhoto(file,{
       title:body.title, slug:body.slug, series:body.series,
       date:body.shoot_date||undefined,
+      anecdote:String(body.anecdote||'').slice(0,4000),
+      emotions:['ralentir','se-perdre','rencontres','vibrer'].includes(body.emotions)?[body.emotions]:[],
+      diptych_with:String(body.diptych_with||'').replace(/[^a-zA-Z0-9_-]/g,''),
+      spotlight:body.spotlight==='true',
       description:body.description||'', tags, status:normalizeStatus(body.status||'published'),
       rating:body.rating?parseFloat(body.rating):undefined,
       price:body.price?parseFloat(body.price):undefined,
@@ -3033,6 +3074,7 @@ a:hover{background:#748fff33}</style></head><body>
       status:body.status||'published',
       published:body.status!=='draft',
       tags:seriesTags,
+      emotions:['ralentir','se-perdre','rencontres','vibrer'].includes(body.series_emotion)?[body.series_emotion]:[],
       ...(seriesDate?{date:seriesDate}:{}),
       ...mapMeta,
       ...(Number.isFinite(mapLat) && Number.isFinite(mapLng)
@@ -3075,6 +3117,16 @@ a:hover{background:#748fff33}</style></head><body>
   // ── Tags page
   } else if (req.method==='GET' && p==='/tags') {
     html(tagsPage(url.searchParams.get('saved')||''));
+
+  // ── Shared discovery tag collections
+  } else if (req.method==='POST' && p==='/tags/collections/save') {
+    const body=await parseBody(req);
+    const collections=readTagCollections().map(collection => ({...collection,
+      tags:normalizeTags(parseTagsString(String(body['tags_'+collection.slug]||''))).slice(0,50).map(tag=>tag.slice(0,80))
+    }));
+    fs.writeFileSync(TAG_COLLECTIONS_FILE, JSON.stringify(collections,null,2)+'\n');
+    autoGitPush('tags: collections des parcours');
+    redirect('/tags?saved=Collections+enregistrées#tag-collections');
 
   // ── Save tags for a single photo (inline editor)
   } else if (req.method==='POST' && p==='/tags/photo-save') {
@@ -3189,6 +3241,8 @@ a:hover{background:#748fff33}</style></head><body>
       series_title: body.series_title||undefined,
       series_subtitle: body.series_subtitle||undefined,
       featured_photo_slug: body.featured_photo_slug||undefined,
+      discovery_revision: String(body.discovery_revision||'0').replace(/[^a-zA-Z0-9_-]/g,''),
+      tour_photos: [...new Set(String(body.tour_photos||'').split(/[\s,]+/).filter(Boolean))].slice(0,12),
     });
     autoGitPush('settings: mise à jour');
     redirect('/settings?saved=1');

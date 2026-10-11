@@ -1,0 +1,9 @@
+---
+const { text } = Astro.props;
+---
+{text && <details class="anecdote"><summary>Derrière cette photo</summary><p>{text}</p></details>}
+<style>
+.anecdote { margin-top: .9rem; max-width: 65ch; font-size: .9rem; }
+summary { color: var(--accent); cursor: pointer; padding: .5rem 0; min-height: 44px; }
+p { white-space: pre-line; margin: .3rem 0 1rem; }
+</style>

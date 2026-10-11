@@ -1,0 +1,47 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Lightbox from '../components/Lightbox.astro';
+import Anecdote from '../components/Anecdote.astro';
+import ReadingProgress from '../components/ReadingProgress.astro';
+import { guidedSelection } from '../lib/discovery.js';
+const settings = (await getCollection('settings'))[0]?.data;
+const published = await getCollection('photos', ({data}) => data.status === 'published');
+const isCurated = (settings?.tour_photos || []).some(slug => published.some(photo => photo.data.slug === slug));
+const photos = guidedSelection(published, settings?.tour_photos);
+const series = await getCollection('series', ({data}) => data.published && data.status === 'published');
+---
+<Base title="Une première visite | Stan Bouchet" description="Un court parcours à travers la galerie photographique de Stan Bouchet.">
+  <header class="tour-intro"><a href="/">← La galerie</a><p>Deux minutes pour commencer</p><h1>Une première visite<br /><em>en {photos.length} images.</em></h1><p>Quelques étapes à travers la galerie. Chaque image s’ouvre en plein écran.</p>
+    <p class="selection-note">{isCurated ? 'Les images et leur ordre ont été choisis par Stan pour cette visite.' : 'Une sélection automatique pour découvrir plusieurs séries et les Instants, dans un ordre fixe.'}</p>
+    {!isCurated && <details class="selection-details"><summary>Comment sont choisies ces images ?</summary><p>Le parcours prend une photo par série, ainsi qu’une parmi les photos sans série. S’il reste des places, il prend une deuxième photo dans chaque groupe, jusqu’à douze images.</p><p>Les groupes et les photos suivent l’ordre alphabétique de leurs identifiants. Si la galerie compte plus de douze groupes, seuls les douze premiers sont présentés. Ce parcours est un aperçu de la galerie, sans classement des photos par popularité ou qualité.</p></details>}{photos.length > 0 && <a href="#etape-1">Commencer la visite ↓</a>}</header>
+  {photos.map((photo, index) => <section class="tour-step" id={`etape-${index + 1}`} aria-label={`Étape ${index + 1} sur ${photos.length}`}>
+    <div class="tour-count">{String(index + 1).padStart(2,'0')} / {String(photos.length).padStart(2,'0')}</div>
+    <button type="button" data-lightbox-index={index} aria-label={`Ouvrir ${photo.data.title} en plein écran`}><img src={photo.data.url_web || photo.data.url} alt={photo.data.title} loading="lazy" decoding="async" /></button>
+    <div class="tour-caption"><h2>{photo.data.title}</h2>{photo.data.description && <p>{photo.data.description}</p>}<Anecdote text={photo.data.anecdote} />
+      {series.some(item => item.data.slug === photo.data.series) && <a href={`/series/${photo.data.series}/`}>Explorer cette série →</a>}
+      {index < photos.length - 1 && <a class="next-step" href={`#etape-${index + 2}`}>Image suivante ↓</a>}
+    </div>
+  </section>)}
+  <footer class="tour-end"><p>La visite continue, à votre rythme.</p><h2>Quel chemin prendre maintenant ?</h2><a href="/series/">Découvrir toutes les séries →</a></footer>
+  <ReadingProgress selector=".tour-step" total={photos.length} />
+  <Lightbox photos={photos.map(photo => ({id: photo.id, ...photo.data}))} />
+</Base>
+<style>
+.tour-intro { max-width: 700px; margin: 3rem auto 5rem; text-align: center; }
+a { color: var(--accent); display: inline-block; padding: .7rem 0; }
+.tour-step { margin: 0 auto 6rem; scroll-margin-top: 6rem; max-width: 1000px; }
+.tour-count { font-family: var(--font-mono); font-size: .75rem; color: var(--muted); margin-bottom: 1rem; }
+button { width: 100%; border: 0; padding: 0; background: none; cursor: zoom-in; }
+img { width: 100%; max-height: 78svh; object-fit: contain; display: block; }
+.tour-caption { max-width: 650px; margin: 1.5rem auto; }
+.next-step { float: right; }
+.tour-end { text-align: center; padding: 3rem 0 5rem; border-top: 1px solid var(--line); }
+@media(max-width:600px) { .tour-intro { margin-top: 1rem; } .tour-step { margin-bottom: 4rem; } .next-step { float: none; display: block; } }
+</style>
+
+<style>
+.selection-note { font-size: .9rem; }
+.selection-details { text-align: left; max-width: 60ch; margin: 1rem auto; font-size: .9rem; }
+.selection-details summary { cursor: pointer; padding: .75rem 0; color: var(--accent); }
+</style>

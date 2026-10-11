@@ -1,0 +1,31 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Gallery from '../../components/Gallery.astro';
+import { emotions, matchesEmotion } from '../../lib/discovery.js';
+export async function getStaticPaths() {
+  return emotions.map(emotion => ({ params: { emotion: emotion.slug }, props: { emotion } }));
+}
+const { emotion } = Astro.props;
+const series = await getCollection('series', ({data}) => data.published && data.status === 'published');
+const photos = (await getCollection('photos', ({data}) => data.status === 'published')).filter(photo => matchesEmotion(photo, emotion, series));
+const includedSeries = series.filter(entry => photos.some(photo => photo.data.series === entry.data.slug));
+const items = photos.map(photo => ({id: photo.id, ...photo.data}));
+---
+<Base title={`${emotion.name} | Stan Bouchet`} description={emotion.description}>
+  <header class="emotion-heading"><a href="/">← La galerie</a><p>Une invitation à regarder</p><h1>{emotion.name}</h1><p>{emotion.description}</p>
+    <p class="grouping-note">Les photos sont réunies ici selon l’ambiance attribuée à leur série ou à l’image, ou selon leurs mots-clés. Une même photo peut apparaître dans plusieurs parcours.</p>
+    {includedSeries.length > 0 && <div class="source-series"><span>Séries présentes dans ce parcours :</span> {includedSeries.map((entry, index) => <><a href={`/series/${entry.data.slug}/`}>{entry.data.name}</a>{index < includedSeries.length - 1 ? ' · ' : ''}</>)}</div>}
+  </header>
+  <nav aria-label="Autres émotions">{emotions.map(item => <a href={`/explorer/${item.slug}/`} aria-current={item.slug === emotion.slug ? 'page' : undefined}>{item.name}</a>)}</nav>
+  {items.length ? <Gallery items={items} /> : <p>Ce parcours se prépare. <a href="/visite/">Découvrir la visite guidée →</a></p>}
+</Base>
+<style>
+.emotion-heading { margin: 2rem 0 3rem; max-width: 650px; }
+.emotion-heading>a { color: var(--accent); font-size: .85rem; }
+nav { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 2rem; }
+nav a { padding: .75rem 1rem; border: 1px solid var(--line); }
+nav a[aria-current] { border-color: var(--accent); color: var(--accent); }
+</style>
+
+<style>.grouping-note, .source-series { font-size: .85rem; line-height: 1.7; }.source-series a { text-decoration: underline; text-underline-offset: 3px; }.source-series span { color: var(--muted); }</style>

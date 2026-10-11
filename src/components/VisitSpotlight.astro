@@ -1,0 +1,30 @@
+---
+const { photos, pinned = '', revision = '0' } = Astro.props;
+const candidates = photos.map(photo => ({ slug: photo.data.slug, title: photo.data.title, url: photo.data.url_web || photo.data.url }));
+const initial = candidates.find(photo => photo.slug === pinned) || candidates[0];
+---
+{initial && <a class="visit-spotlight" href={`/photo/${initial.slug}/`} data-visit-spotlight data-pinned={pinned} data-revision={revision}>
+  <img src={initial.url} alt={initial.title} loading="eager" fetchpriority="high" decoding="async" />
+  <span class="spotlight-caption"><small>{candidates.some(photo => photo.slug === pinned) ? 'À la une · choisie par Stan' : 'À la une · au hasard pour votre visite'}</small><strong>{initial.title}</strong></span>
+  <script type="application/json" data-spotlight-candidates set:html={JSON.stringify(candidates).replace(/</g, '\\u003c')} />
+</a>}
+<script>
+  import { visitChoice } from '../lib/visit-choice.js';
+  document.querySelectorAll<HTMLElement>('[data-visit-spotlight]').forEach(root => {
+    const candidates = JSON.parse(root.querySelector('[data-spotlight-candidates]')?.textContent || '[]');
+    const chosen = candidates.find(photo => photo.slug === root.dataset.pinned) || visitChoice(candidates, `home:${root.dataset.revision}`);
+    if (!chosen) return;
+    root.setAttribute('href', `/photo/${chosen.slug}/`);
+    const img = root.querySelector('img');
+    if (img) { img.src = chosen.url; img.alt = chosen.title; }
+    const title = root.querySelector('strong');
+    if (title) title.textContent = chosen.title;
+  });
+</script>
+<style>
+.visit-spotlight { position: relative; display: block; min-width: 0; background: var(--surface); }
+img { width: 100%; height: 100%; max-height: 80svh; object-fit: contain; display: block; }
+.spotlight-caption { display: grid; gap: .4rem; position: absolute; inset: auto 0 0; padding: 2rem 1rem 1rem; background: linear-gradient(transparent,rgba(20,19,17,.85)); color: #f1ede5; }
+small { text-transform: uppercase; font-size: .65rem; letter-spacing: .15em; }
+strong { font-weight: 400; }
+</style>
