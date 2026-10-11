@@ -577,8 +577,13 @@ const { photos } = Astro.props;
     navigate(dx < 0 ? 1 : -1);
   }, { passive: true });
 
+  // Refit the photo after rotating the device or resizing the viewport.
+  window.addEventListener('resize', () => {
+    if (!root.hidden) setZoom(1);
+  });
+
   // ── Wheel zoom ────────────────────────────────────────────────────────────
-  root.addEventListener('wheel', (e) => {
+  wrap.addEventListener('wheel', (e) => {
     if (root.hidden) return;
     e.preventDefault();
     setZoom(zoom + (e.deltaY < 0 ? 0.15 : -0.15));
@@ -587,38 +592,72 @@ const { photos } = Astro.props;
 </script>
 
 <style>
-  .caption-toggle { display: none; }
-  .lb-btn, .lb-star { min-width: 44px; min-height: 44px; justify-content: center; touch-action: manipulation; }
+  .lightbox {
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    grid-template-rows: 44px minmax(0, 1fr) 28px;
+    gap: 12px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
   .lb-backdrop { background: rgba(20, 19, 17, .98); }
-  .lb-caption { color: #ded8cc; }
-  .lb-btn:focus-visible, .lb-nav:focus-visible, .lb-star:focus-visible { outline-color: var(--accent); }
+  .lb-toolbar { position: relative; inset: auto; grid-column: 1 / -1; grid-row: 1; justify-self: end; }
+  .lb-btn, .lb-star { box-sizing: border-box; min-width: 44px; min-height: 44px; justify-content: center; touch-action: manipulation; }
+  .lb-zoom-controls { display: flex; }
+  .lb-figure {
+    grid-column: 2;
+    grid-row: 2;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    justify-items: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .lb-img-wrap { width: 100%; height: 100%; min-height: 0; min-width: 0; touch-action: none; }
+  .lb-image { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 2px; }
+  .lb-prev { grid-column: 1; grid-row: 2; }
+  .lb-next { grid-column: 3; grid-row: 2; }
+  .lb-counter { position: relative; inset: auto; transform: none; grid-column: 1 / -1; grid-row: 3; justify-self: center; color: #ded8cc; }
+  .caption-toggle { display: inline-flex; background: transparent; border-color: transparent; text-decoration: underline; text-underline-offset: 4px; }
+  .lb-caption { display: none; color: #ded8cc; max-height: min(18dvh, 120px); overflow-y: auto; overscroll-behavior: contain; padding: 0 8px; }
+  .caption-expanded .lb-caption { display: block; }
+  .lb-stars-wrap { margin: 0; gap: 0; }
+  .lb-stars { padding: 0 4px; background: none; border: 0; }
+  .lb-star { color: rgba(255,255,255,.5); font-size: 23px; }
+  .lb-star-label:empty { display: none; }
   .lb-stars[data-glow] { box-shadow: none; border-color: rgba(255,255,255,.15); }
   .lb-star.hovered { transform: none; }
-  @media (max-width: 760px) {
-    .lightbox { display: flex; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 68px) 12px calc(env(safe-area-inset-bottom, 0px) + 72px); height: 100dvh; gap: 0; }
-    .lb-toolbar { top: calc(env(safe-area-inset-top, 0px) + 8px); left: 12px; right: 12px; justify-content: space-between; gap: 4px; }
-    .lb-zoom-controls { display: flex; gap: 2px; }
-    .lb-btn { padding: .45rem .6rem; font-family: var(--font-sans); font-size: .8rem; }
-    .close { padding: .45rem .65rem; }
-    .lb-figure { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; gap: .65rem; }
-    .lb-img-wrap { width: 100%; flex-shrink: 0; }
-    .lb-image { max-width: 100%; max-height: max(100px, calc(100dvh - 290px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); border-radius: 2px; }
-    .lb-nav { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); width: 48px; height: 48px; }
-    .lb-prev { left: 24px; } .lb-next { right: 24px; }
-    .lb-counter { bottom: calc(env(safe-area-inset-bottom, 0px) + 29px); color: #ded8cc; }
-    .caption-toggle { display: inline-flex; flex-shrink: 0; background: transparent; border-color: transparent; text-decoration: underline; text-underline-offset: 4px; }
-    .lb-caption { display: none; font-size: 1rem; padding: 0 .5rem; }
-    .caption-expanded .lb-caption { display: block; }
-    .lb-stars-wrap { flex-shrink: 0; margin: 0; gap: 0; }
-    .lb-stars { padding: 0 .25rem; background: none; border: 0; }
-    .lb-star { font-size: 23px; }
+  .lb-btn:focus-visible, .lb-nav:focus-visible, .lb-star:focus-visible { outline-color: var(--accent); }
+
+  @media (max-width: 760px), (max-height: 540px) {
+    .lightbox { grid-template-columns: 48px minmax(0, 1fr) 48px; grid-template-rows: 44px minmax(0, 1fr) 48px; gap: 8px; padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+    .lb-toolbar { width: 100%; justify-content: space-between; gap: 4px; }
+    .lb-zoom-controls { gap: 2px; }
+    .lb-btn { padding: 6px 8px; font-family: var(--font-sans); font-size: .8rem; }
+    .lb-figure { grid-column: 1 / -1; gap: 4px; }
+    .lb-nav { position: relative; inset: auto; grid-row: 3; width: 48px; height: 48px; }
+    .lb-counter { grid-column: 2; }
+    .lb-caption { font-size: .95rem; }
+    .close { padding: 6px 8px; }
+    .close-label { display: none; }
   }
-</style>
 
-<style>
-  @media (max-width: 380px) { .close-label { display: none; } .lb-toolbar .close { padding: .45rem; } }
-</style>
-
-<style>
-  .lb-star { color: rgba(255,255,255,.5); }
+  @media (orientation: landscape) and (max-height: 540px) {
+    .lightbox { grid-template-columns: 48px minmax(0, 1fr) 48px; grid-template-rows: 44px minmax(0, 1fr) 44px; gap: 4px; }
+    .lb-figure { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; column-gap: 12px; }
+    .lb-img-wrap { grid-column: 1; grid-row: 1 / -1; }
+    .caption-toggle { grid-column: 2; grid-row: 1; align-self: end; }
+    .lb-stars-wrap { grid-column: 2; grid-row: 2; }
+    .lb-stars { gap: 0; }
+    .caption-expanded .lb-caption { grid-column: 1; grid-row: 2; z-index: 4; align-self: end; background: rgba(20, 19, 17, .94); max-width: 100%; max-height: 30dvh; padding: 8px; }
+    .lb-nav { height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lightbox, .lb-image { animation: none; }
+  }
 </style>

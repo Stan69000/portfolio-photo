@@ -44,3 +44,10 @@ pour le site public, puis mettre à jour et redémarrer le service d’administr
 avec cette version de `admin-server.js`. Le déploiement statique du site ne
 redémarre pas le service d’administration. Vérifier ensuite un import JPEG depuis
 un iPhone connecté, avec un lieu approximatif, et la confirmation de mise en ligne.
+
+## Stockage kDrive
+
+L’administration propose un stockage kDrive optionnel pour les originaux et les
+versions du site, avec classement par série et date. Voir [la configuration et la
+migration kDrive](docs/kdrive.md). La connexion et le relais web doivent être
+configurés avant le basculement des images existantes.

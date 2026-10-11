@@ -27,6 +27,7 @@ type Marker = {
 const publishedPhotos = await getCollection('photos', ({ data }) => data.status === 'published');
 const publishedSeries = await getCollection('series', ({ data }) => data.published);
 const seriesNameBySlug = new Map(publishedSeries.map((s) => [s.data.slug, s.data.name]));
+const seriesNames = Object.fromEntries(seriesNameBySlug);
 const seriesPhotosMap = new Map<string, typeof publishedPhotos>();
 for (const photo of publishedPhotos) {
   const slug = photo.data.series || '';
@@ -127,8 +128,8 @@ for (const photo of publishedPhotos) {
     kind: 'photo',
     slug: photo.data.slug,
     title: photo.data.title,
-    href: `/photo/${photo.data.slug}/`,
-    seriesSlug: photo.data.series,
+    href: seriesNameBySlug.has(photo.data.series) ? `/series/${photo.data.series}/` : `/photo/${photo.data.slug}/`,
+    seriesSlug: seriesNameBySlug.has(photo.data.series) ? photo.data.series : '',
     seriesName: seriesNameBySlug.get(photo.data.series) ?? photo.data.series.replace(/-/g, ' '),
     date: photo.data.date ? photo.data.date.toISOString().slice(0, 10) : '',
     thumb: photo.data.url_thumb || photo.data.url_web || photo.data.url
@@ -188,7 +189,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   </section>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
-  <script define:vars={{ markers }}>
+  <script define:vars={{ markers, seriesNames }}>
     (function () {
       const mapEl = document.getElementById('photo-map');
       if (!mapEl) return;
@@ -274,6 +275,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
             })
             .join('');
 
+          const seriesLinks = point.seriesSlugs.map(slug => '<a class="popup-series-link" href="/series/' + encodeURIComponent(slug) + '/">Découvrir ' + esc(seriesNames[slug] || slug) + ' →</a>').join('');
           const note = point.visibility === 'approx'
             ? '<p class="popup-note">Position volontairement approximative.</p>'
             : '';
@@ -282,7 +284,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
             '<div class="popup-wrap">' +
               '<h3>' + esc(point.label) + '</h3>' +
               '<p class="popup-count">' + point.count + ' photo' + (point.count > 1 ? 's' : '') + '</p>' +
-              note +
+              note + seriesLinks +
               '<div class="popup-list">' + preview + '</div>' +
             '</div>'
           );
@@ -294,8 +296,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
           const sourceFillOpacity = point.sourceType === 'series' ? 0.98 : 0.82;
           const sourceStroke = point.sourceType === 'series' ? '#ffffff' : '#6de2cb';
           const actionUrl = point.seriesSlugs.length === 1
-            ? '/recherche?series=' + encodeURIComponent(point.seriesSlugs[0])
-            : '/recherche?q=' + encodeURIComponent(point.label);
+            ? '/series/' + encodeURIComponent(point.seriesSlugs[0]) + '/'
+            : point.seriesSlugs.length === 0 && point.entries.length === 1 ? point.entries[0].href : null;
           const marker = L.circleMarker([point.lat, point.lng], {
             radius: point.sourceType === 'series' ? 9 : 7,
             color: sourceStroke,
@@ -306,15 +308,26 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
           if (point.sourceType === 'photo') {
             marker.setStyle({ dashArray: '2 2' });
           }
-          marker.bindPopup(buildPopup(point), { maxWidth: 440, minWidth: 290, closeButton: true });
+          if (actionUrl) marker.on('click', () => window.location.assign(actionUrl));
+          else marker.bindPopup(buildPopup(point), { maxWidth: 440, minWidth: 290, closeButton: true });
           marker.bindTooltip(
-            '<a class="map-hover-link" href="' + actionUrl + '">' +
+            '<div class="map-hover-link">' +
               '<strong>' + esc(point.label) + '</strong>' +
               '<em>' + (point.sourceType === 'series' ? 'Localisation série' : 'Localisation photo') + '</em>' +
-              '<span>Voir ' + point.count + ' photo' + (point.count > 1 ? 's' : '') + '</span>' +
-            '</a>',
+              '<span>' + (point.seriesSlugs.length === 1 ? 'Découvrir la série →' : actionUrl ? 'Voir la photo →' : 'Choisir une série ou une photo →') + '</span>' +
+            '</div>',
             { direction: 'top', offset: [0, -12], opacity: 0.95, sticky: true }
           );
+          marker.on('add', () => {
+            const element = marker.getElement();
+            if (!element) return;
+            element.setAttribute('tabindex', '0');
+            element.setAttribute('role', actionUrl ? 'link' : 'button');
+            element.setAttribute('aria-label', point.label + (point.seriesSlugs.length === 1 ? ' — Découvrir la série' : ' — Voir les photos'));
+            element.addEventListener('keydown', event => {
+              if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); marker.fire('click'); }
+            });
+          });
           markerLayer.addLayer(marker);
           markerRefs.push({ point, marker });
         });
@@ -358,7 +371,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
         const params = new URLSearchParams(window.location.search);
         const focusLat = Number(params.get('lat'));
         const focusLng = Number(params.get('lng'));
-        if (Number.isFinite(focusLat) && Number.isFinite(focusLng)) {
+        if (params.has('lat') && params.has('lng') && Number.isFinite(focusLat) && Number.isFinite(focusLng)) {
           const focusZoom = 6;
           map.setView([focusLat, focusLng], focusZoom, { animate: false });
           let best = null;
@@ -686,4 +699,9 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
       gap: .75rem;
     }
   }
+</style>
+
+<style>
+  :global(.popup-series-link) { display: block; padding: .6rem .2rem; margin-bottom: .35rem; font-weight: 600; color: #152a50; }
+  :global(.popup-series-link:focus-visible), :global(.leaflet-interactive:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

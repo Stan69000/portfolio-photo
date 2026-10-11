@@ -6,6 +6,21 @@ const photos = defineCollection({
   schema: z.object({
     kind: z.enum(['photo', 'instant']).default('photo'),
     published_at: z.coerce.date().optional(),
+    kdrive: z.object({
+      drive_id: z.string().regex(/^\d+$/),
+      directory_id: z.string().regex(/^\d+$/),
+      files: z.object({
+        thumb: z.string().regex(/^\d+$/),
+        web: z.string().regex(/^\d+$/),
+        zoom: z.string().regex(/^\d+$/),
+        original: z.string().regex(/^\d+$/).optional(),
+      }),
+    }).optional(),
+    signature: z.object({
+      text: z.literal('© Stan Bouchet'),
+      color: z.string().regex(/^#[0-9a-f]{6}$/i),
+      font: z.enum(['sans', 'serif', 'script']),
+    }).optional(),
     title: z.string(),
     slug: z.string(),
     // Une série supprimée laisse ses photos sans rattachement.
@@ -78,6 +93,8 @@ const settings = defineCollection({
     watermark_name: z.string(),
     hero_title: z.string().optional(),
     about_text: z.string(),
+    about_lead: z.string().optional(),
+    about_signature: z.string().optional(),
     images_domain: z.string().optional(),
     series_title: z.string().optional(),
     series_subtitle: z.string().optional(),

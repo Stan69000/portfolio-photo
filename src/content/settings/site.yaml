@@ -1,7 +1,12 @@
 site_title: Stan Bouchet Photographie
 watermark_name: Stan BOUCHET
-hero_title: Bonjour et bienvenue sur ma galerie photos
-about_text: "Je suis photographe amateur et je partage ici mes images, sans prétention, avec l’envie de vous faire découvrir mon univers.\r\n\r\nLe site est tout neuf et les albums arriveront au fur et à mesure.\r\n\r\nBonne visite !\r\n\r\nStan"
+hero_title: Ce qui attire mon regard.
+about_lead: Une lumière, une rencontre, un détail qu’on aurait pu manquer.
+about_text: |
+  Je suis Stan, photographe amateur. Des rues de Lyon aux chemins de voyage, des scènes de concert aux instants du quotidien, je photographie ce qui me touche.
+
+  Cette galerie rassemble ces fragments, au fil de mes découvertes. Prenez le temps de vous y promener.
+about_signature: Stan Bouchet
 images_domain: http://stan-bouchet.eu
 series_title: Séries
 series_subtitle: J'espère que vous prendrez autant de plaisir à les voir que moi à les faire.

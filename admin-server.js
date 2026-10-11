@@ -19,6 +19,10 @@ try {
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import Busboy from 'busboy';
+import { KdriveStorage, kdriveConfig, kdriveFolderName, kdriveUrls } from './scripts/kdrive-storage.js';
+import { instantPhotoTitle } from './scripts/instant-naming.js';
+import { normalizeSignature, renderPhotoVersion, SIGNATURE_FONTS } from './scripts/photo-signature.js';
+import { seriesPhotoTitle, nextSeriesPhotoNumber } from './scripts/photo-naming.js';
 
 const require = createRequire(import.meta.url);
 const yaml  = require('js-yaml');
@@ -439,7 +443,12 @@ function saveViews(v) {
 
 function savePhoto(file, updates) {
   const fp = path.join(CFG.photosDir, file);
-  const data = { ...readYaml(fp), ...updates };
+  const previous = readYaml(fp);
+  const data = { ...previous, ...updates };
+  if (data.series && data.series !== previous.series) {
+    const series = readSeries().find(series => series.slug === data.series);
+    if (series) data.title = seriesPhotoTitle(series.name, nextSeriesPhotoNumber(readPhotos(), series));
+  }
   if ('status' in data) data.status = normalizeStatus(data.status);
   if ('tags' in data) data.tags = normalizeTags(data.tags);
   if ('location' in data) {
@@ -524,9 +533,11 @@ function parseUpload(req) {
     const bb = Busboy({ headers: req.headers, limits: { fileSize: 300*1024*1024, files: 100, parts: 200 } });
     const fields = {}, files = [];
     const pending = [];
+    let uploadIndex = 0;
     fs.mkdirSync(CFG.tmpDir, { recursive: true });
     bb.on('field', (k,v) => { fields[k]=v; });
     bb.on('file', (name, stream, info) => {
+      const fileIndex = uploadIndex++;
       if (!ALLOWED_UPLOAD_MIME.has(info.mimeType)) {
         stream.resume();
         return;
@@ -537,7 +548,7 @@ function parseUpload(req) {
       const ws = fs.createWriteStream(tmp);
       stream.pipe(ws);
       const done = new Promise((res, rej) => {
-        ws.on('finish', () => { files.push({ path: tmp, filename: decodedName, mime: info.mimeType }); if (stream.truncated) rej(new Error('Photo trop volumineuse (maximum 300 Mo).')); else res(); });
+        ws.on('finish', () => { files.push({ path: tmp, filename: decodedName, mime: info.mimeType, uploadIndex: fileIndex }); if (stream.truncated) rej(new Error('Photo trop volumineuse (maximum 300 Mo).')); else res(); });
         ws.on('error', rej);
       });
       pending.push(done);
@@ -545,7 +556,7 @@ function parseUpload(req) {
     bb.on('close', () => Promise.allSettled(pending).then(results => {
       const failure = results.find(result => result.status === 'rejected');
       if (failure) { for (const file of files) { try { fs.unlinkSync(file.path); } catch {} } reject(failure.reason); }
-      else resolve({ fields, files });
+      else resolve({ fields, files: files.sort((a, b) => a.uploadIndex - b.uploadIndex) });
     }));
     bb.on('error', reject);
     req.pipe(bb);
@@ -553,13 +564,14 @@ function parseUpload(req) {
 }
 
 // ─── SHARP + EXIF ─────────────────────────────────────────────────────────────
-async function processImage(src, seriesSlug, photoSlug) {
+async function processImage(src, seriesSlug, photoSlug, signature = null) {
   const outDir = path.join(CFG.processDir, seriesSlug, photoSlug);
   fs.mkdirSync(outDir, { recursive: true });
   const versions = {};
   for (const [name, cfg] of Object.entries(CFG.sharp)) {
     const out = path.join(outDir, `${name}.webp`);
-    await sharp(src).rotate().resize({ width: cfg.width, withoutEnlargement: true }).webp({ quality: cfg.quality }).toFile(out);
+    const image = await renderPhotoVersion(src, cfg, name === 'thumb' ? null : signature);
+    fs.writeFileSync(out, image);
     versions[name] = out;
   }
   return versions;
@@ -605,6 +617,56 @@ function limitBar(current, recommended, max, label) {
     <div style="background:${color};width:${pct}%;height:100%;border-radius:999px"></div>
   </div>
 </div>`;
+}
+
+function storagePage(message='') {
+  let ready=false;try{kdriveConfig();ready=true;}catch{}
+  const driveId=/^\d+$/.test(process.env.KDRIVE_ID||'')?process.env.KDRIVE_ID:'620855';
+  const rootId=/^\d+$/.test(process.env.KDRIVE_ROOT_ID||'')?process.env.KDRIVE_ROOT_ID:'426358';
+  return layout('Stockage', `<h1>Stockage kDrive</h1>
+    <p>Destination : Photographies - Galerie Photo. La connexion reste privée.</p>
+    <p role="status">${message|| (ready?'Connexion configurée.':'Connexion à configurer.')}</p>
+    <form method="POST" action="/storage" style="max-width:640px;display:grid;gap:1rem">
+      <label>Identifiant kDrive <input name="drive_id" value="${driveId}" inputmode="numeric" required></label>
+      <label>Identifiant du dossier principal <input name="root_id" value="${rootId}" inputmode="numeric" required></label>
+      <label>Clé API Infomaniak <input type="password" name="token" autocomplete="new-password" placeholder="${ready?'Laisser vide pour conserver la clé actuelle':'Coller la clé API avec le droit drive'}"${ready?'':' required'} style="display:block;width:100%"></label>
+      <p>La clé est enregistrée uniquement dans le fichier privé de l’administration. Elle n’apparaît jamais dans le site ou dans Git.</p>
+      <label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" name="default_kdrive" value="true"${process.env.PHOTO_STORAGE==='kdrive'?' checked':''}> Utiliser kDrive par défaut pour les prochains imports</label>
+      <p>Avant de publier des photos depuis kDrive, configurer aussi le relais d’images sur l’hébergement web. Les photos déjà présentes restent accessibles à leur adresse actuelle jusqu’à leur migration.</p>
+      <button class="btn btn-primary" type="submit">Tester et enregistrer la connexion</button>
+    </form>`, 'storage');
+}
+
+function storageControls() {
+  let ready=false;
+  try { kdriveConfig(); ready=true; } catch {}
+  const selected=process.env.PHOTO_STORAGE==='kdrive'?'kdrive':'sftp';
+  return `<fieldset style="margin-bottom:1.5rem;padding:1rem;border:1px solid #243a65;border-radius:.6rem">
+    <legend>Stockage des photos</legend>
+    <label>Destination <select id="photo-storage" name="storage"><option value="sftp"${selected==='sftp'?' selected':''}>O2Switch</option><option value="kdrive"${selected==='kdrive'?' selected':''}${ready?'':' disabled'}>kDrive${ready?'':' — à configurer'}</option></select></label>
+    <p>kDrive : les originaux et les versions du site sont conservés dans « Photographies - Galerie Photo ».</p>
+    <label style="display:flex;gap:.5rem;align-items:center"><input id="kdrive-folder" name="kdrive_folder" type="checkbox" value="true" checked> Créer ou réutiliser un dossier au nom de la série et de sa date</label>
+    <label style="display:block;margin-top:.7rem">Date du dossier (facultative) <input id="kdrive-folder-date" name="kdrive_folder_date" type="date"></label>
+    <p style="font-size:.8rem;color:#9fb2d4">Ex. Zoo de Beauval — 2026-10-10. Sans date choisie : date de la série, puis date de la photo. Option décochée : fichiers directement dans le dossier principal.</p>
+    ${ready?'':'<p style="font-size:.8rem;color:#ffb347">Connexion kDrive à configurer dans <a href="/storage">Stockage</a>.</p>'}
+  </fieldset>`;
+}
+
+function selectedStorage(fields) {
+  const destination=fields.storage||process.env.PHOTO_STORAGE||'sftp';
+  if(!['sftp','kdrive'].includes(destination))throw new Error('Destination de stockage inconnue.');
+  return destination;
+}
+
+async function storePhoto({fields,versions,original,slug,seriesSlug,seriesName,date}) {
+  if(selectedStorage(fields)==='kdrive') {
+    const client=new KdriveStorage(kdriveConfig());
+    const folderName=fields.kdrive_folder==='true'?kdriveFolderName(seriesName,fields.kdrive_folder_date||date):null;
+    const kdrive=await client.save({versions,original,slug,folderName});
+    return {ok:true,urls:kdriveUrls(PUBLIC_SITE_ORIGIN,slug),kdrive};
+  }
+  const result=await uploadViaSFTP(versions,seriesSlug,slug);
+  return {...result,urls:buildUrls(seriesSlug,slug)};
 }
 
 // ─── FTP ──────────────────────────────────────────────────────────────────────
@@ -849,6 +911,7 @@ function tagInputWidget(inputName, currentTags, allTags, id='ti') {
 
 // ─── LAYOUT ───────────────────────────────────────────────────────────────────
 function layout(title, content, active = '') {
+  content = content.replaceAll(new URL('/media-kdrive.php', PUBLIC_SITE_ORIGIN).toString(), '/kdrive-preview');
   const nav = [
     ['https://stan-bouchet.eu/', 'home', '🏠 Accueil', true],
     ['/', 'adminhome', '⬅ Admin', false],
@@ -860,6 +923,7 @@ function layout(title, content, active = '') {
     ['/stats', 'stats', '📊 Stats', false],
     ['/about', 'about', '👤 À propos', false],
     ['/settings', 'settings', '⚙️ Réglages', false],
+    ['/storage', 'storage', '☁️ Stockage', false],
   ];
   const navLinks = nav.map(([href,id,label,ext]) => '<a href="' + href + '"' + (ext?' target="_blank"':'') + ' class="' + (active===id?'active':'') + '">' + label + '</a>').join('');
   const deployBtn = `<button class="deploy-btn" id="deploy-btn" onclick="triggerDeploy()" title="Publier les modifications sur le site">🚀 Déployer <span class="deploy-badge" id="deploy-badge" style="display:none">0</span></button>`;
@@ -1478,6 +1542,45 @@ ${thumbHtml}
 </script>`, 'photos');
 }
 
+function signatureControls() {
+  return `<fieldset style="margin:0 0 1.5rem;padding:1rem;border:1px solid #243a65;border-radius:.6rem">
+  <style>#signature-options[hidden],#signature-custom[hidden]{display:none!important}</style>
+  <legend>Signature</legend>
+  <label style="display:flex;align-items:center;gap:.5rem"><input type="checkbox" id="signature-enabled" name="signature" value="true"> Ajouter © Stan Bouchet en bas à droite</label>
+  <div id="signature-options" hidden style="margin-top:1rem">
+    <div class="form-grid">
+      <div class="field"><label for="signature-font">Police</label><select id="signature-font" name="signature_font"><option value="sans">Sobre — Arial</option><option value="serif">Classique — Georgia</option><option value="script">Manuscrite — Snell Roundhand</option></select></div>
+      <div class="field"><label for="signature-preset">Couleur</label><select id="signature-preset"><option value="#ffffff">Blanc</option><option value="#000000">Noir</option><option value="custom">Personnalisée</option></select></div>
+      <div class="field" id="signature-custom" hidden><label for="signature-color">Couleur personnalisée</label><input id="signature-color" name="signature_color" type="color" value="#ffffff" style="height:44px;width:100%"></div>
+    </div>
+    <p style="font-size:.8rem;color:#9fb2d4">Aperçu du style sur fond clair et sombre</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-radius:6px;overflow:hidden" aria-label="Aperçu de la signature">
+      <div style="background:#ddd6c8;padding:24px 12px;text-align:right"><span class="signature-sample">© Stan Bouchet</span></div>
+      <div style="background:#24282e;padding:24px 12px;text-align:right"><span class="signature-sample">© Stan Bouchet</span></div>
+    </div>
+  </div>
+  <p style="font-size:.8rem;color:#9fb2d4;margin-bottom:0">Appliquée aux photos de cet import, sur les versions du site et du plein écran. Taille et marges adaptées au format. Miniatures sans signature. Les fichiers de ton ordinateur restent intacts.</p>
+</fieldset>
+<script>
+(function(){
+  const enabled=document.getElementById('signature-enabled'),options=document.getElementById('signature-options');
+  const font=document.getElementById('signature-font'),preset=document.getElementById('signature-preset'),color=document.getElementById('signature-color');
+  const fonts=${JSON.stringify(SIGNATURE_FONTS)};
+  function refresh(){
+    options.hidden=!enabled.checked;
+    document.getElementById('signature-custom').hidden=preset.value!=='custom';
+    if(preset.value!=='custom')color.value=preset.value;
+    const hex=color.value;
+    const light=parseInt(hex.slice(1,3),16)*.299+parseInt(hex.slice(3,5),16)*.587+parseInt(hex.slice(5,7),16)*.114>128;
+    document.querySelectorAll('.signature-sample').forEach(sample=>{sample.style.fontFamily=fonts[font.value];sample.style.fontSize='20px';sample.style.color=hex;sample.style.opacity='.86';sample.style.textShadow=light?'0 1px 2px #000':'0 1px 2px #fff';});
+  }
+  [enabled,font,preset,color].forEach(control=>control.addEventListener('input',refresh));
+  enabled.form?.addEventListener('reset',()=>setTimeout(refresh,0));
+  refresh();
+})();
+</script>`;
+}
+
 // ─── UPLOAD PAGE ──────────────────────────────────────────────────────────────
 function uploadPage(msg='', err='') {
   const series = readSeries();
@@ -1490,7 +1593,7 @@ function uploadPage(msg='', err='') {
 <h1>Importer des photos</h1>
 ${msgHtml}
 ${errHtml}
-<div class="alert alert-info">Sharp génère 3 versions WebP (thumb 500px · web 1200px · zoom 2500px). Les EXIF sont lus automatiquement.</div>
+<div class="alert alert-info">Sharp génère 3 versions WebP (thumb 500px · web 1200px · zoom 2500px). Les EXIF sont lus automatiquement. Les photos sont nommées au nom de la série et numérotées automatiquement (001, 002…).</div>
 <form id="upload-form" style="max-width:640px">
   <div style="margin-bottom:1.5rem">
     <label style="display:block;margin-bottom:.5rem">Série</label>
@@ -1513,6 +1616,8 @@ ${errHtml}
     <datalist id="upload-tags-dl">${tagsDatalistHtml}</datalist>
     <div style="font-size:.72rem;color:#6b7fa8;margin-top:.3rem">Tags contrôlés recommandés via suggestions. Syntaxe : <code>Catégorie:valeur</code> ou tag simple, séparés par virgules.</div>
   </div>
+  ${storageControls()}
+  ${signatureControls()}
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/tiff,image/webp">
     <div style="font-size:2rem;margin-bottom:.5rem">📷</div>
@@ -1568,6 +1673,12 @@ function doUpload(){
   const uploadTags=document.getElementById('upload-tags').value;
   const fd=new FormData();
   fd.append('series',ser);fd.append('status',stat);fd.append('tags',uploadTags);
+  fd.append('signature',String(document.getElementById('signature-enabled').checked));
+  fd.append('signature_color',document.getElementById('signature-color').value);
+  fd.append('signature_font',document.getElementById('signature-font').value);
+  fd.append('storage',document.getElementById('photo-storage').value);
+  fd.append('kdrive_folder',String(document.getElementById('kdrive-folder').checked));
+  fd.append('kdrive_folder_date',document.getElementById('kdrive-folder-date').value);
   for(const f of input.files)fd.append('photos',f);
   const xhr=new XMLHttpRequest();xhr.open('POST','/upload');
   xhr.setRequestHeader('Accept','application/x-ndjson');
@@ -1654,8 +1765,11 @@ function instantsPage() {
 <p>Sur iPhone : dans Safari, utilise Partager → Sur l’écran d’accueil pour retrouver cette page rapidement.</p>
 <form id="instant-form" style="max-width:640px;display:grid;gap:1rem">
 <label>Photos <input name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/tiff" multiple required style="display:block;width:100%"></label>
-<div id="instant-preview" class="upload-preview"></div>
+<p>Donne un titre à chaque photo, ou laisse le champ vide : le lieu renseigné et la date de prise de vue seront utilisés. Sans lieu, le titre utilisera la date seule.</p>
+<div id="instant-preview" style="display:grid;gap:1rem"></div>
 <label>Quelques mots… <textarea name="description" maxlength="4000" rows="3" style="width:100%" placeholder="Une impression, une anecdote… (facultatif)"></textarea></label>
+${signatureControls()}
+${storageControls()}
 <fieldset><legend>Localisation</legend>
 <p>Le lieu de chaque photo est lu automatiquement s’il est présent. Tu peux le remplacer ci-dessous pour toute la sélection.</p>
 <label>Visibilité <select name="visibility"><option value="hidden">Lieu masqué</option><option value="approx">Zone approximative</option><option value="precise">Position précise</option></select></label>
@@ -1672,9 +1786,21 @@ function instantsPage() {
 <script>
 const form=document.getElementById('instant-form'), statusEl=document.getElementById('instant-status');
 let previewUrls=[];
-form.photos.onchange=()=>{previewUrls.forEach(URL.revokeObjectURL);previewUrls=[];const box=document.getElementById('instant-preview');box.replaceChildren();for(const file of form.photos.files){const img=document.createElement('img');img.className='upload-thumb';img.alt=file.name;img.src=URL.createObjectURL(file);previewUrls.push(img.src);box.append(img);}};
+form.photos.onchange=()=>{
+  previewUrls.forEach(URL.revokeObjectURL);previewUrls=[];
+  const box=document.getElementById('instant-preview');box.replaceChildren();
+  Array.from(form.photos.files).forEach((file,index)=>{
+    const card=document.createElement('div');card.style.cssText='display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;align-items:center';
+    const img=document.createElement('img');img.className='upload-thumb';img.alt=file.name;img.src=URL.createObjectURL(file);previewUrls.push(img.src);img.style.width='80px';
+    const label=document.createElement('label');label.textContent='Titre de la photo '+(index+1)+' (facultatif)';
+    const input=document.createElement('input');input.type='text';input.maxLength=140;input.dataset.instantTitle=String(index);input.placeholder='Ex. Reflets après la pluie';input.style.cssText='display:block;width:100%;box-sizing:border-box';
+    const hint=document.createElement('small');hint.textContent=file.name;hint.style.cssText='display:block;overflow-wrap:anywhere;color:#9fb2d4';
+    label.append(input,hint);card.append(img,label);box.append(card);
+  });
+};
+form.addEventListener('reset',()=>{previewUrls.forEach(URL.revokeObjectURL);previewUrls=[];document.getElementById('instant-preview').replaceChildren();});
 document.getElementById('instant-search').onclick=async()=>{try{const r=await fetch('/api/geocode?q='+encodeURIComponent(document.getElementById('instant-place').value));const data=await r.json();const box=document.getElementById('instant-places');box.replaceChildren();for(const place of data.results||[]){const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=place.label;b.onclick=()=>{form.lat.value=place.lat;form.lng.value=place.lng;form.label.value=place.label;box.replaceChildren();};box.append(b);}if(!box.children.length)box.textContent='Aucun lieu trouvé.';}catch{statusEl.textContent='Recherche indisponible. Tu peux saisir les coordonnées.';}};
-form.onsubmit=async(e)=>{e.preventDefault();const fd=new FormData(form);fd.set('action',e.submitter.value);const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);statusEl.textContent='Transfert et traitement en cours… Garde cette page ouverte.';try{const r=await fetch('/instants',{method:'POST',body:fd});const data=await r.json();statusEl.textContent=data.message||data.error;const links=document.getElementById('instant-links');links.replaceChildren();for(const item of data.results||[]){const line=document.createElement('p');line.textContent=item.ok?'✓ '+item.title:'Échec : '+item.title+' — '+item.error;if(item.ok){const a=document.createElement('a');a.href='/edit/'+item.slug+'.yaml';a.textContent=' Modifier';line.append(a);}links.append(line);}if(data.deployed){statusEl.textContent='Mise en ligne en cours…';let tries=0;const poll=async()=>{try{const response=await fetch('/instants/status?slugs='+encodeURIComponent(data.results.filter(x=>x.ok).map(x=>x.slug).join(',')));const state=await response.json();if(state.live){statusEl.textContent='En ligne !';const a=document.createElement('a');a.href=${JSON.stringify(PUBLIC_SITE_ORIGIN + '/instants/')};a.textContent='Voir les instants';links.append(a);return;}}catch{}if(++tries<60)setTimeout(poll,5000);else statusEl.textContent='Déploiement demandé. La mise en ligne reste à confirmer : consulte le site ou GitHub Actions.';};setTimeout(poll,5000);}if(data.ok)form.reset();}catch{statusEl.textContent='Connexion interrompue. Vérifie les photos dans l’administration avant de réessayer.';}finally{buttons.forEach(b=>b.disabled=false);}};
+form.onsubmit=async(e)=>{e.preventDefault();const fd=new FormData(form);fd.set('action',e.submitter.value);fd.set('titles',JSON.stringify(Array.from(form.querySelectorAll('[data-instant-title]'),input=>input.value)));const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);statusEl.textContent='Transfert et traitement en cours… Garde cette page ouverte.';try{const r=await fetch('/instants',{method:'POST',body:fd});const data=await r.json();statusEl.textContent=data.message||data.error;const links=document.getElementById('instant-links');links.replaceChildren();for(const item of data.results||[]){const line=document.createElement('p');line.textContent=item.ok?'✓ '+item.title:'Échec : '+item.title+' — '+item.error;if(item.ok){const a=document.createElement('a');a.href='/edit/'+item.slug+'.yaml';a.textContent=' Modifier';line.append(a);}links.append(line);}if(data.deployed){statusEl.textContent='Mise en ligne en cours…';let tries=0;const poll=async()=>{try{const response=await fetch('/instants/status?slugs='+encodeURIComponent(data.results.filter(x=>x.ok).map(x=>x.slug).join(',')));const state=await response.json();if(state.live){statusEl.textContent='En ligne !';const a=document.createElement('a');a.href=${JSON.stringify(PUBLIC_SITE_ORIGIN + '/instants/')};a.textContent='Voir les instants';links.append(a);return;}}catch{}if(++tries<60)setTimeout(poll,5000);else statusEl.textContent='Déploiement demandé. La mise en ligne reste à confirmer : consulte le site ou GitHub Actions.';};setTimeout(poll,5000);}if(data.ok)form.reset();}catch{statusEl.textContent='Connexion interrompue. Vérifie les photos dans l’administration avant de réessayer.';}finally{buttons.forEach(b=>b.disabled=false);}};
 </script>`, 'instants');
 }
 
@@ -2423,7 +2549,9 @@ ${msgHtml}
   <div class="field full"><label>Titre hero (grande phrase d'accueil)</label><input name="hero_title" value="${settings.hero_title||''}"></div>
   <div class="field full">
     <label>Texte d'introduction (paragraphe sous le titre)</label>
+  <div class="field full"><label>Phrase d’accroche</label><input name="about_lead" value="${String(settings.about_lead||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></div>
     <textarea name="about_text" style="min-height:120px">${settings.about_text||''}</textarea>
+  <div class="field full"><label>Signature de présentation</label><input name="about_signature" value="${String(settings.about_signature||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></div>
   </div>
   <div class="field full"><label>Domaine images O2Switch <span class="hint">Sans slash final</span></label><input name="images_domain" value="${settings.images_domain||CFG.domain}" placeholder="https://photos.mondomaine.fr"></div>
 </div>
@@ -2527,6 +2655,45 @@ a:hover{background:#748fff33}</style></head><body>
 
   if (instantBusy && req.method !== 'GET') { json({ok:false,error:'Un instant est en cours de traitement. Réessaie dans un moment.'},409); return; }
 
+  if(p==='/storage' && req.method==='GET'){html(storagePage());return;}
+  if(p==='/storage' && req.method==='POST'){
+    try {
+      const body=await parseBody(req);
+      const token=String(body.token||process.env.KDRIVE_TOKEN||'').trim();
+      if(!token||token.length>4096||/\s/.test(token))throw new Error('Clé API invalide.');
+      const values={KDRIVE_TOKEN:token,KDRIVE_ID:String(body.drive_id||''),KDRIVE_ROOT_ID:String(body.root_id||''),PHOTO_STORAGE:body.default_kdrive==='true'?'kdrive':'sftp'};
+      const config=kdriveConfig(values);
+      const result=await new KdriveStorage(config).request(`/3/drive/${config.driveId}/files/${config.rootId}`);
+      if(result.data?.type!=='dir')throw new Error('Le dossier de destination est introuvable ou inaccessible.');
+      const envPath=path.join(__dirname,'.env');
+      let contents=fs.existsSync(envPath)?fs.readFileSync(envPath,'utf8'):'';
+      for(const [key,value] of Object.entries(values)){
+        const line=`${key}=${value}`,pattern=new RegExp(`^${key}=.*$`,'m');
+        contents=pattern.test(contents)?contents.replace(pattern,()=>line):contents.replace(/\s*$/,'')+'\n'+line+'\n';
+      }
+      fs.writeFileSync(envPath,contents,{mode:0o600});fs.chmodSync(envPath,0o600);
+      Object.assign(process.env,values);
+      html(storagePage('Connexion testée et enregistrée.'));
+    }catch{html(storagePage('Connexion non enregistrée. Vérifie la clé API, son droit drive et les identifiants du dossier.'));}
+    return;
+  }
+
+  if(req.method==='GET' && p==='/kdrive-preview') {
+    const slug=url.searchParams.get('slug')||'',version=url.searchParams.get('version')||'web';
+    if(!/^[a-z0-9][a-z0-9-]{0,240}$/.test(slug)||!['thumb','web','zoom'].includes(version)){res.writeHead(404);res.end();return;}
+    const photo=readPhotos().find(photo=>photo.slug===slug);
+    if(!photo?.kdrive){res.writeHead(404);res.end();return;}
+    try {
+      const config=kdriveConfig();
+      if(config.driveId!==photo.kdrive.drive_id)throw new Error('Drive incorrect');
+      const upstream=await new KdriveStorage(config).download(photo.kdrive.files[version]);
+      const image=Buffer.from(await upstream.arrayBuffer());
+      if(image.toString('ascii',0,4)!=='RIFF'||image.toString('ascii',8,12)!=='WEBP')throw new Error('Format incorrect');
+      res.writeHead(200,{'Content-Type':'image/webp','Cache-Control':'private, no-store'});res.end(image);
+    }catch{res.writeHead(502,{'Cache-Control':'no-store'});res.end();}
+    return;
+  }
+
   // ── Photos list
   if (req.method==='GET' && p==='/') {
     html(photosPage(readPhotos(), {
@@ -2584,7 +2751,7 @@ a:hover{background:#748fff33}</style></head><body>
     else if(action==='delete') {
       const photo=readYaml(fp);
       fs.unlinkSync(fp);
-      if(photo.slug&&photo.series) deleteViaSFTP(photo.series,photo.slug).catch(()=>{});
+      if(!photo.kdrive&&photo.slug&&photo.series) deleteViaSFTP(photo.series,photo.slug).catch(()=>{});
     }
     autoGitPush(`${action}: ${file}`);
     json({ok:true});
@@ -2649,7 +2816,7 @@ a:hover{background:#748fff33}</style></head><body>
     const targetSeries = String(body.series || '').trim();
     const seriesExists = !targetSeries || fs.existsSync(path.join(CFG.seriesDir, `${targetSeries}.yaml`));
     if (!seriesExists) { json({ ok: false, error: 'Série inconnue' }, 400); return; }
-    for(const file of body.files || []) {
+    for(const file of [...new Set(body.files || [])]) {
       const fp=path.join(CFG.photosDir,path.basename(file));
       if(!fs.existsSync(fp)) continue;
       savePhoto(path.basename(file),{series:targetSeries});
@@ -2667,7 +2834,7 @@ a:hover{background:#748fff33}</style></head><body>
       if(!fs.existsSync(fp)) continue;
       const photo=readYaml(fp);
       fs.unlinkSync(fp);
-        if(photo.slug&&photo.series) deleteViaSFTP(photo.series,photo.slug).catch(()=>{});
+        if(!photo.kdrive&&photo.slug&&photo.series) deleteViaSFTP(photo.series,photo.slug).catch(()=>{});
     }
     autoGitPush(`batch: suppression définitive (${body.files.length} photo(s))`);
     json({ok:true});
@@ -2689,28 +2856,38 @@ a:hover{background:#748fff33}</style></head><body>
     let files=[];
     try {
       const parsed=await parseUpload(req);files=parsed.files;const fields=parsed.fields;
+      let titles=[];
+      try { titles=JSON.parse(fields.titles || '[]'); }
+      catch { json({ok:false,error:'Titres invalides.'},400);return; }
+      if(!Array.isArray(titles)||titles.length>100||titles.some(title=>typeof title!=='string')){json({ok:false,error:'Titres invalides.'},400);return;}
       const publish=fields.action==='publish';
+      const signature=normalizeSignature(fields);
+      if(selectedStorage(fields)==='kdrive') kdriveConfig();
       const opts={cwd:__dirname,stdio:'pipe'};
       if(publish && (Number(execFileSync('git',['rev-list','--count','origin/main..HEAD'],opts).toString().trim())>0 || execFileSync('git',['status','--porcelain'],opts).toString().trim())) {
         json({ok:false,error:'D’autres modifications attendent. Enregistre un brouillon ou déploie-les d’abord depuis l’administration.'},409);return;
       }
       if(!files.length){json({ok:false,error:'Aucune photo compatible. Depuis Photos, partage ou exporte les images en JPEG si nécessaire.'},400);return;}
-      const manual=fields.lat!=='' || fields.lng!=='';
+      const manual=String(fields.lat||'').trim()!=='' || String(fields.lng||'').trim()!=='';
       const lat=parseCoordinate(fields.lat,-90,90),lng=parseCoordinate(fields.lng,-180,180);
       if(manual && (!Number.isFinite(lat)||!Number.isFinite(lng))){json({ok:false,error:'Renseigne une latitude et une longitude valides.'},400);return;}
       const results=[], paths=[];
+      const usedTitles=new Set(readPhotos().filter(photo=>photo.kind==='instant').map(photo=>photo.title));
       for(const file of files){
         const slug=`instants-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
         try {
-          const title=buildPhotoTitleFromFilename(file.filename);
-          const [versions,exif,date]=await Promise.all([processImage(file.path,'instants',slug),readExif(file.path),readExifDate(file.path)]);
-          const transfer=await uploadViaSFTP(versions,'instants',slug);
-          if(!transfer.ok)throw new Error('Transfert des images impossible : '+transfer.error);
+          const [versions,exif,date]=await Promise.all([processImage(file.path,'instants',slug,signature),readExif(file.path),readExifDate(file.path)]);
+
           let gps;
           try{const {default:exifr}=await import('exifr');gps=await exifr.gps(file.path);}catch{}
           const location=normalizeLocation({lat:manual?lat:gps?.latitude,lng:manual?lng:gps?.longitude,label:fields.label||'',public_visibility:fields.visibility});
-          const urls=buildUrls('instants',slug), target=path.join(CFG.photosDir,slug+'.yaml');
-          writeYaml(target,{title,slug,series:'',kind:'instant',status:publish?'published':'draft',date:date||new Date().toISOString().slice(0,10),published_at:new Date().toISOString(),description:String(fields.description||'').slice(0,4000),tags:[],url:urls.url_web,...urls,...(location?{location}:{}),...(Object.values(exif).some(Boolean)?{exif}:{})});
+          const dateStr=date||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+          const title=instantPhotoTitle({title:titles[file.uploadIndex],place:fields.label,date:dateStr},usedTitles);
+          const transfer=await storePhoto({fields,versions,original:file.path,slug,seriesSlug:'instants',seriesName:'Instants',date:dateStr});
+          if(!transfer.ok)throw new Error('Transfert des images impossible : '+transfer.error);
+          const urls=transfer.urls, target=path.join(CFG.photosDir,slug+'.yaml');
+          writeYaml(target,{...(transfer.kdrive?{kdrive:transfer.kdrive}:{}),...(signature?{signature}:{}),title,slug,series:'',kind:'instant',status:publish?'published':'draft',date:dateStr,published_at:new Date().toISOString(),description:String(fields.description||'').slice(0,4000),tags:[],url:urls.url_web,...urls,...(location?{location}:{}),...(Object.values(exif).some(Boolean)?{exif}:{})});
+          usedTitles.add(title);
           paths.push(target);results.push({ok:true,slug,title});
         }catch(e){results.push({ok:false,title:file.filename,error:e.message});}
       }
@@ -2736,6 +2913,8 @@ a:hover{background:#748fff33}</style></head><body>
     try {
       const {fields,files}=await parseUpload(req);
       const seriesSlug=fields.series, status=normalizeStatus(fields.status||'draft');
+      const signature=normalizeSignature(fields);
+      if(selectedStorage(fields)==='kdrive') kdriveConfig();
       const { tags: uploadTags } = filterKnownTags(parseTagsString(fields.tags), false);
       if(!seriesSlug){res.writeHead(400);res.end('Série manquante');return;}
       if(!fs.existsSync(path.join(CFG.seriesDir, `${seriesSlug}.yaml`))){res.writeHead(400);res.end('Série invalide');return;}
@@ -2747,11 +2926,13 @@ a:hover{background:#748fff33}</style></head><body>
       const results=[];
       const report=(phase,filename='')=>sendUpdate({type:'progress',phase,filename,completed:results.length,total:files.length});
       const seriesYamlPath=path.join(CFG.seriesDir,`${seriesSlug}.yaml`);
-      const seriesDateFallback=fs.existsSync(seriesYamlPath)?(readYaml(seriesYamlPath).date||null):null;
+      const selectedSeries=readYaml(seriesYamlPath);
+      const seriesDateFallback=selectedSeries.date||null;
+      let nextPhotoNumber=nextSeriesPhotoNumber(readPhotos(),selectedSeries);
       const usedSlugs=new Set(readPhotos().map(p=>p.slug).filter(Boolean));
       for(const file of files){
         report('processing',file.filename);
-        const origTitle=buildPhotoTitleFromFilename(file.filename);
+        const origTitle=seriesPhotoTitle(selectedSeries.name,nextPhotoNumber++);
         const exifDateStr=await readExifDate(file.path);
         const dateStr=exifDateStr||seriesDateFallback||new Date().toISOString().split('T')[0];
         let base=`${seriesSlug}-${dateStr}`;
@@ -2760,12 +2941,15 @@ a:hover{background:#748fff33}</style></head><body>
         while(usedSlugs.has(photoSlug)){photoSlug=`${base}-${String(n).padStart(3,'0')}`;n++;}
         usedSlugs.add(photoSlug);
         try{
-          const [versions, exif]=await Promise.all([processImage(file.path,seriesSlug,photoSlug), readExif(file.path)]);
+          const [versions, exif]=await Promise.all([processImage(file.path,seriesSlug,photoSlug,signature), readExif(file.path)]);
           report('transfer',file.filename);
-          const sftpRes=await uploadViaSFTP(versions,seriesSlug,photoSlug);
-          const urls=buildUrls(seriesSlug,photoSlug);
+          const transfer=await storePhoto({fields,versions,original:file.path,slug:photoSlug,seriesSlug,seriesName:selectedSeries.name,date:seriesDateFallback||dateStr});
+          if(!transfer.ok)throw new Error('Transfert des images impossible : '+transfer.error);
+          const urls=transfer.urls;
           const yamlFile=`${photoSlug}.yaml`;
           writeYaml(path.join(CFG.photosDir,yamlFile),{
+            ...(transfer.kdrive?{kdrive:transfer.kdrive}:{}),
+            ...(signature?{signature}:{}),
             title:origTitle,
             slug:photoSlug, series:seriesSlug, status,
             url:urls.url_web, url_thumb:urls.url_thumb, url_web:urls.url_web, url_zoom:urls.url_zoom,
@@ -2774,7 +2958,7 @@ a:hover{background:#748fff33}</style></head><body>
             ...(Object.values(exif).some(Boolean)?{exif}:{}),
           });
           fs.unlinkSync(file.path);
-          results.push({slug:photoSlug,ok:true,sftp:sftpRes.ok});
+          results.push({slug:photoSlug,ok:true});
         } catch(e){results.push({slug:photoSlug,ok:false,error:e.message});}
         report('processing',file.filename);
       }
@@ -2878,7 +3062,7 @@ a:hover{background:#748fff33}</style></head><body>
       const photos=readPhotos().filter(p=>p.series===serie.slug);
       for(const photo of photos){
         fs.unlinkSync(path.join(CFG.photosDir,photo.file));
-        if(photo.slug) deleteViaSFTP(serie.slug,photo.slug).catch(()=>{});
+        if(!photo.kdrive&&photo.slug) deleteViaSFTP(serie.slug,photo.slug).catch(()=>{});
       }
     } else {
       const photos=readPhotos().filter(p=>p.series===serie.slug);
@@ -2999,6 +3183,8 @@ a:hover{background:#748fff33}</style></head><body>
       watermark_name: body.watermark_name,
       hero_title: body.hero_title,
       about_text: body.about_text,
+      about_lead: body.about_lead||undefined,
+      about_signature: body.about_signature||undefined,
       images_domain: body.images_domain,
       series_title: body.series_title||undefined,
       series_subtitle: body.series_subtitle||undefined,

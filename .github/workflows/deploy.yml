@@ -30,6 +30,11 @@ jobs:
       - name: Build Astro
         run: npm run build
 
+      - name: Verify kDrive integration
+        run: |
+          php -l public/media-kdrive.php
+          node --test tests/kdrive-storage.test.js tests/kdrive-relay.test.js
+
       - name: Verify replacement ratings API
         run: |
           tmp_headers="$(mktemp)"
