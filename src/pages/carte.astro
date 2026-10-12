@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { resolveSeriesCover } from '../lib/series-cover.js';
 
 type MarkerPhoto = {
   kind: 'series' | 'photo';
@@ -91,7 +92,7 @@ for (const serie of publishedSeries) {
   const photos = (seriesPhotosMap.get(serie.data.slug) ?? [])
     .slice()
     .sort((a, b) => (b.data.date?.getTime?.() ?? 0) - (a.data.date?.getTime?.() ?? 0));
-  const cover = serie.data.cover_url || photos[0]?.data.url_thumb || photos[0]?.data.url_web || photos[0]?.data.url || '';
+  const cover = resolveSeriesCover(serie.data.cover_url, photos) || photos[0]?.data.url_thumb || photos[0]?.data.url_web || photos[0]?.data.url || '';
   const photoCount = Math.max(1, photos.length);
   upsertMarker(
     lat,

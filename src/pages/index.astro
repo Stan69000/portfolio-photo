@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { resolveSeriesCover } from '../lib/series-cover.js';
 import VisitSpotlight from '../components/VisitSpotlight.astro';
 import { emotions, matchesEmotion, guidedSelection } from '../lib/discovery.js';
 
@@ -28,9 +29,10 @@ const cards = allSeries
     const topTags = (series.data.tags ?? []).slice(0, 3);
 
     // Large covers use the web image; thumbnails are reserved for small previews.
-    const coverPhoto = photos.find(photo => [photo.data.url, photo.data.url_thumb, photo.data.url_web, photo.data.url_zoom].includes(series.data.cover_url)) || photos[0];
+    const coverUrl = resolveSeriesCover(series.data.cover_url, photos);
+    const coverPhoto = photos.find(photo => [photo.data.url, photo.data.url_thumb, photo.data.url_web, photo.data.url_zoom].includes(coverUrl)) || photos[0];
     const coverFallback = coverPhoto?.data.url_web || coverPhoto?.data.url || '';
-    const cover = series.data.cover_url && ![coverPhoto?.data.url_thumb].includes(series.data.cover_url) ? series.data.cover_url : coverFallback;
+    const cover = coverUrl && ![coverPhoto?.data.url_thumb].includes(coverUrl) ? coverUrl : coverFallback;
 
     return {
       slug: series.data.slug,
