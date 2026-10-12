@@ -1,13 +1,13 @@
 description: Quelques photos lors d'un WE de ce début d'automne
-cover_url: ''
+cover_url: /api/sites/portfolio-photo/kdrive/preview?slug=matour-2026-09-26-008&version=web
 slug: matour
-name: Matour
+name: Matour & Cluny
 emotions:
   - se-perdre
 status: published
-map_input_type: address
+map_input_type: coords
 map_address: Matour 71520
-map_public_visibility: approx
+map_public_visibility: precise
 date: '2026-10-04'
 map_lat: 46.3069774
 map_lng: 4.48214
