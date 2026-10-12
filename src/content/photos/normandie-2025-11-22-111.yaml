@@ -2,10 +2,10 @@ title: Normandie — 110
 slug: normandie-2025-11-22-111
 series: normandie
 status: published
-url: http://stan-bouchet.eu/normandie/web/normandie-2025-11-22-111.webp
-url_thumb: http://stan-bouchet.eu/normandie/thumb/normandie-2025-11-22-111.webp
-url_web: http://stan-bouchet.eu/normandie/web/normandie-2025-11-22-111.webp
-url_zoom: http://stan-bouchet.eu/normandie/zoom/normandie-2025-11-22-111.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-111&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-111&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-111&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-111&version=zoom
 date: '2025-11-22'
 description: ''
 tags: []
@@ -13,3 +13,10 @@ hash: acefcdf3ebecac7eed8bee56114a8d4a10341cf9d067e50d94d6ada48bc576d9
 exif:
   camera: Canon Canon EOS 90D
   settings: f/7.1 1/800s
+kdrive:
+  drive_id: '620855'
+  directory_id: '428810'
+  files:
+    thumb: '429138'
+    web: '429140'
+    zoom: '429143'

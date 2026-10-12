@@ -2,10 +2,10 @@ title: Super lune du 3 janvier 2026 — 012
 slug: super-lune-du-3-janvier-2026-2026-01-03-013
 series: super-lune-du-3-janvier-2026
 status: published
-url: http://stan-bouchet.eu/super-lune-du-3-janvier-2026/web/super-lune-du-3-janvier-2026-2026-01-03-013.webp
-url_thumb: http://stan-bouchet.eu/super-lune-du-3-janvier-2026/thumb/super-lune-du-3-janvier-2026-2026-01-03-013.webp
-url_web: http://stan-bouchet.eu/super-lune-du-3-janvier-2026/web/super-lune-du-3-janvier-2026-2026-01-03-013.webp
-url_zoom: http://stan-bouchet.eu/super-lune-du-3-janvier-2026/zoom/super-lune-du-3-janvier-2026-2026-01-03-013.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=super-lune-du-3-janvier-2026-2026-01-03-013&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=super-lune-du-3-janvier-2026-2026-01-03-013&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=super-lune-du-3-janvier-2026-2026-01-03-013&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=super-lune-du-3-janvier-2026-2026-01-03-013&version=zoom
 date: '2026-01-03'
 description: ''
 tags: []
@@ -14,3 +14,10 @@ exif:
   lens: ''
   settings: f/7.1 1/15s
   iso: ''
+kdrive:
+  drive_id: '620855'
+  directory_id: '429182'
+  files:
+    thumb: '429216'
+    web: '429217'
+    zoom: '429219'

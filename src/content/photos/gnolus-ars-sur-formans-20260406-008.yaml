@@ -2,10 +2,10 @@ title: Gnolus Ars-sur-Formans — 008
 slug: gnolus-ars-sur-formans-20260406-008
 series: gnolus-ars-sur-formans
 status: published
-url: http://stan-bouchet.eu/gnolus-ars-sur-formans/web/img-0535.webp
-url_thumb: http://stan-bouchet.eu/gnolus-ars-sur-formans/thumb/img-0535.webp
-url_web: http://stan-bouchet.eu/gnolus-ars-sur-formans/web/img-0535.webp
-url_zoom: http://stan-bouchet.eu/gnolus-ars-sur-formans/zoom/img-0535.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=gnolus-ars-sur-formans-20260406-008&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=gnolus-ars-sur-formans-20260406-008&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=gnolus-ars-sur-formans-20260406-008&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=gnolus-ars-sur-formans-20260406-008&version=zoom
 date: '2026-04-06'
 description: ''
 tags: []
@@ -14,3 +14,10 @@ exif:
   lens: iPhone 15 back dual wide camera 5.96mm f/1.6
   settings: f/1.6 1/2342s
   iso: ''
+kdrive:
+  drive_id: '620855'
+  directory_id: '427385'
+  files:
+    thumb: '427406'
+    web: '427408'
+    zoom: '427409'

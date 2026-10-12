@@ -8,10 +8,10 @@ location:
   lat: 45.76861111111111
   lng: 4.838591666666666
   public_visibility: precise
-url: http://stan-bouchet.eu/instants/web/instants-2026-09-28.webp
-url_thumb: http://stan-bouchet.eu/instants/thumb/instants-2026-09-28.webp
-url_web: http://stan-bouchet.eu/instants/web/instants-2026-09-28.webp
-url_zoom: http://stan-bouchet.eu/instants/zoom/instants-2026-09-28.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-09-28&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-09-28&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-09-28&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-09-28&version=zoom
 date: '2026-09-28'
 description: 'Superbe levé de soleil sur le Rhône à Lyon '
 tags: []
@@ -20,3 +20,10 @@ exif:
   camera: Apple iPhone 15
   lens: iPhone 15 back dual wide camera 5.96mm f/1.6
   settings: f/1.6 1/121s
+kdrive:
+  drive_id: '620855'
+  directory_id: '427439'
+  files:
+    thumb: '427445'
+    web: '427447'
+    zoom: '427450'

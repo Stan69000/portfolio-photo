@@ -2,10 +2,17 @@ title: Concert de Daniel Pastor — 037
 slug: concert-de-daniel-pastor-2026-04-07-038
 series: concert-de-daniel-pastor
 status: published
-url: http://stan-bouchet.eu/concert-de-daniel-pastor/web/concert-de-daniel-pastor-2026-04-07-038.webp
-url_thumb: http://stan-bouchet.eu/concert-de-daniel-pastor/thumb/concert-de-daniel-pastor-2026-04-07-038.webp
-url_web: http://stan-bouchet.eu/concert-de-daniel-pastor/web/concert-de-daniel-pastor-2026-04-07-038.webp
-url_zoom: http://stan-bouchet.eu/concert-de-daniel-pastor/zoom/concert-de-daniel-pastor-2026-04-07-038.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-de-daniel-pastor-2026-04-07-038&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-de-daniel-pastor-2026-04-07-038&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-de-daniel-pastor-2026-04-07-038&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-de-daniel-pastor-2026-04-07-038&version=zoom
 date: '2026-04-07'
 description: ''
 tags: []
+kdrive:
+  drive_id: '620855'
+  directory_id: '426938'
+  files:
+    thumb: '427046'
+    web: '427049'
+    zoom: '427051'

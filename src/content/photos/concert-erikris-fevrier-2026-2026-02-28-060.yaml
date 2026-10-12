@@ -2,10 +2,10 @@ title: Concert Érikris - Février 2026 — 059
 slug: concert-erikris-fevrier-2026-2026-02-28-060
 series: concert-erikris-fevrier-2026
 status: published
-url: http://stan-bouchet.eu/concert-erikris-fevrier-2026/web/concert-erikris-fevrier-2026-2026-02-28-060.webp
-url_thumb: http://stan-bouchet.eu/concert-erikris-fevrier-2026/thumb/concert-erikris-fevrier-2026-2026-02-28-060.webp
-url_web: http://stan-bouchet.eu/concert-erikris-fevrier-2026/web/concert-erikris-fevrier-2026-2026-02-28-060.webp
-url_zoom: http://stan-bouchet.eu/concert-erikris-fevrier-2026/zoom/concert-erikris-fevrier-2026-2026-02-28-060.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-erikris-fevrier-2026-2026-02-28-060&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-erikris-fevrier-2026-2026-02-28-060&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-erikris-fevrier-2026-2026-02-28-060&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-erikris-fevrier-2026-2026-02-28-060&version=zoom
 date: '2026-02-28'
 description: ''
 tags:
@@ -15,3 +15,10 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/7.1 1/160s
+kdrive:
+  drive_id: '620855'
+  directory_id: '427057'
+  files:
+    thumb: '427230'
+    web: '427232'
+    zoom: '427234'

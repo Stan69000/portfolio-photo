@@ -2,10 +2,10 @@ title: Bourges — 007
 slug: bourges-2025-06-29-008
 series: bourges
 status: published
-url: http://stan-bouchet.eu/bourges/web/bourges-2025-06-29-008.webp
-url_thumb: http://stan-bouchet.eu/bourges/thumb/bourges-2025-06-29-008.webp
-url_web: http://stan-bouchet.eu/bourges/web/bourges-2025-06-29-008.webp
-url_zoom: http://stan-bouchet.eu/bourges/zoom/bourges-2025-06-29-008.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=bourges-2025-06-29-008&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=bourges-2025-06-29-008&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=bourges-2025-06-29-008&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=bourges-2025-06-29-008&version=zoom
 date: '2025-06-29'
 description: ''
 tags: []
@@ -14,3 +14,10 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/5.6 1/320s
+kdrive:
+  drive_id: '620855'
+  directory_id: '426359'
+  files:
+    thumb: '426783'
+    web: '426786'
+    zoom: '426791'

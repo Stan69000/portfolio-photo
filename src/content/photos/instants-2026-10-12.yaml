@@ -1,0 +1,36 @@
+title: Hôtel de ville - Lyon
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#8b0e00'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '430464'
+  files:
+    thumb: '430465'
+    web: '430466'
+    zoom: '430467'
+    original: '430468'
+slug: instants-2026-10-12
+series: ''
+status: published
+kind: instant
+published_at: '2026-10-12T05:40:57.123Z'
+location:
+  lat: 45.76752222222222
+  lng: 4.833191666666666
+  public_visibility: precise
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-12&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-12&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-12&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-12&version=zoom
+date: '2026-10-12'
+description: Au petit matin
+tags: []
+hash: e61c30093347ad921184285003d45de66173d2166e86f371d614ab1544dc81bc
+exif:
+  camera: Apple iPhone 15
+  lens: iPhone 15 back dual wide camera 1.54mm f/2.4
+  settings: f/2.4 1/62s

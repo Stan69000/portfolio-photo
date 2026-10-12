@@ -1,10 +1,10 @@
 title: MotorMania25
 slug: motormania-2025-09-13-011
 status: published
-url: http://stan-bouchet.eu/motormania/web/motormania-2025-09-13-011.webp
-url_thumb: http://stan-bouchet.eu/motormania/thumb/motormania-2025-09-13-011.webp
-url_web: http://stan-bouchet.eu/motormania/web/motormania-2025-09-13-011.webp
-url_zoom: http://stan-bouchet.eu/motormania/zoom/motormania-2025-09-13-011.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=motormania-2025-09-13-011&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=motormania-2025-09-13-011&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=motormania-2025-09-13-011&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=motormania-2025-09-13-011&version=zoom
 date: '2025-09-13'
 description: ''
 tags: []
@@ -13,3 +13,10 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/5 1/200s
+kdrive:
+  drive_id: '620855'
+  directory_id: '428363'
+  files:
+    thumb: '428391'
+    web: '428393'
+    zoom: '428395'

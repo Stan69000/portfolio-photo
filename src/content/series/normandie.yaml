@@ -1,5 +1,5 @@
 description: Photos prises lors d'un séjour pour un concours de mon fils
-cover_url: http://stan-bouchet.eu/normandie/web/normandie-2025-11-22-007.webp
+cover_url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-007&version=web
 slug: normandie
 name: Normandie
 status: published
@@ -10,9 +10,7 @@ map_public_visibility: precise
 date: '2025-11-24'
 map_lat: 49.4077365
 map_lng: 0.6096663
-
 editorial_layout: true
-
 related_series:
   - slug: marseille
     invitation: Changer d’horizon

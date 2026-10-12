@@ -2,10 +2,10 @@ title: Concert Fête de la musique 2025 — 017
 slug: concert-fete-de-la-musique-2025-2025-06-21-018
 series: concert-fete-de-la-musique-2025
 status: published
-url: http://stan-bouchet.eu/concert-fete-de-la-musique-2025/web/concert-fete-de-la-musique-2025-2025-06-21-018.webp
-url_thumb: http://stan-bouchet.eu/concert-fete-de-la-musique-2025/thumb/concert-fete-de-la-musique-2025-2025-06-21-018.webp
-url_web: http://stan-bouchet.eu/concert-fete-de-la-musique-2025/web/concert-fete-de-la-musique-2025-2025-06-21-018.webp
-url_zoom: http://stan-bouchet.eu/concert-fete-de-la-musique-2025/zoom/concert-fete-de-la-musique-2025-2025-06-21-018.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-fete-de-la-musique-2025-2025-06-21-018&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-fete-de-la-musique-2025-2025-06-21-018&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-fete-de-la-musique-2025-2025-06-21-018&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=concert-fete-de-la-musique-2025-2025-06-21-018&version=zoom
 date: '2025-06-21'
 description: ''
 tags:
@@ -16,3 +16,10 @@ exif:
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/8 1/500s
 for_sale: false
+kdrive:
+  drive_id: '620855'
+  directory_id: '427313'
+  files:
+    thumb: '427360'
+    web: '427363'
+    zoom: '427366'

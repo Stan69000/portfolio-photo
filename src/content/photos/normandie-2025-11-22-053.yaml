@@ -2,10 +2,10 @@ title: Normandie — 052
 slug: normandie-2025-11-22-053
 series: normandie
 status: published
-url: http://stan-bouchet.eu/normandie/web/normandie-2025-11-22-053.webp
-url_thumb: http://stan-bouchet.eu/normandie/thumb/normandie-2025-11-22-053.webp
-url_web: http://stan-bouchet.eu/normandie/web/normandie-2025-11-22-053.webp
-url_zoom: http://stan-bouchet.eu/normandie/zoom/normandie-2025-11-22-053.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-053&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-053&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-053&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=normandie-2025-11-22-053&version=zoom
 date: '2025-11-22'
 description: ''
 tags: []
@@ -14,3 +14,10 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/5.6 1/200s
+kdrive:
+  drive_id: '620855'
+  directory_id: '428810'
+  files:
+    thumb: '428963'
+    web: '428965'
+    zoom: '428968'

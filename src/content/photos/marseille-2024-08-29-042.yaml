@@ -2,10 +2,10 @@ title: Marseille — 111
 slug: marseille-2024-08-29-042
 series: marseille
 status: published
-url: http://stan-bouchet.eu/marseille/web/marseille-2024-08-29-042.webp
-url_thumb: http://stan-bouchet.eu/marseille/thumb/marseille-2024-08-29-042.webp
-url_web: http://stan-bouchet.eu/marseille/web/marseille-2024-08-29-042.webp
-url_zoom: http://stan-bouchet.eu/marseille/zoom/marseille-2024-08-29-042.webp
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-042&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-042&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-042&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-08-29-042&version=zoom
 date: '2024-08-29'
 description: ''
 tags: []
@@ -14,3 +14,10 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/7.1 1/400s
+kdrive:
+  drive_id: '620855'
+  directory_id: '427700'
+  files:
+    thumb: '427823'
+    web: '427825'
+    zoom: '427827'
