@@ -1,6 +1,7 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
+import { resolveSeriesCover } from '../lib/series-cover.js';
 
 export async function GET(context: APIContext) {
   const seriesEntries = await getCollection('series');
@@ -28,16 +29,19 @@ export async function GET(context: APIContext) {
       : {}),
   }));
 
-  const seriesItems = allSeries.map((s) => ({
+  const seriesItems = allSeries.map((s) => {
+    const cover = resolveSeriesCover(s.data.cover_url, allPhotos);
+    return {
     title: `Série : ${s.data.name}`,
     pubDate: new Date(s.data.date as string),
     description: s.data.description || s.data.name,
     link: `/series/${s.data.slug}/`,
     categories: s.data.tags ?? [],
-    ...(s.data.cover_url
-      ? { enclosure: { url: s.data.cover_url, length: 0, type: 'image/webp' } }
+    ...(cover
+      ? { enclosure: { url: cover, length: 0, type: 'image/webp' } }
       : {}),
-  }));
+  };
+  });
 
   const items = [...photoItems, ...seriesItems]
     .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())

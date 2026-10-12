@@ -5,6 +5,7 @@ import Lightbox from '../../components/Lightbox.astro';
 import Anecdote from '../../components/Anecdote.astro';
 import ReadingProgress from '../../components/ReadingProgress.astro';
 import { narrativeChapters } from '../../lib/discovery.js';
+import { resolveSeriesCover } from '../../lib/series-cover.js';
 
 export async function getStaticPaths() {
   const seriesEntries = await getCollection('series', ({ data }) => data.published);
@@ -41,7 +42,7 @@ const suggestions = availableSeries.map(entry => {
   const images = publishedPhotos.filter(photo => photo.data.series === entry.data.slug);
   const selected = curated.find(item => item.slug === entry.data.slug);
   const sharedTags = entry.data.tags.filter(tag => series.data.tags.includes(tag)).length;
-  return { slug: entry.data.slug, name: entry.data.name, cover: entry.data.cover_url || images[0]?.data.url_web || images[0]?.data.url,
+  return { slug: entry.data.slug, name: entry.data.name, cover: resolveSeriesCover(entry.data.cover_url, images) || images[0]?.data.url_web || images[0]?.data.url,
     count: images.length, invitation: selected?.invitation || (sharedTags ? 'Explorer un univers proche' : 'Découvrir un autre regard'),
     score: selected ? 100 - curated.indexOf(selected) : sharedTags };
 }).filter(entry => entry.count > 0 && entry.cover).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'fr')).slice(0, 2);
@@ -54,7 +55,7 @@ const seriesLocationVisible = hasSeriesCoords && mapVisibility !== 'hidden';
 const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
 const canonicalPath = `/series/${series.data.slug}/`;
 const pageUrl = new URL(canonicalPath, siteBase).toString();
-const pageImage = hero?.url || series.data.cover_url || '';
+const pageImage = hero?.url || resolveSeriesCover(series.data.cover_url, photos) || '';
 
 const collectionJsonLd = {
   '@context': 'https://schema.org',

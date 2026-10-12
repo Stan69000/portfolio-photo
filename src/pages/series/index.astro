@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import { resolveSeriesCover } from '../../lib/series-cover.js';
 
 const seriesEntries = await getCollection('series', ({ data }) => data.published);
 const allPhotos     = await getCollection('photos', ({ data }) => data.status === 'published');
@@ -13,7 +14,7 @@ const cards = seriesEntries
       .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
     const cover =
-      s.data.cover_url ||
+      resolveSeriesCover(s.data.cover_url, photos) ||
       photos[0]?.data.url_web ||
       photos[0]?.data.url ||
       '';
