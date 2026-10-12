@@ -1,0 +1,26 @@
+title: Marseille - 2024 — 046
+kdrive:
+  drive_id: '620855'
+  directory_id: '430921'
+  files:
+    thumb: '430990'
+    web: '430991'
+    zoom: '430992'
+    original: '430993'
+slug: marseille-2024-2024-07-21-018
+series: marseille-2024
+status: published
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-018&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-018&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-018&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-018&version=zoom
+date: '2024-07-21'
+description: ''
+tags:
+  - bord de mer
+  - paysage
+hash: 126dd0990f1f2afb55e9c84f47d962e185fa95a66c024662905160bc1ef532db
+exif:
+  camera: Canon Canon EOS 90D
+  lens: EF-S18-135mm f/3.5-5.6 IS USM
+  settings: f/4 1/100s
