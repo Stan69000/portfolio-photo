@@ -4,16 +4,16 @@ kdrive:
   directory_id: '430646'
   files:
     thumb: '430647'
-    web: '430648'
-    zoom: '430649'
+    web: '430783'
+    zoom: '430784'
     original: '430650'
 slug: matour-2026-09-26
 series: matour
 status: published
-url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=web
-url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=thumb
-url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=web
-url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=zoom
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=web&rev=6ac67a99-edfc-45ba-ac85-3681b5e62554
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=thumb&rev=6ac67a99-edfc-45ba-ac85-3681b5e62554
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=web&rev=6ac67a99-edfc-45ba-ac85-3681b5e62554
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=zoom&rev=6ac67a99-edfc-45ba-ac85-3681b5e62554
 date: '2026-09-26'
 description: ''
 tags:
@@ -23,3 +23,22 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/5 1/250s
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 120
+  color: '#ff0000'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '430646'
+    files:
+      thumb: '430647'
+      web: '430648'
+      zoom: '430649'
+      original: '430650'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-26&version=zoom
