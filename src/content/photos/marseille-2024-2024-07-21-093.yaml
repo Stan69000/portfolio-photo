@@ -4,16 +4,16 @@ kdrive:
   directory_id: '430921'
   files:
     thumb: '431290'
-    web: '431291'
-    zoom: '431292'
+    web: '431819'
+    zoom: '431820'
     original: '431293'
 slug: marseille-2024-2024-07-21-093
 series: marseille-2024
 status: published
-url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=web
-url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=thumb
-url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=web
-url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=zoom
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=web&rev=27d98e5b-475e-4cb7-b3c0-4f2eec73ac6b
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=thumb&rev=27d98e5b-475e-4cb7-b3c0-4f2eec73ac6b
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=web&rev=27d98e5b-475e-4cb7-b3c0-4f2eec73ac6b
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=zoom&rev=27d98e5b-475e-4cb7-b3c0-4f2eec73ac6b
 date: '2024-07-21'
 description: ''
 tags:
@@ -24,3 +24,22 @@ exif:
   camera: Canon Canon EOS 90D
   lens: EF-S18-135mm f/3.5-5.6 IS USM
   settings: f/6.3 1/320s
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 120
+  color: '#ff0000'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '430921'
+    files:
+      thumb: '431290'
+      web: '431291'
+      zoom: '431292'
+      original: '431293'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-093&version=zoom
