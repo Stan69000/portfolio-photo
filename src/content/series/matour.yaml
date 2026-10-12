@@ -4,3 +4,10 @@ slug: matour
 name: Matour
 emotions:
   - se-perdre
+status: published
+map_input_type: address
+map_address: Matour 71520
+map_public_visibility: approx
+date: '2026-10-04'
+map_lat: 46.3069774
+map_lng: 4.48214
