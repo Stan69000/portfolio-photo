@@ -1,0 +1,25 @@
+title: Matour — 011
+kdrive:
+  drive_id: '620855'
+  directory_id: '430469'
+  files:
+    thumb: '430510'
+    web: '430511'
+    zoom: '430512'
+    original: '430513'
+slug: matour-2026-09-27-011
+series: matour
+status: published
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-27-011&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-27-011&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-27-011&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=matour-2026-09-27-011&version=zoom
+date: '2026-09-27'
+description: ''
+tags:
+  - Paysage
+hash: 737f63ecf1b1a25e51f7eb537391be28e5a7cbfed939d7a11e50ec33483ce396
+exif:
+  camera: Canon Canon EOS 90D
+  lens: EF-S18-135mm f/3.5-5.6 IS USM
+  settings: f/7.1 1/320s
