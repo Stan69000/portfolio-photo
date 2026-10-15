@@ -1,0 +1,36 @@
+title: Instant du 15 octobre 2026
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#ff0000'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '427439'
+  files:
+    thumb: '434209'
+    web: '434210'
+    zoom: '434211'
+    original: '434212'
+slug: instants-2026-10-15
+series: ''
+status: published
+kind: instant
+published_at: '2026-10-15T17:48:21.081Z'
+location:
+  lat: 45.76368611111111
+  lng: 4.850355555555555
+  public_visibility: precise
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-15&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-15&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-15&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-10-15&version=zoom
+date: '2026-10-15'
+description: 'Lyon le matin dans le brouillard '
+tags: []
+hash: cdcdbce2b34e3bb72f044e55f2979784aef0e255ab8a6dfbb30ebb319d4d34bb
+exif:
+  camera: Apple iPhone 15
+  lens: iPhone 15 back dual wide camera 5.96mm f/1.6
+  settings: f/1.6 1/50s
