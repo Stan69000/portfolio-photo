@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-16 — Galerie installable (PWA)
+
+- Installation de la galerie publique sur l’écran d’accueil avec une identité distincte de Studio Stan : Galerie Stan Bouchet.
+- Ouverture en fenêtre dédiée ; raccourcis Instants et Séries proposés aux systèmes compatibles.
+- Icônes dérivées du logo existant, dont Apple Touch et maskable ; prise en compte des zones de sécurité de l’écran.
+- Aide iPhone, Android et ordinateur en pied de page ; installation native lorsque le navigateur la propose.
+- Consultation en ligne : aucun cache hors connexion de la photothèque ni service worker ajouté.
+
+
 ## 2026-06-20
 
 ### Modifié

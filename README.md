@@ -51,3 +51,16 @@ L’administration propose un stockage kDrive optionnel pour les originaux et le
 versions du site, avec classement par série et date. Voir [la configuration et la
 migration kDrive](docs/kdrive.md). La connexion et le relais web doivent être
 configurés avant le basculement des images existantes.
+
+
+## Installer la galerie sur téléphone
+
+La galerie publique dispose de sa propre PWA **Galerie Stan Bouchet**, distincte de l’administration **Studio Stan**.
+
+- iPhone / iPad : ouvrir https://stan-bouchet.eu dans Safari, puis Partager → Sur l’écran d’accueil → Ajouter. Activer « Ouvrir comme app » si proposé.
+- Android : Chrome → menu ⋮ → Installer l’application ou Ajouter à l’écran d’accueil.
+- Ordinateur : utiliser la commande d’installation du navigateur, si disponible.
+
+L’aide « Installer la galerie sur mon téléphone » est accessible en pied de page, avec un bouton d’installation directe lorsque le navigateur le propose. Elle est masquée en mode application. Les systèmes compatibles proposent les raccourcis Instants et Séries dans le menu de l’icône ; ces pages restent accessibles dans la navigation du site.
+
+La connexion Internet reste nécessaire pour voir les photos. Aucun service worker ni téléchargement hors ligne de la photothèque n’est ajouté. Recharger ou rouvrir l’application pour retrouver les mises à jour du site. Le manifeste est servi depuis `/manifest.webmanifest`, les icônes depuis `/pwa/`.

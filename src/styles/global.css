@@ -212,3 +212,8 @@ h1, h2, h3 { text-wrap: balance; }
   [data-star-overlay] { position: static; opacity: 1; pointer-events: auto; background: var(--surface); flex-wrap: wrap; }
 }
 .result-card:focus-within [data-star-overlay], .series-photo-card:focus-within [data-star-overlay] { opacity: 1; pointer-events: auto; }
+
+/* Safe areas for the installed gallery, including landscape phones. */
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.site-header { padding-top: env(safe-area-inset-top); }
+.site-footer { padding-bottom: max(2rem, env(safe-area-inset-bottom)); }

@@ -1,0 +1,46 @@
+<details class="gallery-install" id="gallery-install">
+  <summary>Installer la galerie sur mon téléphone</summary>
+  <div class="install-guide">
+    <p>Retrouve les photographies de Stan Bouchet depuis une icône sur ton écran d’accueil, dans une fenêtre dédiée.</p>
+    <button type="button" id="gallery-install-button" hidden>Installer la galerie</button>
+    <p><strong>iPhone / iPad :</strong> dans Safari, Partager → Sur l’écran d’accueil → Ajouter. Active « Ouvrir comme app » si cette option apparaît.</p>
+    <p><strong>Android :</strong> dans Chrome, menu ⋮ → Installer l’application ou Ajouter à l’écran d’accueil.</p>
+    <p><strong>Ordinateur :</strong> utilise la commande d’installation du navigateur, si disponible.</p>
+    <p class="install-note">Une connexion Internet reste nécessaire pour consulter les photos.</p>
+    <p id="gallery-install-status" role="status" aria-live="polite"></p>
+  </div>
+</details>
+
+<style>
+  .gallery-install { max-width: 32rem; margin: 0 auto 1.5rem; text-align: left; border: 1px solid var(--line); border-radius: var(--radius); }
+  summary { padding: .8rem 1rem; cursor: pointer; color: var(--text); min-height: 44px; }
+  summary:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .install-guide { padding: 0 1rem 1rem; overflow-wrap: anywhere; line-height: 1.6; }
+  .install-guide p { margin: .8rem 0; }
+  .install-note { color: var(--muted); font-size: .8rem; }
+  button { max-width: 100%; min-height: 44px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--accent); color: var(--bg); padding: .6rem 1rem; font: inherit; cursor: pointer; }
+</style>
+
+<script>
+  type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{outcome: 'accepted' | 'dismissed'}> };
+  const guide = document.getElementById('gallery-install') as HTMLDetailsElement | null;
+  const button = document.getElementById('gallery-install-button') as HTMLButtonElement | null;
+  const status = document.getElementById('gallery-install-status');
+  const displayMode = window.matchMedia('(display-mode: standalone)');
+  let prompt: InstallPrompt | null = null;
+  const hideWhenInstalled = () => { if (guide) guide.hidden = displayMode.matches || Boolean((navigator as Navigator & {standalone?: boolean}).standalone); };
+  hideWhenInstalled();
+  displayMode.addEventListener('change', hideWhenInstalled);
+  window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); prompt = event as InstallPrompt; if (button) button.hidden = false; });
+  window.addEventListener('appinstalled', () => { prompt = null; if (guide) guide.hidden = true; });
+  button?.addEventListener('click', async () => {
+    if (!prompt || button.disabled) return;
+    button.disabled = true;
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      if (status) status.textContent = choice.outcome === 'accepted' ? 'Installation demandée.' : 'Tu peux aussi installer la galerie depuis le menu du navigateur.';
+    } catch { if (status) status.textContent = 'Utilise le menu du navigateur pour installer la galerie.'; }
+    finally { prompt = null; button.hidden = true; button.disabled = false; }
+  });
+</script>
