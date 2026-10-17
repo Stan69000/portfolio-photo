@@ -1,0 +1,30 @@
+title: Portugal été 2026 — 001
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#ff0000'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '440904'
+  files:
+    thumb: '440905'
+    web: '440906'
+    zoom: '440907'
+    original: '440908'
+slug: portugal-ete-2026-2026-08-13
+series: portugal-ete-2026
+status: published
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=portugal-ete-2026-2026-08-13&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=portugal-ete-2026-2026-08-13&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=portugal-ete-2026-2026-08-13&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=portugal-ete-2026-2026-08-13&version=zoom
+date: '2026-08-13'
+description: ''
+tags: []
+hash: c56bdce268d042f94a4fc1cf7a6eae6af4711e73adf46329b7c4b97b8d12fd39
+exif:
+  camera: Canon Canon EOS 90D
+  lens: EF-S18-135mm f/3.5-5.6 IS USM
+  settings: f/5.6 1/250s
