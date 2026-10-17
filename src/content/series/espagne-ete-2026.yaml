@@ -1,4 +1,11 @@
-slug: espagne-ete-2026
 description: Un passage rapide en Espagne
 cover_url: ''
+slug: espagne-ete-2026
 name: Espagne été 2026
+status: published
+map_input_type: coords
+map_lat: 43.356631
+map_lng: -2.483769
+map_label: Espagne — été 2026
+map_public_visibility: approx
+map_zoom: 9
