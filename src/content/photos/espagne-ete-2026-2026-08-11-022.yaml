@@ -1,0 +1,30 @@
+title: Espagne été 2026 — 022
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#ff0000'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '440659'
+  files:
+    thumb: '440744'
+    web: '440745'
+    zoom: '440746'
+    original: '440747'
+slug: espagne-ete-2026-2026-08-11-022
+series: espagne-ete-2026
+status: published
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=espagne-ete-2026-2026-08-11-022&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=espagne-ete-2026-2026-08-11-022&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=espagne-ete-2026-2026-08-11-022&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=espagne-ete-2026-2026-08-11-022&version=zoom
+date: '2026-08-11'
+description: ''
+tags: []
+hash: 4a4959a26c9c1a3ea24b5d0d163aa24a5c3558ad7b4db5fe853b9e6a5b5438d0
+exif:
+  camera: Canon Canon EOS 90D
+  lens: EF-S18-135mm f/3.5-5.6 IS USM
+  settings: f/5.6 1/1600s
