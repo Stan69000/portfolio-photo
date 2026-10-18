@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-18 — Relais TV The Frame
+
+- Version locale du relais synchronisée : modes natif et rapide, reprise après Afficher, aperçus TV mis en cache.
+- Mode rapide : toutes les photos passent avant le tour suivant ; les dernières photos vues sur la moitié d’un tour restent exclues des tirages suivants (26 pour 53 photos). Historique conservé pendant une sortie du mode Art ou une interruption réseau, tant que le relais reste ouvert.
+- Démarrage rapide : ne renvoie plus un ordre d’arrêt à une rotation native déjà arrêtée.
+- Usage Mac fermé : mode autonome de la TV, réglé à 10 minutes par photo dans l’ordre sur les 53 photos présentes. Réglage confirmé après arrêt du relais ; reprise après Netflix ou extinction non encore testée.
+- Validation : 16 tests du relais réussis, dont trois tours sans répétitions rapprochées et reprise après interruption.
+
 ## 2026-06-20
 
 ### Modifié
