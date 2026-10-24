@@ -49,11 +49,11 @@ const selectedCards = (siteSettings.featured_series ?? []).map(slug => cards.fin
 const otherCards = cards.filter(card => !selectedCards.some(selected => selected.slug === card.slug));
 ---
 
-<Base title="Portfolio | Accueil" description="Galerie photo personnelle de Stan">
+<Base title="Portfolio | Accueil" description="L’InStan Photo — Photographe amateur et passionné. Découvrez les photos de Stan Bouchet, entre voyages, rencontres et instants du quotidien.">
   <section class="hero">
     <VisitSpotlight photos={allPhotos} pinned={featuredSlug} revision={siteSettings.discovery_revision} />
     <div class="hero-copy">
-      <p class="kicker">{siteTitle}</p>
+      <p class="kicker">Photographe amateur et passionné</p>
       <h1>Des lieux, des rencontres.<br /><em>Des instants à partager.</em></h1>
       <a class="gallery-link" href="#selection">Entrer dans la galerie <span aria-hidden="true">↓</span></a>
     </div>

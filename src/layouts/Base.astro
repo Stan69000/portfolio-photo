@@ -54,6 +54,8 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icon-192.png" />
     <meta name="theme-color" content="#191816" />
     <meta name="application-name" content="Galerie Stan Bouchet" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -93,7 +95,9 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <div id="page-top" tabindex="-1"></div>
     <header class="site-header">
       <div class="header-inner">
-        <a href="/" class="wordmark"><span class="wordmark-name">{wordmark}</span><span class="wordmark-caption">Carnets photographiques</span></a>
+        <a href="/" class="wordmark" aria-label="L’InStan Photo — Accueil">
+          <img class="brand-logo" src="/images/logo-instan-photo.webp" alt="L’InStan Photo — Photographe amateur et passionné" width="768" height="512" fetchpriority="high" />
+        </a>
 
         <!-- Desktop nav -->
         <nav class="nav" id="main-nav" aria-label="Navigation principale">
@@ -419,8 +423,9 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 
 <style>
   .site-header { background: color-mix(in srgb, var(--bg) 94%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
-  .header-inner { padding-top: 1.2rem; padding-bottom: 1.2rem; }
+  .header-inner { padding-top: .5rem; padding-bottom: .5rem; }
   .wordmark { display: grid; gap: .25rem; flex-shrink: 0; letter-spacing: .01em; }
+  .brand-logo { display: block; width: clamp(140px, 17vw, 190px); height: auto; border-radius: 4px; }
   .wordmark-name { font-size: 1.45rem; line-height: 1.1; }
   .wordmark-caption { font-family: var(--font-sans); font-size: .58rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
   .nav-link { font-family: var(--font-sans); font-size: .83rem; letter-spacing: .01em; border-radius: 0; padding: .6rem .5rem; border: 0; border-bottom: 1px solid transparent; }
