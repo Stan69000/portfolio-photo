@@ -1,0 +1,32 @@
+title: Lac de Salagou - Eté 2026 — 009
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#ff0000'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '440238'
+  files:
+    thumb: '440271'
+    web: '440272'
+    zoom: '440273'
+    original: '440274'
+slug: lac-de-salagou-ete-2026-2026-08-16-009
+series: lac-de-salagou-ete-2026
+status: published
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=lac-de-salagou-ete-2026-2026-08-16-009&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=lac-de-salagou-ete-2026-2026-08-16-009&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=lac-de-salagou-ete-2026-2026-08-16-009&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=lac-de-salagou-ete-2026-2026-08-16-009&version=zoom
+date: '2026-08-16'
+description: ''
+tags:
+  - paysage
+  - lac
+hash: b4c74192966cc1111f0479e3f42281314266a5274f64f404d7f4227eb896b1bd
+exif:
+  camera: Canon Canon EOS 90D
+  lens: EF-S18-135mm f/3.5-5.6 IS USM
+  settings: f/6.3 1/320s

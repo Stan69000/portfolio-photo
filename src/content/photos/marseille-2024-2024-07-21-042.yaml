@@ -1,0 +1,45 @@
+title: Marseille - 2024 — 070
+kdrive:
+  drive_id: '620855'
+  directory_id: '430921'
+  files:
+    thumb: '431086'
+    web: '431717'
+    zoom: '431718'
+    original: '431089'
+slug: marseille-2024-2024-07-21-042
+series: marseille-2024
+status: published
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=web&rev=1a9827c3-b7ae-42f0-bfb0-bdf22121e493
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=thumb&rev=1a9827c3-b7ae-42f0-bfb0-bdf22121e493
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=web&rev=1a9827c3-b7ae-42f0-bfb0-bdf22121e493
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=zoom&rev=1a9827c3-b7ae-42f0-bfb0-bdf22121e493
+date: '2024-07-21'
+description: ''
+tags:
+  - bord de mer
+  - paysage
+hash: fbf6fd46e472649e2221f2e10a0d072be24f33d8d355f9e0e9e1249244ecbc40
+exif:
+  camera: Canon Canon EOS 90D
+  lens: EF-S18-135mm f/3.5-5.6 IS USM
+  settings: f/5.6 1/500s
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 120
+  color: '#ff0000'
+  font: serif
+signature_source:
+  kdrive:
+    drive_id: '620855'
+    directory_id: '430921'
+    files:
+      thumb: '431086'
+      web: '431087'
+      zoom: '431088'
+      original: '431089'
+  url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=web
+  url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=thumb
+  url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=web
+  url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=marseille-2024-2024-07-21-042&version=zoom

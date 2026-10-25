@@ -1,12 +1,12 @@
 # Revue d’accessibilité — 25 octobre 2026
 
-État : corrections locales, non déployées. Revue technique partielle, sans taux de conformité RGAA.
+État : version préparée pour déploiement, synchronisée avec les contenus de production. Revue technique partielle, sans taux de conformité RGAA.
 Référence : [critères et tests officiels du RGAA 4.1.2](https://accessibilite.numerique.gouv.fr/methode/criteres-et-tests/).
 Le fichier d’audit fourni porte sur l’ancienne version publique de l’accueil ; son score n’est pas extrapolé aux autres pages.
 
 ## Périmètre
 
-Photos, recherche, liste des séries, fiche de série (Marseille), fiche photo (Hôtel de ville), Instants, Favoris/statistiques, À propos, visite guidée et exploration par humeur (Ralentir), plus les composants partagés. Les contrôles de structure s’appliquent aux 1 193 fichiers HTML du build, y compris toutes les fiches photo, toutes les séries et toutes les humeurs.
+Photos, recherche, liste des séries, fiche de série (Marseille), fiche photo (Hôtel de ville), Instants, Favoris/statistiques, À propos, visite guidée et exploration par humeur (Ralentir), plus les composants partagés. Les contrôles de structure s’appliquent aux 1 498 fichiers HTML du build, y compris toutes les fiches photo, toutes les séries et toutes les humeurs.
 
 ## Corrections
 
@@ -24,9 +24,9 @@ Photos, recherche, liste des séries, fiche de série (Marseille), fiche photo (
 
 ## Vérifications réalisées
 
-- Build Astro réussi (1 193 pages).
+- Build Astro réussi (1 498 pages).
 - Onze tests existants de découverte, recherche et résolution des couvertures réussis.
-- `python3 scripts/audit-accessibility.py` : aucune erreur parmi les contrôles de structure appliqués aux 1 193 pages. Résultat détaillé : `accessibility-structure.json`.
+- `python3 scripts/audit-accessibility.py` : aucune erreur parmi les contrôles de structure appliqués aux 1 498 pages. Résultat détaillé : `accessibility-structure.json`.
 - Dans le navigateur : ouverture de la visionneuse au clavier, tabulation inverse bouclée, arrière-plan inerte sans rendre la fenêtre inerte, fermeture Échap et restitution du focus.
 - Recherche sans résultat puis réinitialisation : retour au champ q et restitution des résultats.
 - Favori activé puis désactivé au clavier : aria-pressed change et le focus reste sur le bouton. Accès au premier bouton étoile via Noter.
@@ -40,7 +40,7 @@ Photos, recherche, liste des séries, fiche de série (Marseille), fiche photo (
 - Étendre les essais de zoom natif à tous les parcours et navigateurs ; tester les espacements personnalisés, la présentation sans CSS, l’impression et les autres orientations. Les essais Chrome décrits ci-dessous ne couvrent pas tout le site.
 - Contrastes sur photographie et pour tous les états interactifs, texte dans le logo et informations de la carte.
 - Exhaustivité de la liste des lieux pour les regroupements volumineux : le modèle de carte limite ses aperçus à dix entrées par point ; les séries restent accessibles par leur lien.
-- Rejouer l’audit et les parcours sur le site réellement déployé et sur ses données à jour. La copie locale de ce chat et l’autre copie de travail repérée ne sont pas au même état.
+- Rejouer l’audit et les parcours sur le site réellement déployé et sur ses données à jour. Les contenus de production ont été réintégrés avant la compilation finale.
 
 Les vérifications automatiques ci-dessus sont des tests de non-régression ciblés, pas un audit exhaustif des critères RGAA. Aucun pourcentage de conformité n’est établi.
 
@@ -61,4 +61,4 @@ Les vérifications automatiques ci-dessus sont des tests de non-régression cibl
 4. Ouvrir une photo : seule la visionneuse doit être parcourue ; vérifier ses commandes, la légende et l’indicateur de progression. Une note active doit être distinguable sans la couleur.
 5. Fermer la visionneuse, confirmer le retour à la photo, puis parcourir la liste des lieux et ses liens sans utiliser la carte.
 
-Les variantes de test sont supprimées du build final. Les corrections restent locales et ne sont pas déployées.
+Les variantes de test sont supprimées du build final. Cette revue accompagne la version préparée pour déploiement.

@@ -222,3 +222,7 @@ h1, h2, h3 { text-wrap: balance; }
 
 .leaflet-container a.leaflet-popup-close-button { color: #333; background: #fff; }
 .leaflet-container a.leaflet-popup-close-button:hover, .leaflet-container a.leaflet-popup-close-button:focus { color: #111; }
+/* Safe areas for the installed gallery, including landscape phones. */
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.site-header { padding-top: env(safe-area-inset-top); }
+.site-footer { padding-bottom: max(2rem, env(safe-area-inset-bottom)); }

@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import '../styles/global.css';
 import BackToTop from '../components/BackToTop.astro';
+import InstallGallery from '../components/InstallGallery.astro';
 
 interface Props {
   title?: string;
@@ -51,7 +52,16 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icon-192.png" />
+    <meta name="theme-color" content="#191816" />
+    <meta name="application-name" content="Galerie Stan Bouchet" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Galerie Stan" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
     <meta name="description" content={resolvedDescription} />
     <meta name="robots" content={resolvedNoindex ? 'noindex,nofollow' : 'index,follow'} />
     <link rel="canonical" href={canonicalUrl} />
@@ -132,6 +142,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       <slot />
     </main>
     <footer class="site-footer">
+      <InstallGallery />
       <p>Site réalisé avec <span class="heart">❤️</span> par <a href="https://www.linkedin.com/in/stanislas-bouchet/" target="_blank" rel="noopener noreferrer">Stan BOUCHET</a></p>
       <p class="footer-license">
         © Stan Bouchet – Tous droits réservés.<br />
