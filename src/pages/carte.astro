@@ -124,7 +124,7 @@ for (const photo of publishedPhotos) {
   if (lat === null || lng === null) continue;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
 
-  const label = location.label || location.address || (seriesNameBySlug.get(photo.data.series) ?? photo.data.series.replace(/-/g, ' '));
+  const label = location.label || location.address || seriesNameBySlug.get(photo.data.series) || photo.data.series.replace(/-/g, ' ') || photo.data.title;
   const photoItem: MarkerPhoto = {
     kind: 'photo',
     slug: photo.data.slug,
@@ -161,8 +161,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
         <span>{preciseCount} précis · {approxCount} approximatif{approxCount > 1 ? 's' : ''}</span>
       </div>
       <div class="actions">
-        <button type="button" class="mode-btn active" id="mode-fr">France</button>
-        <button type="button" class="mode-btn" id="mode-world">Monde</button>
+        <button type="button" class="mode-btn active" id="mode-fr" aria-pressed="true">France</button>
+        <button type="button" class="mode-btn" id="mode-world" aria-pressed="false">Monde</button>
       </div>
     </div>
     <div class="legend">
@@ -186,7 +186,15 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   </section>
 
   <section class="map-shell">
-    <div id="photo-map" class="photo-map" aria-label="Carte des lieux de prise de vue"></div>
+    <div id="photo-map" class="photo-map" role="region" aria-label="Carte des lieux de prise de vue"></div>
+  </section>
+
+  <section class="map-places" aria-labelledby="map-places-title">
+    <h2 id="map-places-title">Les lieux en liste</h2>
+    <p>Retrouvez les séries et les photos sans utiliser la carte.</p>
+    <ul>{markers.map(point => <li><h3>{point.label}</h3><p>{point.count} photo{point.count > 1 ? 's' : ''} · {point.visibility === 'approx' ? 'Position approximative' : 'Position précise'} · {point.sourceType === 'series' ? 'Localisation de série' : 'Localisation de photo'}</p>
+      <ul>{point.seriesSlugs.map(slug => <li><a href={`/series/${slug}/`}>Découvrir {seriesNames[slug]}</a></li>)}{point.entries.filter(entry => entry.kind === 'photo').map(entry => <li><a href={entry.href}>{entry.title}</a></li>)}</ul>
+    </li>)}</ul>
   </section>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
@@ -242,7 +250,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
         const frBounds = L.latLngBounds([41.2, -5.2], [51.2, 9.7]);
         const worldBounds = L.latLngBounds([-62, -178], [82, 178]);
 
-        const map = L.map('photo-map', { zoomControl: true, minZoom: 2 }).setView([46.2276, 2.2137], 5);
+        const map = L.map('photo-map', { zoomControl: false, minZoom: 2 }).setView([46.2276, 2.2137], 5);
+        L.control.zoom({ zoomInTitle: 'Agrandir la carte', zoomOutTitle: 'Réduire la carte' }).addTo(map);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
           attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -351,6 +360,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
         const frBtn = document.getElementById('mode-fr');
         const worldBtn = document.getElementById('mode-world');
         function setMode(mode) {
+          frBtn?.setAttribute('aria-pressed', String(mode === 'fr'));
+          worldBtn?.setAttribute('aria-pressed', String(mode === 'world'));
           if (mode === 'world') {
             map.setMaxBounds(null);
             map.setMinZoom(2);
@@ -472,6 +483,8 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   .legend {
+    min-width: 0;
+    overflow-wrap: anywhere;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 1rem;
@@ -488,12 +501,13 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
 
   .legend-grid {
     display: grid;
-    grid-template-columns: 1.1fr .9fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
     gap: 1rem;
     align-items: start;
   }
 
   .legend-group {
+    min-width: 0;
     display: grid;
     gap: .45rem;
     align-content: start;
@@ -517,6 +531,7 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
   }
 
   .dot {
+    flex-shrink: 0;
     width: 11px;
     height: 11px;
     border-radius: 50%;
@@ -705,4 +720,11 @@ const approxCount = markers.filter((m) => m.visibility === 'approx').length;
 <style>
   :global(.popup-series-link) { display: block; padding: .6rem .2rem; margin-bottom: .35rem; font-weight: 600; color: #152a50; }
   :global(.popup-series-link:focus-visible), :global(.leaflet-interactive:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
+</style>
+
+<style>
+  .map-places { margin-top: 2rem; }
+  .map-places > ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.5rem; padding: 0; list-style: none; }
+  .map-places > ul > li { padding: 1rem; border: 1px solid var(--line); }
+  .map-places a { text-decoration: underline; text-underline-offset: .2em; }
 </style>

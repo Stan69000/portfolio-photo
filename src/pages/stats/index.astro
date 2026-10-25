@@ -165,13 +165,13 @@ function starsFill(rating: number) {
 
   <section class="panel reveal" id="coups-de-coeur" data-photos={JSON.stringify(clientPhotos)}>
     <h2>Vos notes</h2>
-    <p class="panel-sub" id="votes-summary">Chargement&hellip;</p>
+    <p class="panel-sub" id="votes-summary" role="status" aria-live="polite">Chargement&hellip;</p>
     <ol class="top-list" id="votes-list"></ol>
   </section>
 
   <section class="panel reveal" id="global-ratings">
     <h2>Notes de tous les visiteurs</h2>
-    <p class="panel-sub" id="global-summary">Chargement&hellip;</p>
+    <p class="panel-sub" id="global-summary" role="status" aria-live="polite">Chargement&hellip;</p>
     <ol class="top-list" id="global-list"></ol>
   </section>
 </Base>

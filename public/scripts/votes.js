@@ -69,6 +69,7 @@ function refreshStarWidgets() {
     const slug = wrap.dataset.starOverlay;
     const current = getRating(slug);
     wrap.querySelectorAll('.star-btn').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(Number(btn.dataset.star) === current));
       btn.classList.toggle('filled', Number(btn.dataset.star) <= current);
       btn.classList.remove('hovered');
     });
@@ -77,16 +78,36 @@ function refreshStarWidgets() {
     const slug = wrap.dataset.starWidget;
     const current = getRating(slug);
     wrap.querySelectorAll('.star-btn').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(Number(btn.dataset.star) === current));
       btn.classList.toggle('filled', Number(btn.dataset.star) <= current);
       btn.classList.remove('hovered');
     });
     const label = wrap.closest('.star-widget-wrap')?.querySelector('.star-label');
     if (label) label.textContent = current > 0 ? LABELS[current] : '';
   });
+  document.querySelectorAll('[data-fav-btn]').forEach(btn => {
+    const selected = isFavorite(btn.dataset.favSlug);
+    btn.setAttribute('aria-pressed', String(selected));
+    btn.textContent = selected ? '★' : '☆';
+  });
 }
 
 // ── Clicks ────────────────────────────────────────────────────────────────────
 document.addEventListener('click', e => {
+  const favorite = e.target.closest('[data-fav-btn]');
+  if (favorite) {
+    toggleFavorite(favorite.dataset.favSlug);
+    refreshStarWidgets();
+    return;
+  }
+  const vote = e.target.closest('[data-vote-btn]');
+  if (vote) {
+    const card = vote.closest('article');
+    const stars = card?.querySelector('[data-star-overlay], [data-star-widget]');
+    if (stars) stars.querySelector('button')?.focus();
+    else card?.querySelector('[data-lightbox-index]')?.click();
+    return;
+  }
   const btn = e.target.closest('.star-btn[data-star][data-star-slug]');
   if (!btn) return;
   e.stopPropagation();

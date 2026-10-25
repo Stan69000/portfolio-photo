@@ -174,7 +174,7 @@ const breadcrumbJsonLd = {
 
     <div class="detail-body">
 
-      <nav class="breadcrumb">
+      <nav class="breadcrumb" aria-label="Fil d’Ariane">
         <a href="/photos">← Photos</a>
         {photo.data.series && (
           <>
@@ -192,16 +192,17 @@ const breadcrumbJsonLd = {
 
       <div class="actions-row">
         <div class="star-widget-wrap">
-          <div data-star-widget={photo.data.slug}>
+          <div data-star-widget={photo.data.slug} role="group" aria-label={`Noter ${photo.data.title}`}>
             {[1,2,3,4,5].map(n => (
               <button class="star-btn" data-star={n} data-star-slug={photo.data.slug} aria-label={`${n} étoile${n > 1 ? 's' : ''}`} title={`${n} étoile${n > 1 ? 's' : ''}`}>★</button>
             ))}
           </div>
-          <span class="star-label"></span>
+          <span class="star-label" role="status" aria-live="polite"></span>
         </div>
         <div class="share-group">
           <button type="button" class="share-btn" id="share-copy-btn">Copier le lien</button>
           <button type="button" class="share-btn" id="share-native-btn">Partager</button>
+          <span id="share-status" class="sr-only" role="status"></span>
         </div>
         {photo.data.for_sale && (
           <span class="for-sale">
@@ -288,7 +289,7 @@ const breadcrumbJsonLd = {
       </section>
     )}
 
-    <nav class="photo-nav">
+    <nav class="photo-nav" aria-label="Photos précédente et suivante">
       {prev ? (
         <a href={`/photo/${prev.data.slug}/`} class="photo-nav-item photo-nav-prev">
           <img src={prev.data.url_thumb || prev.data.url} alt={prev.data.title} loading="lazy" decoding="async" />
@@ -737,9 +738,11 @@ const breadcrumbJsonLd = {
     try {
       await navigator.clipboard.writeText(location.href);
       copyBtn.textContent = 'Lien copié';
+      document.getElementById('share-status').textContent = 'Lien de la photo copié.';
       setTimeout(() => { copyBtn.textContent = 'Copier le lien'; }, 1400);
     } catch {
       copyBtn.textContent = 'Impossible';
+      document.getElementById('share-status').textContent = 'Le lien n’a pas pu être copié.';
       setTimeout(() => { copyBtn.textContent = 'Copier le lien'; }, 1400);
     }
   });

@@ -24,13 +24,13 @@ const { photos } = Astro.props;
     </div>
     <a class="lb-btn detail-link" href="#">Fiche →</a>
     <button type="button" class="lb-btn close" aria-label="Fermer">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       <span class="close-label">Fermer</span>
     </button>
   </div>
 
   <button type="button" class="lb-nav lb-prev" aria-label="Photo précédente">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
   </button>
 
   <figure class="lb-figure">
@@ -47,12 +47,12 @@ const { photos } = Astro.props;
         <button type="button" class="lb-star" data-n="4" aria-label="4 étoiles">★</button>
         <button type="button" class="lb-star" data-n="5" aria-label="5 étoiles">★</button>
       </div>
-      <span class="lb-star-label"></span>
+      <span class="lb-star-label" role="status" aria-live="polite"></span>
     </div>
   </figure>
 
   <button type="button" class="lb-nav lb-next" aria-label="Photo suivante">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
 
   <div class="lb-counter">
@@ -358,8 +358,7 @@ const { photos } = Astro.props;
   let scrollBeforeOpen = 0;
   let previousBodyStyle = '';
   const captionToggle = root.querySelector('.caption-toggle');
-  const mainContent = document.querySelector('main');
-  let mainWasInert = false;
+  let inertSiblings = [];
   let zoom = 1;
   let panX = 0;
   let panY = 0;
@@ -393,6 +392,7 @@ const { photos } = Astro.props;
     const current = window.PhotoVotes ? window.PhotoVotes.getRating(slug) : 0;
     starBtns.forEach((b) => {
       const n = Number(b.dataset.n);
+      b.setAttribute('aria-pressed', String(n === current));
       b.classList.toggle('filled', n <= current);
       b.classList.remove('hovered');
     });
@@ -467,8 +467,16 @@ const { photos } = Astro.props;
     document.body.style.top = `-${scrollBeforeOpen}px`;
     document.body.style.width = '100%';
     document.body.style.overflow = 'hidden';
-    // Some pages place the dialog inside main; never make its ancestor inert.
-    if (mainContent && !mainContent.contains(root)) { mainWasInert = mainContent.inert; mainContent.inert = true; }
+    // Isolate siblings at each level, including when the dialog is inside main.
+    inertSiblings = [];
+    for (let node = root; node.parentElement; node = node.parentElement) {
+      for (const sibling of node.parentElement.children) {
+        if (sibling === node || !(sibling instanceof HTMLElement) || ['SCRIPT', 'STYLE', 'LINK'].includes(sibling.tagName)) continue;
+        inertSiblings.push([sibling, sibling.inert]);
+        sibling.inert = true;
+      }
+      if (node.parentElement === document.body) break;
+    }
     (closeBtn || root).focus();
   };
 
@@ -476,7 +484,8 @@ const { photos } = Astro.props;
     root.hidden = true;
     root.setAttribute('aria-hidden', 'true');
     document.body.setAttribute('style', previousBodyStyle);
-    if (mainContent && !mainContent.contains(root)) mainContent.inert = mainWasInert;
+    inertSiblings.forEach(([element, wasInert]) => { element.inert = wasInert; });
+    inertSiblings = [];
     window.scrollTo({ top: scrollBeforeOpen, behavior: 'instant' });
     const viewedTrigger = document.querySelector(`[data-lightbox-index="${index}"]`);
     const target = index === openingIndex ? (lastFocused || viewedTrigger) : (viewedTrigger || lastFocused);
@@ -553,7 +562,7 @@ const { photos } = Astro.props;
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (document.activeElement === last || !root.contains(document.activeElement))) {
         event.preventDefault();
         first.focus();
       }
@@ -680,5 +689,23 @@ const { photos } = Astro.props;
   }
   @media (prefers-reduced-motion: reduce) {
     .lightbox, .lb-image { animation: none; }
+  }
+</style>
+
+<style>
+  .lb-star-label { color: #c5c0b7; }
+  .lb-star { min-width: 36px; min-height: 36px; }
+</style>
+
+<style>
+  /* At high browser zoom, keep every control reachable by vertical scrolling. */
+  @media (max-height: 420px) {
+    .lightbox { overflow-y: auto; align-items: start; grid-template-rows: auto minmax(240px, 1fr) auto; }
+    .lb-toolbar { position: sticky; top: 0; flex-wrap: wrap; background: #141311; }
+    .lb-figure { min-height: 240px; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(100px, 1fr) auto auto auto; }
+    .lb-img-wrap { grid-column: 1; grid-row: 1; }
+    .caption-toggle { grid-column: 1; grid-row: 2; }
+    .lb-stars-wrap { grid-column: 1; grid-row: 4; }
+    .caption-expanded .lb-caption { position: static; grid-column: 1; grid-row: 3; max-height: none; overflow: visible; }
   }
 </style>

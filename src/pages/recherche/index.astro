@@ -69,7 +69,7 @@ button { cursor:pointer; color:var(--text); font:inherit; min-height:44px; }
 .tag-suggestions button[aria-pressed='true'] { border-color:var(--accent); color:var(--accent); }
 .active-filters { display:flex; gap:.5rem; flex-wrap:wrap; padding-top:1.2rem; }
 .active-filters :global(button) { border:1px solid var(--accent); border-radius:30px; background:var(--bg); padding:.5rem .8rem; font-size:.75rem; color:var(--accent); }
-.results-heading { margin:2.5rem 0 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.results-heading { flex-wrap:wrap; margin:2.5rem 0 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; }
 .results-heading .eyebrow { margin-bottom:.45rem; }
 #result-count { margin:0; color:var(--text); font-family:var(--font-display); font-size:1.8rem; }
 .reset { background:none; border:0; color:var(--accent); font-size:.8rem; padding:.5rem; }
@@ -92,6 +92,7 @@ img { display:block; width:100%; height:100%; object-fit:cover; transition:trans
 .sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 @media(max-width:900px) { .filters { grid-template-columns:repeat(2,minmax(0,1fr)); } .results-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:600px) { .search-intro { margin:1rem 0 1.5rem; } .search-intro h1 { font-size:2.2rem; } .filters { gap:1rem .75rem; } .keyword-content { grid-template-columns:1fr; } .results-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem .8rem; } .results-heading { align-items:end; } #result-count { font-size:1.5rem; } select { font-size:.78rem; padding-left:.5rem; } }
+@media(max-width:400px) { .filters, .results-grid { grid-template-columns:minmax(0,1fr); } }
 @media(prefers-reduced-motion:reduce) { img { transition:none; } }
 </style>
 <script>
@@ -134,7 +135,7 @@ function run(syncUrl=true) {
     const value=control instanceof HTMLSelectElement ? control.selectedOptions[0].textContent : state[name];
     button.textContent=`${name==='q'?'Recherche : ':''}${value} ×`;
     button.setAttribute('aria-label',`Retirer le filtre ${value}`);
-    button.addEventListener('click',()=>{control.value='';limit=36;run();});chips.appendChild(button);
+    button.addEventListener('click',()=>{control.value='';limit=36;run();control.focus();});chips.appendChild(button);
   });
   chips.hidden=!chips.childElementCount;
   reset.hidden=chips.hidden&&state.sort==='newest';
@@ -146,7 +147,8 @@ form.addEventListener('input',event=>{if(event.target===controls.q){limit=36;run
 form.addEventListener('change',()=>{limit=36;run();});
 form.querySelectorAll<HTMLButtonElement>('[data-suggested-tag]').forEach(button=>button.addEventListener('click',()=>{if(controls.tag)controls.tag.value=controls.tag.value===button.dataset.suggestedTag?'':button.dataset.suggestedTag!;limit=36;run();}));
 function clear(){form.reset();limit=36;run();}
-reset.addEventListener('click',clear);document.querySelector('#empty-reset')!.addEventListener('click',clear);
+const clearAndFocus = () => { clear(); controls.q?.focus(); };
+reset.addEventListener('click',clearAndFocus);document.querySelector('#empty-reset')!.addEventListener('click',clearAndFocus);
 loadMore.addEventListener('click',()=>{const previousLimit=limit;limit+=36;run(false);cards.get(matches[previousLimit]?.slug)?.querySelector('a')?.focus({preventScroll:true});});
 window.addEventListener('popstate',()=>{limit=36;readUrl();run(false);});
 readUrl();run(false);

@@ -25,7 +25,7 @@ const {
 
 const { pathname } = Astro.url;
 const isActive = (href: string) =>
-  href === '/' ? pathname === '/' : pathname.startsWith(href);
+  href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
 const settingsEntries = await getCollection('settings');
 const siteData = settingsEntries[0]?.data;
@@ -82,24 +82,25 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     ))}
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Aller au contenu</a>
     <div id="page-top" tabindex="-1"></div>
     <header class="site-header">
       <div class="header-inner">
-        <a href="/" class="wordmark"><span class="wordmark-name">{wordmark}</span><span class="wordmark-caption">Carnets photographiques</span></a>
+        <a href="/" class="wordmark" aria-label="L’InStan Photo — Accueil"><img class="brand-logo" src="/images/logo-instan-photo.webp" alt="L’InStan Photo — Photographe amateur et passionné" width="768" height="512" fetchpriority="high" /></a>
 
         <!-- Desktop nav -->
         <nav class="nav" id="main-nav" aria-label="Navigation principale">
-          <a href="/" class:list={['nav-link', { active: isActive('/') }]}>Accueil</a>
-          <a href="/instants" class:list={['nav-link', { active: isActive('/instants') }]}>Instants</a>
-          <a href="/photos" class:list={['nav-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
-          <a href="/series" class:list={['nav-link', { active: isActive('/series') }]}>Séries</a>
-          <a href="/carte" class:list={['nav-link', { active: isActive('/carte') }]}>Carte</a>
-          <a href="/recherche" class:list={['nav-link nav-search', { active: isActive('/recherche') }]} aria-label="Recherche">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <a href="/" class:list={['nav-link', { active: isActive('/') }]} aria-current={isActive('/') ? 'page' : undefined}>Accueil</a>
+          <a href="/instants" class:list={['nav-link', { active: isActive('/instants') }]} aria-current={isActive('/instants') ? 'page' : undefined}>Instants</a>
+          <a href="/photos" class:list={['nav-link', { active: isActive('/photos') || isActive('/photo') }]} aria-current={isActive('/photos') || isActive('/photo') ? 'page' : undefined}>Photos</a>
+          <a href="/series" class:list={['nav-link', { active: isActive('/series') }]} aria-current={isActive('/series') ? 'page' : undefined}>Séries</a>
+          <a href="/carte" class:list={['nav-link', { active: isActive('/carte') }]} aria-current={isActive('/carte') ? 'page' : undefined}>Carte</a>
+          <a href="/recherche" class:list={['nav-link nav-search', { active: isActive('/recherche') }]} aria-current={isActive('/recherche') ? 'page' : undefined} aria-label="Recherche">
+            <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span>Recherche</span>
           </a>
-          <a href="/stats" class:list={['nav-link', { active: isActive('/stats') }]}>Favoris</a>
-          <a href="/a-propos" class:list={['nav-link', { active: isActive('/a-propos') }]}>À propos</a>
+          <a href="/stats" class:list={['nav-link', { active: isActive('/stats') }]} aria-current={isActive('/stats') ? 'page' : undefined}>Favoris</a>
+          <a href="/a-propos" class:list={['nav-link', { active: isActive('/a-propos') }]} aria-current={isActive('/a-propos') ? 'page' : undefined}>À propos</a>
           <a href="/rss.xml" class="nav-rss" aria-label="Flux RSS" title="S'abonner au flux RSS" target="_blank" rel="noopener noreferrer">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19.01 7.38 20 6.18 20C4.98 20 4 19.01 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1z"/></svg>
           </a>
@@ -113,21 +114,21 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 
       <!-- Mobile menu -->
       <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
-        <a href="/" class:list={['mobile-link', { active: isActive('/') }]}>Accueil</a>
-        <a href="/instants" class:list={['mobile-link', { active: isActive('/instants') }]}>Instants</a>
-        <a href="/photos" class:list={['mobile-link', { active: isActive('/photos') || isActive('/photo') }]}>Photos</a>
-        <a href="/series" class:list={['mobile-link', { active: isActive('/series') }]}>Séries</a>
-        <a href="/carte" class:list={['mobile-link', { active: isActive('/carte') }]}>Carte</a>
-        <a href="/recherche" class:list={['mobile-link', { active: isActive('/recherche') }]}>Recherche</a>
-        <a href="/stats" class:list={['mobile-link', { active: isActive('/stats') }]}>Favoris</a>
-        <a href="/a-propos" class:list={['mobile-link', { active: isActive('/a-propos') }]}>À propos</a>
+        <a href="/" class:list={['mobile-link', { active: isActive('/') }]} aria-current={isActive('/') ? 'page' : undefined}>Accueil</a>
+        <a href="/instants" class:list={['mobile-link', { active: isActive('/instants') }]} aria-current={isActive('/instants') ? 'page' : undefined}>Instants</a>
+        <a href="/photos" class:list={['mobile-link', { active: isActive('/photos') || isActive('/photo') }]} aria-current={isActive('/photos') || isActive('/photo') ? 'page' : undefined}>Photos</a>
+        <a href="/series" class:list={['mobile-link', { active: isActive('/series') }]} aria-current={isActive('/series') ? 'page' : undefined}>Séries</a>
+        <a href="/carte" class:list={['mobile-link', { active: isActive('/carte') }]} aria-current={isActive('/carte') ? 'page' : undefined}>Carte</a>
+        <a href="/recherche" class:list={['mobile-link', { active: isActive('/recherche') }]} aria-current={isActive('/recherche') ? 'page' : undefined}>Recherche</a>
+        <a href="/stats" class:list={['mobile-link', { active: isActive('/stats') }]} aria-current={isActive('/stats') ? 'page' : undefined}>Favoris</a>
+        <a href="/a-propos" class:list={['mobile-link', { active: isActive('/a-propos') }]} aria-current={isActive('/a-propos') ? 'page' : undefined}>À propos</a>
         <a href="/rss.xml" class="mobile-link mobile-rss" target="_blank" rel="noopener noreferrer">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19.01 7.38 20 6.18 20C4.98 20 4 19.01 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1z"/></svg>
           RSS
         </a>
       </div>
     </header>
-    <main>
+    <main id="main-content" tabindex="-1">
       <slot />
     </main>
     <footer class="site-footer">
@@ -293,7 +294,11 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   }
 
   .mobile-link.active {
-    background: rgba(var(--accent-rgb), 0.12);
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: .25em;
   }
 
   .mobile-rss {
@@ -358,6 +363,13 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     const menu = document.getElementById('mobile-menu');
     if (!btn || !menu) return;
 
+    menu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-hidden', 'true');
+      btn.focus();
+    });
     btn.addEventListener('click', () => {
       const open = menu.classList.toggle('open');
       btn.setAttribute('aria-expanded', String(open));
@@ -410,8 +422,9 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 
 <style>
   .site-header { background: color-mix(in srgb, var(--bg) 94%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
-  .header-inner { padding-top: 1.2rem; padding-bottom: 1.2rem; }
+  .header-inner { padding-top: .75rem; padding-bottom: .75rem; }
   .wordmark { display: grid; gap: .25rem; flex-shrink: 0; letter-spacing: .01em; }
+  .brand-logo { display: block; width: clamp(140px, 14vw, 170px); height: auto; border-radius: 4px; }
   .wordmark-name { font-size: 1.45rem; line-height: 1.1; }
   .wordmark-caption { font-family: var(--font-sans); font-size: .58rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
   .nav-link { font-family: var(--font-sans); font-size: .83rem; letter-spacing: .01em; border-radius: 0; padding: .6rem .5rem; border: 0; border-bottom: 1px solid transparent; }
@@ -421,4 +434,9 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   .site-footer { padding-top: 3rem; padding-bottom: 3rem; }
   @media (max-width: 1050px) { .nav { display: none; } .burger { display: flex; width: 44px; height: 44px; } }
   @media (max-width: 600px) { .wordmark-name { font-size: 1.15rem; } .wordmark-caption { font-size: .52rem; } }
+</style>
+
+<style>
+  .skip-link { position: fixed; top: .5rem; left: 1rem; z-index: 200; padding: .75rem 1rem; background: var(--surface); color: var(--text); border: 2px solid var(--accent); transform: translateY(-200%); }
+  .skip-link:focus { transform: translateY(0); }
 </style>
