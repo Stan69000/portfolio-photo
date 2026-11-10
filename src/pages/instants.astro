@@ -17,7 +17,7 @@ const items = photos.map(p => ({id:p.id,slug:p.data.slug,title:p.data.title,desc
         <a href={`/photo/${photo.data.slug}/`}>{photo.data.title}</a>
         {photo.data.date && <time datetime={photo.data.date.toISOString()}>{photo.data.date.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Paris'})}</time>}
         {photo.data.description && <p>{photo.data.description}</p>}
-        {photo.data.location && photo.data.location.public_visibility !== 'hidden' && <a class="place" href="/carte">⌖ {photo.data.location.label || photo.data.location.address || 'Voir sur la carte'}</a>}
+        {photo.data.location && photo.data.location.public_visibility !== 'hidden' && <a class="place" href="/carte/">⌖ {photo.data.location.label || photo.data.location.address || 'Voir sur la carte'}</a>}
       </div>
     </article>)}
   </div>

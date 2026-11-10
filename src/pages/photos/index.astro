@@ -147,7 +147,7 @@ const tagsList = [...new Set(photos.flatMap((photo) => photo.tags))].sort((a, b)
           {photo.tags.length > 0 && (
             <div class="card-tags">
               {photo.tags.slice(0, 3).map((t) => (
-                <a href={`/recherche?tag=${encodeURIComponent(t)}`} class="card-tag">#{t}</a>
+                <a href={`/recherche/?tag=${encodeURIComponent(t)}`} class="card-tag">#{t}</a>
               ))}
             </div>
           )}
