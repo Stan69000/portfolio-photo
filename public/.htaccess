@@ -1,0 +1,7 @@
+# Une seule adresse canonique : https://stan-bouchet.eu, en une redirection.
+# http:// et www. répondaient en 200 et dupliquaient le site
+# (Search Console : « Autre page avec balise canonique correcte »).
+RewriteEngine On
+RewriteCond %{HTTP_HOST} ^www\. [NC,OR]
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://stan-bouchet.eu%{REQUEST_URI} [L,R=301]
