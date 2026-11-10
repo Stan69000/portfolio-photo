@@ -53,7 +53,7 @@ const seriesLocationLng = seriesLocationIsPublic ? Number(seriesLocation?.lng) :
 const effectiveLocationLat = Number.isFinite(photoLocationLat) ? photoLocationLat : seriesLocationLat;
 const effectiveLocationLng = Number.isFinite(photoLocationLng) ? photoLocationLng : seriesLocationLng;
 const locationMapLink = (effectiveLocationDisplay && Number.isFinite(effectiveLocationLat) && Number.isFinite(effectiveLocationLng))
-  ? `/carte?lat=${encodeURIComponent(effectiveLocationLat.toFixed(effectiveLocationVisibility === 'approx' ? 2 : 6))}&lng=${encodeURIComponent(effectiveLocationLng.toFixed(effectiveLocationVisibility === 'approx' ? 2 : 6))}&label=${encodeURIComponent(effectiveLocationDisplay)}`
+  ? `/carte/?lat=${encodeURIComponent(effectiveLocationLat.toFixed(effectiveLocationVisibility === 'approx' ? 2 : 6))}&lng=${encodeURIComponent(effectiveLocationLng.toFixed(effectiveLocationVisibility === 'approx' ? 2 : 6))}&label=${encodeURIComponent(effectiveLocationDisplay)}`
   : '/carte';
 const siteBase = Astro.site ?? new URL('https://stan-bouchet.eu');
 const canonicalPath = `/photo/${photo.data.slug}/`;
@@ -175,7 +175,7 @@ const breadcrumbJsonLd = {
     <div class="detail-body">
 
       <nav class="breadcrumb" aria-label="Fil d’Ariane">
-        <a href="/photos">← Photos</a>
+        <a href="/photos/">← Photos</a>
         {photo.data.series && (
           <>
             <span>·</span>
@@ -245,7 +245,7 @@ const breadcrumbJsonLd = {
               <div class="tags-row">
                 {vals.map((val) => {
                   const full = cat ? `${cat}:${val}` : val;
-                  return <a href={`/recherche?tag=${encodeURIComponent(full)}`} class="tag">#{val}</a>;
+                  return <a href={`/recherche/?tag=${encodeURIComponent(full)}`} class="tag">#{val}</a>;
                 })}
               </div>
             </div>

@@ -63,7 +63,7 @@ const tourCount = guidedSelection(allPhotos, siteSettings.tour_photos).length;
     </a>)}</div>
   </section>}
   {homeSeries.length > 0 && <section id="selection" class="selection">
-    <div class="section-heading"><div><p class="kicker">Pour commencer</p><h2>{seriesTitle} à découvrir</h2></div><a class="text-link" href="/series">Toutes les séries →</a></div>
+    <div class="section-heading"><div><p class="kicker">Pour commencer</p><h2>{seriesTitle} à découvrir</h2></div><a class="text-link" href="/series/">Toutes les séries →</a></div>
     <div class="selection-grid">{homeSeries.map((card, index) => <a href={`/series/${card.slug}/`} class="selected-card">
       <div class="selected-image"><img src={card.cover} alt={card.name} loading="lazy" decoding="async" /></div>
       <span class="selection-number">0{index + 1} / {card.count} photographies</span><h3>{card.name}</h3><p>{card.description}</p><span class="text-link">Découvrir la série ↗</span>
@@ -89,7 +89,7 @@ const tourCount = guidedSelection(allPhotos, siteSettings.tour_photos).length;
       {aboutLead && <p class="introduction-lead">{aboutLead}</p>}
       {!aboutLead && aboutParagraphs[0] && <p>{aboutParagraphs[0]}</p>}
       {aboutSignature && <p class="introduction-signature">{aboutSignature}</p>}
-      <a class="text-link" href="/a-propos">Faire connaissance →</a>
+      <a class="text-link" href="/a-propos/">Faire connaissance →</a>
     </div>
   </section>
 </Base>
