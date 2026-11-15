@@ -1,0 +1,36 @@
+title: Ragondin
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#ff0000'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '427439'
+  files:
+    thumb: '441843'
+    web: '441844'
+    zoom: '441845'
+    original: '441846'
+slug: instants-2026-11-15-003
+series: ''
+status: published
+kind: instant
+published_at: '2026-11-15T14:32:53.982Z'
+location:
+  lat: 45.74229444444445
+  lng: 4.8152083333333335
+  public_visibility: hidden
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15-003&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15-003&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15-003&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15-003&version=zoom
+date: '2026-11-15'
+description: ''
+tags: []
+hash: 375499b8c0f39644e46945626424eb7984bc4c2cff55bd5747a2148934665948
+exif:
+  camera: Apple iPhone 15
+  lens: iPhone 15 back dual wide camera 5.96mm f/1.6
+  settings: f/1.6 1/192s
