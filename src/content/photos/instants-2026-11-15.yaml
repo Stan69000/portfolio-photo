@@ -1,0 +1,36 @@
+title: Instant du 15 novembre 2026
+signature:
+  text: © Stan Bouchet
+  bold: true
+  size: 100
+  color: '#ff0000'
+  font: serif
+kdrive:
+  drive_id: '620855'
+  directory_id: '427439'
+  files:
+    thumb: '441835'
+    web: '441836'
+    zoom: '441837'
+    original: '441838'
+slug: instants-2026-11-15
+series: ''
+status: published
+kind: instant
+published_at: '2026-11-15T14:28:52.059Z'
+location:
+  lat: 45.74203611111111
+  lng: 4.815472222222222
+  public_visibility: precise
+url: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15&version=web
+url_thumb: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15&version=thumb
+url_web: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15&version=web
+url_zoom: https://admin.stan-bouchet.fr/api/public/kdrive?slug=instants-2026-11-15&version=zoom
+date: '2026-11-15'
+description: Pause dans le quartier Confluence à Lyon
+tags: []
+hash: a7160db531027a5a04edcece4c29b37c3db063cad08202d7b113aab1bdc32d4c
+exif:
+  camera: Apple iPhone 15
+  lens: iPhone 15 back dual wide camera 5.96mm f/1.6
+  settings: f/1.6 1/170s
