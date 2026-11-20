@@ -8,6 +8,7 @@ export const GET: APIRoute = ({ site }) => {
     [
       'User-agent: *',
       'Allow: /',
+      'Disallow: /prive/',
       '',
       `Sitemap: ${sitemapUrl}`,
     ].join('\n'),

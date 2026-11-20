@@ -1,0 +1,672 @@
+---
+import Base from '../../layouts/Base.astro';
+import Lightbox from '../../components/Lightbox.astro';
+import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
+---
+
+<Base title="Galerie privée" description="Accès réservé" noindex>
+  <section id="gate" class="gate">
+    <h1>Galerie privée</h1>
+    <p id="gate-intro">Entre le code qui accompagne ton lien pour voir les photos.</p>
+    <form id="gate-form" autocomplete="off">
+      <label for="gate-code">Code d’accès</label>
+      <input
+        id="gate-code"
+        name="code"
+        type="text"
+        inputmode="latin"
+        autocapitalize="characters"
+        spellcheck="false"
+        required
+      />
+      <button type="submit" id="gate-submit">Entrer</button>
+      <p id="gate-error" class="gate-error" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="gallery" hidden>
+    <header class="gallery-head">
+      <h1 id="gallery-title"></h1>
+      <p id="gallery-message"></p>
+
+      <div class="gallery-actions">
+        <button type="button" id="download-all" hidden>Tout télécharger</button>
+        <button type="button" id="download-selection" hidden>Télécharger ma sélection</button>
+        <span id="download-state" role="status" aria-live="polite"></span>
+      </div>
+
+      <div class="selection-bar" id="selection-bar" hidden>
+        <p class="selection-count" id="selection-count" role="status" aria-live="polite"></p>
+        <div class="selection-actions">
+          <button type="button" id="selection-filter" aria-pressed="false">
+            Ne voir que ma sélection
+          </button>
+          <button type="button" id="selection-validate">Je valide ma sélection</button>
+        </div>
+        <p class="selection-note" id="selection-note" role="alert"></p>
+      </div>
+    </header>
+
+    <div class="masonry" id="grid"></div>
+    <p id="gallery-empty" hidden>Cette galerie ne contient encore aucune photo.</p>
+    <p id="selection-empty" hidden>Aucune photo retenue pour l’instant.</p>
+  </section>
+
+  <template id="card-template"><PrivatePhotoCard /></template>
+
+  <Lightbox photos={[]} showDetail={false} showRating={false} downloadable privateTools />
+</Base>
+
+<style>
+  .gate {
+    max-width: 24rem;
+    margin: 4rem auto;
+    text-align: center;
+  }
+
+  .gate h1 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .gate p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .gate form {
+    display: grid;
+    gap: 0.75rem;
+    text-align: left;
+  }
+
+  .gate label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .gate input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: inherit;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .gate button {
+    padding: 0.75rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--accent-rgb), 0.6);
+    background: rgba(var(--accent-rgb), 0.18);
+    color: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .gate button:hover {
+    background: rgba(var(--accent-rgb), 0.3);
+  }
+
+  .gate-error:empty {
+    display: none;
+  }
+
+  .gate-error {
+    color: #ff7a7a;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .gallery-head {
+    margin-bottom: 2rem;
+  }
+
+  .gallery-head h1 {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .gallery-head > p {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+
+  .gallery-head > p:empty {
+    display: none;
+  }
+
+  .gallery-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .gallery-actions button,
+  .selection-actions button {
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--accent-rgb), 0.6);
+    background: rgba(var(--accent-rgb), 0.18);
+    color: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .gallery-actions button:hover,
+  .selection-actions button:hover {
+    background: rgba(var(--accent-rgb), 0.3);
+  }
+
+  .gallery-actions button[disabled],
+  .selection-actions button[disabled] {
+    opacity: 0.6;
+    cursor: progress;
+  }
+
+  .selection-actions button[aria-pressed='true'] {
+    background: rgba(var(--accent-rgb), 0.45);
+  }
+
+  #download-state {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .selection-bar {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .selection-count {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+  }
+
+  .selection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .selection-note {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .selection-note:empty {
+    display: none;
+  }
+
+  .selection-note.is-error {
+    color: #ff7a7a;
+  }
+
+  .masonry {
+    column-count: 1;
+    column-gap: 1rem;
+  }
+
+  .masonry.only-selection :global(.photo-card:not(.is-kept)) {
+    display: none;
+  }
+
+  @media (min-width: 720px) {
+    .masonry {
+      column-count: 2;
+    }
+  }
+
+  @media (min-width: 1080px) {
+    .masonry {
+      column-count: 3;
+    }
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    const slug = (params.get('g') || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+    const gate = document.getElementById('gate');
+    const gateForm = document.getElementById('gate-form');
+    const gateCode = document.getElementById('gate-code');
+    const gateError = document.getElementById('gate-error');
+    const gateIntro = document.getElementById('gate-intro');
+    const gallery = document.getElementById('gallery');
+    const grid = document.getElementById('grid');
+    const template = document.getElementById('card-template');
+    const titleNode = document.getElementById('gallery-title');
+    const messageNode = document.getElementById('gallery-message');
+    const emptyNode = document.getElementById('gallery-empty');
+    const selectionEmpty = document.getElementById('selection-empty');
+    const downloadAll = document.getElementById('download-all');
+    const downloadSelection = document.getElementById('download-selection');
+    const downloadState = document.getElementById('download-state');
+    const selectionBar = document.getElementById('selection-bar');
+    const selectionCount = document.getElementById('selection-count');
+    const selectionFilter = document.getElementById('selection-filter');
+    const selectionValidate = document.getElementById('selection-validate');
+    const selectionNote = document.getElementById('selection-note');
+
+    if (!slug) {
+      gateIntro.textContent = 'Ce lien est incomplet. Utilise celui qui t’a été envoyé.';
+      gateForm.hidden = true;
+      return;
+    }
+
+    const api = '/api/galerie/' + encodeURIComponent(slug);
+    const imageUrl = (photo, version) =>
+      api + '/image?photo=' + encodeURIComponent(photo) + '&version=' + version;
+
+    const state = {
+      photos: [],
+      settings: null,
+      kept: new Set(),
+      comments: new Map(),
+      cards: new Map(),
+      validatedAt: null,
+    };
+
+    function show(section) {
+      gate.hidden = section !== 'gate';
+      gallery.hidden = section !== 'gallery';
+    }
+
+    function note(message, isError) {
+      selectionNote.textContent = message || '';
+      selectionNote.classList.toggle('is-error', Boolean(isError));
+    }
+
+    function locked() {
+      return Boolean(state.validatedAt);
+    }
+
+    function refreshSelectionUI() {
+      const settings = state.settings;
+      if (!settings || !settings.selectionEnabled) return;
+
+      const count = state.kept.size;
+      const quota = settings.selectionQuota;
+      selectionCount.textContent = quota
+        ? count + ' / ' + quota + ' photos retenues'
+        : count + ' photo' + (count > 1 ? 's' : '') + ' retenue' + (count > 1 ? 's' : '');
+
+      if (locked()) {
+        selectionValidate.hidden = true;
+        note('Sélection validée. Stan la reçoit telle quelle ; demande-lui de la rouvrir si tu changes d’avis.');
+      } else {
+        selectionValidate.hidden = false;
+        selectionValidate.disabled = count === 0;
+        if (quota && count > quota && !settings.selectionHard) {
+          note('Tu as dépassé les ' + quota + ' photos prévues. À voir ensemble.');
+        }
+      }
+
+      if (downloadSelection) {
+        downloadSelection.hidden = !settings.downloadable || count === 0;
+      }
+
+      state.cards.forEach((card, photoSlug) => {
+        const kept = state.kept.has(photoSlug);
+        card.classList.toggle('is-kept', kept);
+        const button = card.querySelector('[data-card-keep]');
+        if (button) {
+          button.setAttribute('aria-pressed', kept ? 'true' : 'false');
+          button.disabled = locked();
+          const label = button.querySelector('[data-card-keep-label]');
+          if (label) label.textContent = kept ? 'Gardée' : 'Je la garde';
+        }
+      });
+
+      if (selectionFilter.getAttribute('aria-pressed') === 'true') {
+        selectionEmpty.hidden = count > 0;
+      }
+      refreshLightboxKeep();
+    }
+
+    async function setKept(photoSlug, next) {
+      if (locked()) return;
+      note('');
+      try {
+        const response = await fetch(api + '/selection', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ photo: photoSlug, selected: next }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          note(data.error || 'Enregistrement impossible.', true);
+          return;
+        }
+        state.kept = new Set((data.selection || []).map((entry) => entry.photo));
+        refreshSelectionUI();
+      } catch {
+        note('Connexion perdue. Ta sélection n’a pas été enregistrée.', true);
+      }
+    }
+
+    async function saveComment(photoSlug, text) {
+      const field = document.getElementById('lb-comment-field');
+      const status = document.querySelector('.lb-comment-state');
+      if (locked()) return;
+      try {
+        const response = await fetch(api + '/selection', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ photo: photoSlug, comment: text }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (status) status.textContent = data.error || 'Non enregistré';
+          return;
+        }
+        state.comments.set(photoSlug, text);
+        state.kept = new Set((data.selection || []).map((entry) => entry.photo));
+        if (status) status.textContent = text ? 'Enregistré' : '';
+        if (field) field.dataset.saved = text;
+        refreshSelectionUI();
+      } catch {
+        if (status) status.textContent = 'Non enregistré';
+      }
+    }
+
+    function currentLightboxPhoto() {
+      const image = document.querySelector('.lb-image');
+      if (!image) return null;
+      const match = /[?&]photo=([^&]+)/.exec(image.getAttribute('src') || '');
+      return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    function refreshLightboxKeep() {
+      const keepButton = document.querySelector('.lb-keep');
+      const photoSlug = currentLightboxPhoto();
+      if (!keepButton || !photoSlug || !state.settings) return;
+      const kept = state.kept.has(photoSlug);
+      keepButton.setAttribute('aria-pressed', kept ? 'true' : 'false');
+      keepButton.textContent = kept ? 'Gardée' : 'Je la garde';
+      keepButton.disabled = locked();
+    }
+
+    function refreshLightboxComment() {
+      const box = document.querySelector('.lb-comment');
+      const field = document.getElementById('lb-comment-field');
+      const status = document.querySelector('.lb-comment-state');
+      const photoSlug = currentLightboxPhoto();
+      if (!box || !field || !photoSlug) return;
+      const text = state.comments.get(photoSlug) || '';
+      field.value = text;
+      field.dataset.saved = text;
+      field.dataset.photo = photoSlug;
+      field.disabled = locked();
+      if (status) status.textContent = '';
+    }
+
+    function setupLightboxTools() {
+      const image = document.querySelector('.lb-image');
+      if (!image || image.dataset.toolsBound) return;
+      image.dataset.toolsBound = 'true';
+
+      const keepButton = document.querySelector('.lb-keep');
+      const downloadLink = document.querySelector('.lb-download');
+      const field = document.getElementById('lb-comment-field');
+
+      // La visionneuse ne prévient pas d'un changement d'image : on suit son
+      // src, qui porte déjà le nom de la photo affichée.
+      const sync = () => {
+        const photoSlug = currentLightboxPhoto();
+        if (downloadLink && photoSlug) {
+          downloadLink.href = api + '/download?photo=' + encodeURIComponent(photoSlug);
+        }
+        refreshLightboxKeep();
+        refreshLightboxComment();
+      };
+      new MutationObserver(sync).observe(image, { attributes: true, attributeFilter: ['src'] });
+
+      if (keepButton) {
+        keepButton.addEventListener('click', () => {
+          const photoSlug = currentLightboxPhoto();
+          if (photoSlug) setKept(photoSlug, !state.kept.has(photoSlug));
+        });
+      }
+
+      if (field) {
+        field.addEventListener('blur', () => {
+          const photoSlug = field.dataset.photo;
+          if (photoSlug && field.value !== field.dataset.saved) saveComment(photoSlug, field.value);
+        });
+      }
+
+      sync();
+    }
+
+    function render(data) {
+      state.photos = data.photos;
+      state.settings = data.gallery;
+      state.validatedAt = data.gallery.validatedAt || null;
+      state.kept = new Set((data.selection || []).map((entry) => entry.photo));
+      state.comments = new Map(
+        (data.selection || []).filter((entry) => entry.comment).map((entry) => [entry.photo, entry.comment])
+      );
+      state.cards = new Map();
+
+      titleNode.textContent = data.gallery.name;
+      messageNode.textContent = data.gallery.message || '';
+      document.title = data.gallery.name + ' — Galerie privée';
+
+      grid.replaceChildren();
+      data.photos.forEach((photo, index) => {
+        const card = template.content.firstElementChild.cloneNode(true);
+        const trigger = card.querySelector('[data-card-trigger]');
+        const image = card.querySelector('[data-card-image]');
+        const title = card.querySelector('[data-card-title]');
+        const download = card.querySelector('[data-card-download]');
+        const keep = card.querySelector('[data-card-keep]');
+
+        image.src = imageUrl(photo.slug, 'web');
+        image.alt = photo.title;
+        title.textContent = photo.title;
+        trigger.setAttribute('aria-label', 'Ouvrir ' + photo.title + ' en plein écran');
+        trigger.dataset.lightboxIndex = String(index);
+
+        if (data.gallery.downloadable) {
+          download.href = api + '/download?photo=' + encodeURIComponent(photo.slug);
+          download.setAttribute('aria-label', 'Télécharger ' + photo.title);
+        } else {
+          download.remove();
+        }
+
+        if (data.gallery.selectionEnabled) {
+          keep.hidden = false;
+          keep.setAttribute('aria-label', 'Retenir ' + photo.title);
+          keep.addEventListener('click', () => setKept(photo.slug, !state.kept.has(photo.slug)));
+        } else {
+          keep.remove();
+        }
+
+        state.cards.set(photo.slug, card);
+        grid.appendChild(card);
+      });
+
+      emptyNode.hidden = data.photos.length > 0;
+      downloadAll.hidden = !data.gallery.downloadable || data.photos.length === 0;
+      selectionBar.hidden = !data.gallery.selectionEnabled;
+
+      if (typeof window.setLightboxPhotos === 'function') {
+        window.setLightboxPhotos(
+          data.photos.map((photo) => ({
+            title: photo.title,
+            slug: photo.slug,
+            description: photo.description,
+            url: imageUrl(photo.slug, 'zoom'),
+          }))
+        );
+      }
+
+      const lightboxDownload = document.querySelector('.lb-download');
+      if (lightboxDownload && !data.gallery.downloadable) lightboxDownload.remove();
+      const keepButton = document.querySelector('.lb-keep');
+      if (keepButton) keepButton.hidden = !data.gallery.selectionEnabled;
+      const commentBox = document.querySelector('.lb-comment');
+      if (commentBox) commentBox.hidden = !data.gallery.commentsEnabled;
+
+      setupLightboxTools();
+      if (data.gallery.selectionEnabled) refreshSelectionUI();
+      show('gallery');
+    }
+
+    async function load() {
+      const response = await fetch(api, { credentials: 'same-origin' });
+      if (response.status === 401) {
+        show('gate');
+        return;
+      }
+      if (!response.ok) {
+        gateIntro.textContent = 'Galerie indisponible pour le moment.';
+        gateForm.hidden = true;
+        show('gate');
+        return;
+      }
+      render(await response.json());
+    }
+
+    gateForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      gateError.textContent = '';
+      const submit = document.getElementById('gate-submit');
+      submit.disabled = true;
+      try {
+        const response = await fetch(api + '/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ code: gateCode.value }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          gateError.textContent = data.error || 'Code invalide';
+          return;
+        }
+        gateCode.value = '';
+        await load();
+      } catch {
+        gateError.textContent = 'Connexion impossible. Réessaie dans un instant.';
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    selectionFilter.addEventListener('click', () => {
+      const next = selectionFilter.getAttribute('aria-pressed') !== 'true';
+      selectionFilter.setAttribute('aria-pressed', next ? 'true' : 'false');
+      selectionFilter.textContent = next ? 'Revoir toutes les photos' : 'Ne voir que ma sélection';
+      grid.classList.toggle('only-selection', next);
+      selectionEmpty.hidden = !next || state.kept.size > 0;
+    });
+
+    selectionValidate.addEventListener('click', async () => {
+      if (!confirm('Valider ta sélection ? Tu ne pourras plus la modifier ensuite.')) return;
+      selectionValidate.disabled = true;
+      try {
+        const response = await fetch(api + '/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          note(data.error || 'Validation impossible.', true);
+          selectionValidate.disabled = false;
+          return;
+        }
+        state.validatedAt = data.validatedAt;
+        refreshSelectionUI();
+        refreshLightboxComment();
+      } catch {
+        note('Connexion perdue. Réessaie.', true);
+        selectionValidate.disabled = false;
+      }
+    });
+
+    let polling = null;
+
+    async function prepareArchive(scope) {
+      const url = api + '/zip?prepare=1' + (scope ? '&scope=' + scope : '');
+      const response = await fetch(url, { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('Préparation impossible');
+      return response.json();
+    }
+
+    function startArchive(button, scope) {
+      if (polling) return;
+      button.disabled = true;
+      downloadState.textContent = 'Préparation de l’archive…';
+
+      const finish = () => {
+        button.disabled = false;
+        downloadState.textContent = 'Archive prête, le téléchargement démarre.';
+        location.href = api + '/zip' + (scope ? '?scope=' + scope : '');
+      };
+
+      prepareArchive(scope)
+        .then((first) => {
+          if (first.status === 'ready') {
+            finish();
+            return;
+          }
+          polling = setInterval(async () => {
+            try {
+              const state = await prepareArchive(scope);
+              if (state.status === 'ready') {
+                clearInterval(polling);
+                polling = null;
+                finish();
+              } else if (state.status === 'error') {
+                clearInterval(polling);
+                polling = null;
+                button.disabled = false;
+                downloadState.textContent = 'La préparation a échoué. Réessaie.';
+              } else {
+                downloadState.textContent =
+                  'Préparation de l’archive… ' + state.done + ' / ' + state.total;
+              }
+            } catch {
+              clearInterval(polling);
+              polling = null;
+              button.disabled = false;
+              downloadState.textContent = 'Préparation interrompue.';
+            }
+          }, 2000);
+        })
+        .catch(() => {
+          button.disabled = false;
+          downloadState.textContent = 'Préparation impossible.';
+        });
+    }
+
+    downloadAll.addEventListener('click', () => startArchive(downloadAll, null));
+    downloadSelection.addEventListener('click', () => startArchive(downloadSelection, 'selection'));
+
+    load();
+  })();
+</script>

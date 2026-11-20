@@ -13,6 +13,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    # Au niveau du job : le contexte `secrets` n'est pas lisible dans le `if`
+    # d'une étape, contrairement à `env`.
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -58,6 +63,22 @@ jobs:
           [ "$code" = "200" ]
           tr -d '\r' < "$tmp_headers" | grep -Fqx 'access-control-allow-origin: https://stan-bouchet.eu'
           node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (!Array.isArray(value)) process.exit(1)" "$tmp_body"
+
+      - name: Deploy private gallery → VPS
+        if: env.VPS_HOST != ''
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PATH: ${{ secrets.VPS_PRIVE_PATH }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./dist/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+          rm -f ~/.ssh/deploy_key
 
       - name: Deploy site via FTP → O2Switch
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
