@@ -257,9 +257,9 @@ fichier reconstructible : les photos, elles, ne sont stockées que sur kDrive.
 
 Appliqué à la volée par `sharp` au moment de servir l'image, jamais sur le
 fichier stocké dans kDrive : le retirer après paiement revient à décocher une
-case, pas à réimporter. Composition d'un SVG de texte ou du logo
-`public/images/logo-instan-photo.webp` existant, en diagonale et en opacité
-faible.
+case, pas à réimporter. Un motif SVG répète le texte en diagonale, à 26 %
+d'opacité, avec une taille proportionnelle à la largeur de l'image pour rester
+lisible de la vignette au zoom. `GALLERY_WATERMARK_TEXT` change le texte.
 
 Le cache mémoire de `kdrive-media.ts` est repris tel quel, avec une clé
 distincte pour les versions filigranées. Le téléchargement autorisé sert
@@ -304,11 +304,11 @@ Un écran `app/(admin)/sites/portfolio-photo/galeries/`, entrée dans
    seule sélection, commentaire par photo, validation qui fige tout, et dans
    l'administration le nombre de voix par photo, les commentaires et la
    réouverture d'une sélection validée.
-3. **Le reste** — filigrane, codes par invité, journal détaillé, notification à
-   la première ouverture et à la validation, expiration automatique et relance.
+3. **Le reste** (fait) — filigrane sur les aperçus, codes par invité avec
+   révocation, journal des passages, fin d'accès réglable et prolongation en un
+   clic, courriel à la première ouverture et à la validation d'une sélection.
 
-Les lots 1 et 2 se déploient ensemble ; le filigrane reste sans effet tant que
-le lot 3 n'est pas fait, bien que l'interrupteur existe déjà.
+Les trois lots se déploient ensemble.
 
 ## 10. Tests
 
@@ -346,6 +346,12 @@ GALLERY_ARCHIVE_PATH=./storage/galeries
 GALLERY_ARCHIVE_MAX_BYTES=10737418240
 # Adresse affichée dans l'administration pour les liens à partager.
 NEXT_PUBLIC_GALLERY_BASE_URL=https://prive.stan-bouchet.eu
+# Texte du filigrane (défaut : « © Stan Bouchet »).
+GALLERY_WATERMARK_TEXT=© Stan Bouchet
+# Destinataire des avis d'ouverture et de validation. Sans elle, le
+# destinataire habituel de l'administration. Sans SMTP configuré, rien ne part
+# et les galeries fonctionnent normalement.
+GALLERY_NOTIFY_EMAIL=bouchet.stanislas@gmail.com
 ```
 
 Le `docker-compose.yml` monte désormais `./storage/galeries` : créer le dossier
