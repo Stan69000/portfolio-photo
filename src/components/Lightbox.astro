@@ -491,10 +491,14 @@ const { photos, showDetail = true, showRating = true, downloadable = false, priv
   const sync = () => {
     const item = items[index];
     img.style.animation = 'none';
-    void img.offsetWidth;
-    img.style.animation = '';
     img.src = item.url;
     img.alt = item.title;
+    // Les voisines sont préchargées : la navigation reste fluide même quand
+    // les images viennent d'un relais plutôt que du cache du navigateur.
+    for (const step of [1, -1]) {
+      const neighbour = items[(index + step + items.length) % items.length];
+      if (neighbour && neighbour !== item) new Image().src = neighbour.url;
+    }
     if (caption) caption.textContent = item.description || item.title;
     root.classList.remove('caption-expanded');
     captionToggle?.setAttribute('aria-expanded', 'false');
@@ -585,6 +589,14 @@ const { photos, showDetail = true, showRating = true, downloadable = false, priv
     if (!isPanning) return;
     isPanning = false;
     wrap.classList.remove('is-panning');
+  });
+
+  // L'animation ne part qu'une fois l'image prête, sinon elle s'applique à la
+  // précédente. Une image déjà en cache déclenche `load` tout de suite.
+  img.addEventListener('load', () => {
+    img.style.animation = 'none';
+    void img.offsetWidth;
+    img.style.animation = '';
   });
 
   // ── Click delegation ──────────────────────────────────────────────────────
