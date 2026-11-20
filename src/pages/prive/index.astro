@@ -6,22 +6,38 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
 
 <Base title="Galerie privée" description="Accès réservé" noindex>
   <section id="gate" class="gate">
-    <h1>Galerie privée</h1>
-    <p id="gate-intro">Entre le code qui accompagne ton lien pour voir les photos.</p>
-    <form id="gate-form" autocomplete="off">
-      <label for="gate-code">Code d’accès</label>
-      <input
-        id="gate-code"
-        name="code"
-        type="text"
-        inputmode="latin"
-        autocapitalize="characters"
-        spellcheck="false"
-        required
-      />
-      <button type="submit" id="gate-submit">Entrer</button>
-      <p id="gate-error" class="gate-error" role="alert"></p>
-    </form>
+    <div class="gate-card">
+      <p class="gate-eyebrow">Galerie privée</p>
+      <h1>Vos photos vous attendent</h1>
+      <p id="gate-intro">Entrez le code qui accompagne votre lien, et la galerie s’ouvre.</p>
+
+      <form id="gate-form" autocomplete="off">
+        <label for="gate-code">Code d’accès</label>
+        <input
+          id="gate-code"
+          name="code"
+          type="text"
+          inputmode="latin"
+          autocapitalize="characters"
+          autocomplete="one-time-code"
+          spellcheck="false"
+          aria-describedby="gate-hint"
+          required
+        />
+        <p id="gate-hint" class="gate-hint">
+          Les majuscules, les espaces et les tirets n’ont pas d’importance.
+        </p>
+        <button type="submit" id="gate-submit">Voir les photos</button>
+        <p id="gate-error" class="gate-error" role="alert"></p>
+      </form>
+
+      <p class="gate-foot">
+        Un doute sur le code ? Répondez simplement au message qui vous a envoyé ce lien.
+      </p>
+      <p class="gate-visit">
+        En attendant, le reste de mon travail se visite sur <a href="https://stan-bouchet.eu/">stan-bouchet.eu</a>.
+      </p>
+    </div>
   </section>
 
   <section id="gallery" hidden>
@@ -50,35 +66,62 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
     <div class="masonry" id="grid"></div>
     <p id="gallery-empty" hidden>Cette galerie ne contient encore aucune photo.</p>
     <p id="selection-empty" hidden>Aucune photo retenue pour l’instant.</p>
+
+    <aside class="visit-more">
+      <h2>Envie de voir autre chose ?</h2>
+      <p>
+        Ces photos sont les vôtres, mais il y en a bien d’autres : séries, instants,
+        carnets de voyage. Tout est sur mon site.
+      </p>
+      <a class="visit-link" href="https://stan-bouchet.eu/">Visiter la galerie publique</a>
+    </aside>
   </section>
 
   <template id="card-template"><PrivatePhotoCard /></template>
 
-  <Lightbox photos={[]} showDetail={false} showRating={false} downloadable privateTools />
+  <Lightbox photos={[]} showDetail={false} downloadable privateTools />
 </Base>
 
 <style>
   .gate {
-    max-width: 24rem;
-    margin: 4rem auto;
+    max-width: 30rem;
+    margin: 3rem auto 5rem;
+  }
+
+  .gate-card {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 1.5);
+    background: var(--surface);
+    padding: 2.5rem 2rem;
     text-align: center;
+    box-shadow: 0 24px 60px -40px rgba(0, 0, 0, 0.9);
+  }
+
+  .gate-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(var(--accent-rgb), 0.95);
+    margin-bottom: 0.75rem;
   }
 
   .gate h1 {
     font-family: var(--font-display);
-    font-size: 1.6rem;
-    margin-bottom: 0.5rem;
+    font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.1rem);
+    line-height: 1.15;
+    margin-bottom: 0.6rem;
   }
 
-  .gate p {
+  #gate-intro {
     color: var(--text-muted);
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    margin-bottom: 2rem;
   }
 
   .gate form {
     display: grid;
-    gap: 0.75rem;
+    gap: 0.6rem;
     text-align: left;
   }
 
@@ -87,17 +130,39 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
     color: var(--text-muted);
   }
 
+  .gate-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: -0.2rem 0 0.4rem;
+  }
+
+  .gate-foot {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
   .gate input {
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.9rem 1rem;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    background: var(--surface);
+    background: rgba(0, 0, 0, 0.25);
     color: inherit;
     font-family: var(--font-mono);
-    font-size: 1.1rem;
-    letter-spacing: 0.15em;
+    font-size: 1.25rem;
+    letter-spacing: 0.22em;
+    text-align: center;
     text-transform: uppercase;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .gate input:focus-visible {
+    outline: none;
+    border-color: rgba(var(--accent-rgb), 0.7);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25);
   }
 
   .gate button {
@@ -120,9 +185,14 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
   }
 
   .gate-error {
-    color: #ff7a7a;
+    margin: 0.25rem 0 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255, 122, 122, 0.35);
+    background: rgba(255, 122, 122, 0.1);
+    color: #ffb3b3;
     font-size: 0.9rem;
-    margin: 0;
+    text-align: left;
   }
 
   .gallery-head {
@@ -219,6 +289,53 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
     color: #ff7a7a;
   }
 
+  .gate-visit {
+    margin-top: 0.9rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .gate-visit a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .visit-more {
+    margin-top: 4rem;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .visit-more h2 {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .visit-more p {
+    color: var(--text-muted);
+    max-width: 34rem;
+    margin: 0 auto 1.25rem;
+  }
+
+  .visit-link {
+    display: inline-block;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--accent-rgb), 0.6);
+    background: rgba(var(--accent-rgb), 0.18);
+    color: inherit;
+    font-size: 0.95rem;
+    text-decoration: none;
+    min-height: 44px;
+  }
+
+  .visit-link:hover {
+    background: rgba(var(--accent-rgb), 0.3);
+  }
+
   .masonry {
     column-count: 1;
     column-gap: 1rem;
@@ -268,7 +385,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
     const selectionNote = document.getElementById('selection-note');
 
     if (!slug) {
-      gateIntro.textContent = 'Ce lien est incomplet. Utilise celui qui t’a été envoyé.';
+      gateIntro.textContent = 'Ce lien est incomplet. Utilisez celui qui vous a été envoyé.';
       gateForm.hidden = true;
       return;
     }
@@ -282,8 +399,33 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
       settings: null,
       kept: new Set(),
       comments: new Map(),
+      ratings: new Map(),
       cards: new Map(),
       validatedAt: null,
+    };
+
+    // La visionneuse pilote ses étoiles par cette interface ; sur le site
+    // public elle vise le stockage local, ici la galerie du client.
+    window.PhotoVotes = {
+      getRating: (slug) => state.ratings.get(slug) || 0,
+      ratePhoto: (slug, rating) => {
+        if (locked()) return;
+        const next = state.ratings.get(slug) === rating ? 0 : rating;
+        if (next === 0) state.ratings.delete(slug);
+        else state.ratings.set(slug, next);
+        fetch(api + '/selection', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ photo: slug, rating: next }),
+        })
+          .then((response) => (response.ok ? response.json() : null))
+          .then((data) => {
+            if (!data) return;
+            state.ratings = new Map((data.ratings || []).map((entry) => [entry.photo, entry.rating]));
+          })
+          .catch(() => note('Connexion perdue, votre note n’a pas été enregistrée.', true));
+      },
     };
 
     function show(section) {
@@ -312,12 +454,12 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
 
       if (locked()) {
         selectionValidate.hidden = true;
-        note('Sélection validée. Stan la reçoit telle quelle ; demande-lui de la rouvrir si tu changes d’avis.');
+        note('Sélection validée, Stan la reçoit telle quelle. Demandez-lui de la rouvrir si vous changez d’avis.');
       } else {
         selectionValidate.hidden = false;
         selectionValidate.disabled = count === 0;
         if (quota && count > quota && !settings.selectionHard) {
-          note('Tu as dépassé les ' + quota + ' photos prévues. À voir ensemble.');
+          note('Vous avez dépassé les ' + quota + ' photos prévues : parlez-en avec Stan, il en tiendra compte.');
         }
       }
 
@@ -361,7 +503,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
         state.kept = new Set((data.selection || []).map((entry) => entry.photo));
         refreshSelectionUI();
       } catch {
-        note('Connexion perdue. Ta sélection n’a pas été enregistrée.', true);
+        note('Connexion perdue, votre choix n’a pas été enregistré. Réessayez dans un instant.', true);
       }
     }
 
@@ -468,6 +610,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
       state.comments = new Map(
         (data.selection || []).filter((entry) => entry.comment).map((entry) => [entry.photo, entry.comment])
       );
+      state.ratings = new Map((data.ratings || []).map((entry) => [entry.photo, entry.rating]));
       state.cards = new Map();
 
       titleNode.textContent = data.gallery.name;
@@ -529,6 +672,8 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
       if (keepButton) keepButton.hidden = !data.gallery.selectionEnabled;
       const commentBox = document.querySelector('.lb-comment');
       if (commentBox) commentBox.hidden = !data.gallery.commentsEnabled;
+      const stars = document.querySelector('.lb-stars-wrap');
+      if (stars) stars.hidden = !data.gallery.selectionEnabled;
 
       setupLightboxTools();
       if (data.gallery.selectionEnabled) refreshSelectionUI();
@@ -542,7 +687,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
         return;
       }
       if (!response.ok) {
-        gateIntro.textContent = 'Galerie indisponible pour le moment.';
+        gateIntro.textContent = 'Cette galerie n’est pas accessible pour le moment. Revenez un peu plus tard.';
         gateForm.hidden = true;
         show('gate');
         return;
@@ -570,7 +715,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
         gateCode.value = '';
         await load();
       } catch {
-        gateError.textContent = 'Connexion impossible. Réessaie dans un instant.';
+        gateError.textContent = 'Connexion impossible. Réessayez dans un instant.';
       } finally {
         submit.disabled = false;
       }
@@ -585,7 +730,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
     });
 
     selectionValidate.addEventListener('click', async () => {
-      if (!confirm('Valider ta sélection ? Tu ne pourras plus la modifier ensuite.')) return;
+      if (!confirm('Valider votre sélection ? Vous ne pourrez plus la modifier ensuite.')) return;
       selectionValidate.disabled = true;
       try {
         const response = await fetch(api + '/validate', {
@@ -603,7 +748,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
         refreshSelectionUI();
         refreshLightboxComment();
       } catch {
-        note('Connexion perdue. Réessaie.', true);
+        note('Connexion perdue. Réessayez dans un instant.', true);
         selectionValidate.disabled = false;
       }
     });
@@ -645,7 +790,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
                 clearInterval(polling);
                 polling = null;
                 button.disabled = false;
-                downloadState.textContent = 'La préparation a échoué. Réessaie.';
+                downloadState.textContent = 'La préparation a échoué. Réessayez dans un instant.';
               } else {
                 downloadState.textContent =
                   'Préparation de l’archive… ' + state.done + ' / ' + state.total;
