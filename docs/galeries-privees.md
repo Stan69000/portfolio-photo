@@ -86,16 +86,15 @@ Un dossier par galerie, nommé d'après son identifiant d'URL. Il contient, pour
 chaque photo, l'original et les trois versions `thumb`, `web` et `zoom`, comme
 les imports actuels.
 
-Deux adaptations dans `core/portfolio/kdrive-storage.js` :
+`KdriveStorage` ne sait chercher et créer qu'un dossier directement sous sa
+racine. Plutôt que de le modifier, l'import compose deux instances : la première
+résout `Privé` sous la racine habituelle, la seconde prend ce dossier pour
+racine et y résout la galerie. Les deux sont construites sans `categoryName`,
+donc `tagFolder` ne leur applique pas la catégorie « Galerie Photos » réservée
+aux séries publiques.
 
-- `ensureFolder` ne sait chercher et créer qu'un dossier directement sous la
-  racine. Il faut lui faire accepter un chemin à plusieurs niveaux
-  (`['Privé', 'repetition-moise']`), chaque dossier résolu servant de parent au
-  suivant.
-- `tagFolder` applique automatiquement la catégorie kDrive « Galerie Photos » à
-  tout dossier créé. Les dossiers privés ne doivent pas hériter de cette
-  catégorie : soit aucune catégorie, soit une catégorie « Galeries privées » à
-  créer au préalable dans kDrive, le code échouant si elle n'existe pas.
+L'identifiant du dossier est retenu sur la galerie (`kdrive_directory`) : il
+n'est cherché qu'une fois, pas à chaque photo importée.
 
 ## 2. Modèle de données
 
@@ -299,7 +298,8 @@ Un écran `app/(admin)/sites/portfolio-photo/galeries/`, entrée dans
 
 1. **Le nécessaire** — statut `private`, tables, `POST /auth`, liste, images,
    téléchargement unitaire, ZIP, page `/prive/`, vhost Caddy et déploiement VPS,
-   écran d'administration minimal (créer, choisir les photos, un code).
+   écran d'administration (créer, choisir les photos, un code), et import direct
+   dans `Privé/<galerie>` depuis l'atelier d'import.
 2. **La sélection** — étoiles, quota, compteur, filtre, validation, retour dans
    l'administration, commentaires par photo.
 3. **Le reste** — filigrane, codes par invité, journal détaillé, notification à
