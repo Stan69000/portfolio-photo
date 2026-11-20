@@ -79,7 +79,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
 
   <template id="card-template"><PrivatePhotoCard /></template>
 
-  <Lightbox photos={[]} showDetail={false} showRating={false} downloadable privateTools />
+  <Lightbox photos={[]} showDetail={false} downloadable privateTools />
 </Base>
 
 <style>
@@ -399,8 +399,33 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
       settings: null,
       kept: new Set(),
       comments: new Map(),
+      ratings: new Map(),
       cards: new Map(),
       validatedAt: null,
+    };
+
+    // La visionneuse pilote ses étoiles par cette interface ; sur le site
+    // public elle vise le stockage local, ici la galerie du client.
+    window.PhotoVotes = {
+      getRating: (slug) => state.ratings.get(slug) || 0,
+      ratePhoto: (slug, rating) => {
+        if (locked()) return;
+        const next = state.ratings.get(slug) === rating ? 0 : rating;
+        if (next === 0) state.ratings.delete(slug);
+        else state.ratings.set(slug, next);
+        fetch(api + '/selection', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ photo: slug, rating: next }),
+        })
+          .then((response) => (response.ok ? response.json() : null))
+          .then((data) => {
+            if (!data) return;
+            state.ratings = new Map((data.ratings || []).map((entry) => [entry.photo, entry.rating]));
+          })
+          .catch(() => note('Connexion perdue, votre note n’a pas été enregistrée.', true));
+      },
     };
 
     function show(section) {
@@ -585,6 +610,7 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
       state.comments = new Map(
         (data.selection || []).filter((entry) => entry.comment).map((entry) => [entry.photo, entry.comment])
       );
+      state.ratings = new Map((data.ratings || []).map((entry) => [entry.photo, entry.rating]));
       state.cards = new Map();
 
       titleNode.textContent = data.gallery.name;
@@ -646,6 +672,8 @@ import PrivatePhotoCard from '../../components/PrivatePhotoCard.astro';
       if (keepButton) keepButton.hidden = !data.gallery.selectionEnabled;
       const commentBox = document.querySelector('.lb-comment');
       if (commentBox) commentBox.hidden = !data.gallery.commentsEnabled;
+      const stars = document.querySelector('.lb-stars-wrap');
+      if (stars) stars.hidden = !data.gallery.selectionEnabled;
 
       setupLightboxTools();
       if (data.gallery.selectionEnabled) refreshSelectionUI();

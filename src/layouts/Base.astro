@@ -85,7 +85,8 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <script type="module" src="/scripts/votes.js"></script>
+    {/* Les galeries privées ont leurs propres notes, rattachées à l'invité. */}
+    {!pathname.startsWith('/prive') && <script type="module" src="/scripts/votes.js"></script>}
     <link rel="alternate" type="application/rss+xml" title="Stan Bouchet — Photographie" href="/rss.xml" />
     {jsonLdList.map((item) => (
       <script type="application/ld+json" set:html={JSON.stringify(item)} />
