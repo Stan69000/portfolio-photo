@@ -1,0 +1,30 @@
+---
+// Mesure d'audience sans cookie : une page vue = un signal envoyé à
+// l'administration (admin.stan-bouchet.fr), qui ne garde que des compteurs par
+// jour. Rien n'est stocké dans le navigateur, et le site est reconnu à son
+// domaine. Pour exclure ses propres visites :
+// localStorage.setItem('portfolio-no-stats', '1') dans la console du site.
+const endpoint = import.meta.env.DEV
+  ? (import.meta.env.PUBLIC_AUDIENCE_ENDPOINT ?? 'http://localhost:3000/api/public/audience/nav')
+  : 'https://admin.stan-bouchet.fr/api/public/audience/nav';
+const dev = import.meta.env.DEV;
+const host = 'stan-bouchet.eu';
+const key = 'portfolio-no-stats';
+---
+
+<script is:inline define:vars={{ endpoint, dev, host, key }}>
+  (() => {
+    if (navigator.webdriver || !navigator.sendBeacon) return;
+    if (!dev && location.hostname.replace(/^www\./, '') !== host) return;
+    try {
+      if (localStorage.getItem(key)) return;
+    } catch {}
+    const body = JSON.stringify({
+      p: location.pathname,
+      r: document.referrer,
+      u: new URLSearchParams(location.search).get('utm_source'),
+      s: dev ? host : undefined,
+    });
+    navigator.sendBeacon(endpoint, new Blob([body], { type: 'text/plain' }));
+  })();
+</script>

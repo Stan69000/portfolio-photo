@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import '../styles/global.css';
 import BackToTop from '../components/BackToTop.astro';
 import InstallGallery from '../components/InstallGallery.astro';
+import AudienceBeacon from '../components/AudienceBeacon.astro';
 
 interface Props {
   title?: string;
@@ -153,6 +154,7 @@ const jsonLdList = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       </p>
     </footer>
     <BackToTop />
+    {!pathname.startsWith('/prive') && <AudienceBeacon />}
   </body>
 </html>
 
