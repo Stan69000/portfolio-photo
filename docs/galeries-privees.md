@@ -339,8 +339,9 @@ Les trois lots se déploient ensemble.
 
 ## 13. Mise en production
 
-Fait sur le VPS le 20 novembre 2026 : dossiers `/home/ubuntu/portfolio-prive`
-et `admin-sites-astro/storage/galeries`, bloc Caddy `prive.stan-bouchet.fr`
+Fait sur le VPS le 20 novembre 2026 : dossiers `/srv/portfolio-prive` — hors du
+dossier personnel, que Caddy ne peut pas traverser (il est en 750) — et
+`admin-sites-astro/storage/galeries`, bloc Caddy `prive.stan-bouchet.fr`
 (sauvegarde `Caddyfile.avant-galeries-privees.*`), clé de déploiement dédiée
 dans `authorized_keys` avec l'option `restrict`, les quatre secrets du dépôt du
 site, et `GALLERY_CODE_KEY` plus `NEXT_PUBLIC_GALLERY_BASE_URL` dans
@@ -391,7 +392,7 @@ prive.stan-bouchet.fr {
     }
 
     handle /prive/* {
-        root * /home/ubuntu/portfolio-prive
+        root * /srv/portfolio-prive
         file_server
     }
 
@@ -416,7 +417,7 @@ compressées. Les téléchargements d'archives sont longs : ne pas ajouter de
 | --- | --- |
 | `VPS_HOST` | adresse du VPS |
 | `VPS_USER` | utilisateur SSH (`ubuntu`) |
-| `VPS_PRIVE_PATH` | `/home/ubuntu/portfolio-prive` |
+| `VPS_PRIVE_PATH` | `/srv/portfolio-prive` |
 | `VPS_SSH_KEY` | clé privée de déploiement, sans phrase de passe |
 
 L'étape de déploiement vers le VPS est ignorée tant que `VPS_HOST` est absent :
