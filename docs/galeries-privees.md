@@ -26,7 +26,7 @@ Deux enums à étendre, sinon le build échoue sur une fiche `private` :
 - `src/content.config.ts:36` — `z.enum(['published','draft','trash'])`
 - `Admin-Sites-Astro/sites/portfolio-photo/schemas.ts:42` — mêmes valeurs plus `archived`
 
-### 1.2 Un sous-domaine servi par le VPS : `prive.stan-bouchet.eu`
+### 1.2 Un sous-domaine servi par le VPS : `prive.stan-bouchet.fr`
 
 C'est le point le plus contraignant du dossier. Le site est statique chez
 O2Switch, l'API et les images sont sur le VPS : un cookie de session posé par
@@ -35,8 +35,11 @@ que Safari bloque. Sans cookie, il reste le jeton passé en paramètre d'URL sur
 chaque `<img>`, qui fuit dans les en-têtes `Referer` et dans les journaux.
 
 Solution retenue, validée : le dossier `dist/` est déployé **aussi** sur le VPS, et Caddy
-sert `prive.stan-bouchet.eu` en statique depuis ce dossier, avec `/api/*`
-proxifié vers Next. La page privée et son API partagent alors la même origine :
+sert `prive.stan-bouchet.fr` en statique depuis ce dossier, avec `/api/*`
+proxifié vers Next. Le nom est en `.fr` et non en `.eu` : c'est le domaine de
+tous les services du VPS, dont `admin.stan-bouchet.fr`, et sa zone est chez
+Infomaniak, là où tourne le serveur. Seule compte l'égalité d'origine entre la
+page et son API ; le domaine du site public n'entre pas en jeu. La page privée et son API partagent alors la même origine :
 cookie `__Host-` first-party, pas de CORS, pas de jeton dans les URL, et le ZIP
 part directement du VPS sans transiter par l'hébergement mutualisé.
 
@@ -46,7 +49,7 @@ Conséquences :
   Caddyfile en production diffère de celui du dépôt) ;
 - une étape de déploiement supplémentaire dans `.github/workflows/deploy.yml`,
   en rsync/SSH vers le VPS, après le build, en parallèle du FTP O2Switch ;
-- `prive.stan-bouchet.eu` sert techniquement tout le site : les URL hors
+- `prive.stan-bouchet.fr` sert techniquement tout le site : les URL hors
   `/prive/` y répondent en 301 vers `stan-bouchet.eu`, et un `robots.txt` propre
   à cet hôte interdit l'indexation, pour éviter le contenu dupliqué.
 
@@ -170,7 +173,7 @@ et l'écran d'administration peut compter les votes par photo.
 
 ## 3. API
 
-Servie par Next sur `prive.stan-bouchet.eu/api/galerie/...`, hors du périmètre
+Servie par Next sur `prive.stan-bouchet.fr/api/galerie/...`, hors du périmètre
 d'authentification de l'administration (comme `/api/public/*` aujourd'hui).
 
 | Route | Effet |
@@ -202,7 +205,7 @@ Différence avec le reste du site : la liste des photos n'est pas connue au buil
 elle est chargée par `fetch` après la saisie du code, donc la grille est remplie
 côté navigateur à partir des mêmes composants rendus en gabarit.
 
-Parcours : `prive.stan-bouchet.eu/prive/?g=mariage-dupont` → écran de code →
+Parcours : `prive.stan-bouchet.fr/prive/?g=mariage-dupont` → écran de code →
 grille → lightbox. Un bouton « Tout télécharger » en tête de page, un bouton de
 téléchargement dans la lightbox, et, si la sélection est active, une étoile sur
 chaque vignette, un compteur `14 / 20` et un filtre « ma sélection ».
@@ -322,7 +325,7 @@ Les trois lots se déploient ensemble.
 
 ## 11. Décisions prises
 
-- Adresse des galeries : `prive.stan-bouchet.eu`.
+- Adresse des galeries : `prive.stan-bouchet.fr`.
 - Stockage : kDrive, dossier `Privé/<galerie>`, original et trois versions.
 - Format livré : JPEG.
 - Version livrée : l'original, présent dès l'import dans les galeries privées.
@@ -337,7 +340,7 @@ Les trois lots se déploient ensemble.
 ## 13. Mise en production
 
 Fait sur le VPS le 20 novembre 2026 : dossiers `/home/ubuntu/portfolio-prive`
-et `admin-sites-astro/storage/galeries`, bloc Caddy `prive.stan-bouchet.eu`
+et `admin-sites-astro/storage/galeries`, bloc Caddy `prive.stan-bouchet.fr`
 (sauvegarde `Caddyfile.avant-galeries-privees.*`), clé de déploiement dédiée
 dans `authorized_keys` avec l'option `restrict`, les quatre secrets du dépôt du
 site, et `GALLERY_CODE_KEY` plus `NEXT_PUBLIC_GALLERY_BASE_URL` dans
@@ -357,7 +360,7 @@ GALLERY_CODE_KEY=<32 caractères aléatoires ou plus>
 GALLERY_ARCHIVE_PATH=./storage/galeries
 GALLERY_ARCHIVE_MAX_BYTES=10737418240
 # Adresse affichée dans l'administration pour les liens à partager.
-NEXT_PUBLIC_GALLERY_BASE_URL=https://prive.stan-bouchet.eu
+NEXT_PUBLIC_GALLERY_BASE_URL=https://prive.stan-bouchet.fr
 # Texte du filigrane (défaut : « © Stan Bouchet »).
 GALLERY_WATERMARK_TEXT=© Stan Bouchet
 # Destinataire des avis d'ouverture et de validation. Sans elle, le
@@ -375,7 +378,7 @@ Le service d'administration écoute sur `127.0.0.1:3004`. Le bloc à ajouter au
 Caddyfile de production, en reprenant le port réel si celui-ci a changé :
 
 ```caddy
-prive.stan-bouchet.eu {
+prive.stan-bouchet.fr {
     encode zstd gzip {
         match {
             header Content-Type text/*
