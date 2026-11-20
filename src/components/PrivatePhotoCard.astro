@@ -1,0 +1,145 @@
+---
+/**
+ * Carte modèle de la galerie privée. Elle est rendue vide dans un <template>
+ * puis clonée en JavaScript : le clone conserve les attributs de portée ajoutés
+ * par Astro, donc les styles de ce composant s'appliquent aux cartes créées
+ * après le chargement, une fois le code saisi.
+ */
+---
+
+<article class="photo-card">
+  <div class="card-trigger">
+    <button type="button" class="image-trigger" data-card-trigger aria-label="">
+      <img data-card-image src="" alt="" loading="lazy" decoding="async" />
+    </button>
+    <div class="overlay">
+      <div class="overlay-top">
+        <a class="dl-btn" data-card-download href="#" download>
+          <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-card-download-label>Télécharger</span>
+        </a>
+      </div>
+      <div class="overlay-bottom">
+        <span class="card-title" data-card-title></span>
+      </div>
+    </div>
+  </div>
+</article>
+
+<style>
+  .photo-card {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .card-trigger {
+    display: block;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+    cursor: zoom-in;
+    position: relative;
+  }
+
+  .image-trigger {
+    display: block;
+    border: 0;
+    padding: 0;
+    width: 100%;
+    background: none;
+    cursor: zoom-in;
+  }
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.5) 0%,
+      transparent 35%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.72) 100%
+    );
+    opacity: 0;
+    transition: opacity 320ms cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .overlay a,
+  .overlay button {
+    pointer-events: auto;
+  }
+
+  .card-trigger:hover .overlay,
+  .card-trigger:focus-within .overlay {
+    opacity: 1;
+  }
+
+  .card-trigger:hover img {
+    transform: scale(1.04);
+  }
+
+  .overlay-top {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .dl-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.3rem 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-decoration: none;
+    transition: background 200ms ease, border-color 200ms ease;
+  }
+
+  .dl-btn:hover {
+    background: rgba(var(--accent-rgb), 0.35);
+    border-color: rgba(var(--accent-rgb), 0.6);
+  }
+
+  .overlay-bottom {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: #f5f0e7;
+    line-height: 1.2;
+    display: block;
+  }
+
+  @media (hover: none) {
+    .overlay {
+      opacity: 1;
+    }
+
+    .dl-btn {
+      min-height: 44px;
+    }
+  }
+</style>

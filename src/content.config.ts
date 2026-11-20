@@ -33,7 +33,7 @@ const photos = defineCollection({
     url_thumb: z.string().optional(),
     url_web: z.string().optional(),
     url_zoom: z.string().optional(),
-    status: z.enum(['published', 'draft', 'trash']).default('published'),
+    status: z.enum(['published', 'private', 'draft', 'trash']).default('published'),
     date: z.coerce.date().optional(),
     description: z.string().default(''),
     tags: z.array(z.string()).default([]),

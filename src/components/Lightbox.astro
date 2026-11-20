@@ -8,9 +8,12 @@ interface LightboxPhoto {
 
 interface Props {
   photos: LightboxPhoto[];
+  showDetail?: boolean;
+  showRating?: boolean;
+  downloadable?: boolean;
 }
 
-const { photos } = Astro.props;
+const { photos, showDetail = true, showRating = true, downloadable = false } = Astro.props;
 ---
 
 <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Visionneuse photo" aria-hidden="true" tabindex="-1" hidden>
@@ -22,7 +25,8 @@ const { photos } = Astro.props;
       <button type="button" class="lb-btn zoom-reset" aria-label="Taille normale">100%</button>
       <button type="button" class="lb-btn zoom-in" aria-label="Zoomer">+</button>
     </div>
-    <a class="lb-btn detail-link" href="#">Fiche →</a>
+    {showDetail && <a class="lb-btn detail-link" href="#">Fiche →</a>}
+    {downloadable && <a class="lb-btn lb-download" href="#" download>Télécharger</a>}
     <button type="button" class="lb-btn close" aria-label="Fermer">
       <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       <span class="close-label">Fermer</span>
@@ -39,16 +43,18 @@ const { photos } = Astro.props;
     </div>
     <button type="button" class="lb-btn caption-toggle" aria-expanded="false" aria-controls="lb-caption">Lire la légende</button>
     <figcaption id="lb-caption" class="lb-caption"></figcaption>
-    <div class="lb-stars-wrap">
-      <div class="lb-stars" role="group" aria-label="Noter cette photo">
-        <button type="button" class="lb-star" data-n="1" aria-label="1 étoile">★</button>
-        <button type="button" class="lb-star" data-n="2" aria-label="2 étoiles">★</button>
-        <button type="button" class="lb-star" data-n="3" aria-label="3 étoiles">★</button>
-        <button type="button" class="lb-star" data-n="4" aria-label="4 étoiles">★</button>
-        <button type="button" class="lb-star" data-n="5" aria-label="5 étoiles">★</button>
+    {showRating && (
+      <div class="lb-stars-wrap">
+        <div class="lb-stars" role="group" aria-label="Noter cette photo">
+          <button type="button" class="lb-star" data-n="1" aria-label="1 étoile">★</button>
+          <button type="button" class="lb-star" data-n="2" aria-label="2 étoiles">★</button>
+          <button type="button" class="lb-star" data-n="3" aria-label="3 étoiles">★</button>
+          <button type="button" class="lb-star" data-n="4" aria-label="4 étoiles">★</button>
+          <button type="button" class="lb-star" data-n="5" aria-label="5 étoiles">★</button>
+        </div>
+        <span class="lb-star-label" role="status" aria-live="polite"></span>
       </div>
-      <span class="lb-star-label" role="status" aria-live="polite"></span>
-    </div>
+    )}
   </figure>
 
   <button type="button" class="lb-nav lb-next" aria-label="Photo suivante">
@@ -332,9 +338,11 @@ const { photos } = Astro.props;
 
 <script is:inline define:vars={{ photos }}>
 (function() {
-  const items = photos;
+  let items = photos;
+  // La galerie privée reçoit ses photos après coup, une fois le code saisi.
+  window.setLightboxPhotos = (next) => { items = Array.isArray(next) ? next : []; };
   const root = document.querySelector('#lightbox');
-  if (!root || !Array.isArray(items) || !items.length) return;
+  if (!root) return;
 
   const img = root.querySelector('.lb-image');
   const wrap = root.querySelector('.lb-img-wrap');
@@ -453,6 +461,7 @@ const { photos } = Astro.props;
   };
 
   const open = (nextIndex) => {
+    if (!Array.isArray(items) || !items.length) return;
     lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     index = (nextIndex + items.length) % items.length;
     openingIndex = index;
