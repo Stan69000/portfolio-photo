@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-20 — Galeries privées et mesure d'audience
+
+### Galeries privées
+
+- Nouvelle page `/prive/`, servie depuis `prive.stan-bouchet.fr` : le client entre le code reçu avec son lien et retrouve ses photos, affichées comme le reste du site.
+- Téléchargement photo par photo en JPEG, ou de toute la galerie en une archive ZIP ; l'archive se prépare en affichant son avancement, puis reste prête pour les demandes suivantes.
+- Sélection : le client garde les photos qu'il veut, les commente, les note de 1 à 5 étoiles et valide son choix. Un quota peut être fixé.
+- Visionneuse commune au site public et aux galeries privées : mode diaporama (une photo toutes les 5 secondes), préchargement des images voisines et correction du clignotement qui rejouait l'apparition sur la photo précédente.
+- La page privée n'est pas indexée (`Disallow: /prive/` dans robots.txt), n'est pas mesurée et reste hors du vote public.
+
+### Mesure d'audience
+
+- Balise de mesure sur toutes les pages publiques : visiteurs, pages vues, provenance et appareils, lisibles depuis l'administration.
+- Sans cookie ni donnée personnelle, sans service tiers : un visiteur est reconnu une journée au plus par une empreinte anonyme renouvelée chaque nuit.
+- Pour ne pas compter ses propres visites : clé `portfolio-no-stats` dans le stockage local du navigateur.
+
 ## 2026-10-16 — Galerie installable (PWA)
 
 - Installation de la galerie publique sur l’écran d’accueil avec une identité distincte de Studio Stan : Galerie Stan Bouchet.
