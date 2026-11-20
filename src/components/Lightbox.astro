@@ -11,9 +11,10 @@ interface Props {
   showDetail?: boolean;
   showRating?: boolean;
   downloadable?: boolean;
+  privateTools?: boolean;
 }
 
-const { photos, showDetail = true, showRating = true, downloadable = false } = Astro.props;
+const { photos, showDetail = true, showRating = true, downloadable = false, privateTools = false } = Astro.props;
 ---
 
 <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Visionneuse photo" aria-hidden="true" tabindex="-1" hidden>
@@ -27,6 +28,9 @@ const { photos, showDetail = true, showRating = true, downloadable = false } = A
     </div>
     {showDetail && <a class="lb-btn detail-link" href="#">Fiche →</a>}
     {downloadable && <a class="lb-btn lb-download" href="#" download>Télécharger</a>}
+    {privateTools && (
+      <button type="button" class="lb-btn lb-keep" aria-pressed="false" hidden>Je la garde</button>
+    )}
     <button type="button" class="lb-btn close" aria-label="Fermer">
       <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       <span class="close-label">Fermer</span>
@@ -43,6 +47,13 @@ const { photos, showDetail = true, showRating = true, downloadable = false } = A
     </div>
     <button type="button" class="lb-btn caption-toggle" aria-expanded="false" aria-controls="lb-caption">Lire la légende</button>
     <figcaption id="lb-caption" class="lb-caption"></figcaption>
+    {privateTools && (
+      <div class="lb-comment" hidden>
+        <label for="lb-comment-field">Un mot sur cette photo</label>
+        <textarea id="lb-comment-field" rows="2" maxlength="2000" placeholder="Celle-ci, mais recadrée…"></textarea>
+        <span class="lb-comment-state" role="status" aria-live="polite"></span>
+      </div>
+    )}
     {showRating && (
       <div class="lb-stars-wrap">
         <div class="lb-stars" role="group" aria-label="Noter cette photo">
@@ -69,6 +80,47 @@ const { photos, showDetail = true, showRating = true, downloadable = false } = A
 </div>
 
 <style>
+  .lb-keep[aria-pressed='true'] {
+    background: rgba(var(--accent-rgb), 0.8);
+    border-color: rgba(var(--accent-rgb), 0.9);
+    color: #fff;
+  }
+
+  .lb-comment[hidden] {
+    display: none;
+  }
+
+  .lb-comment {
+    display: grid;
+    gap: 0.3rem;
+    width: min(32rem, 100%);
+    margin: 0.5rem auto 0;
+    text-align: left;
+  }
+
+  .lb-comment label {
+    font-size: 0.8rem;
+    color: rgba(235, 240, 255, 0.75);
+  }
+
+  .lb-comment textarea {
+    width: 100%;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    padding: 0.5rem 0.7rem;
+    font: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+  }
+
+  .lb-comment-state {
+    font-size: 0.78rem;
+    color: rgba(235, 240, 255, 0.6);
+    min-height: 1.1em;
+  }
+
   .lightbox[hidden],
   .lightbox[aria-hidden='true'] {
     display: none !important;

@@ -182,9 +182,8 @@ d'authentification de l'administration (comme `/api/public/*` aujourd'hui).
 | `GET /:slug/download` | une photo, `Content-Disposition: attachment`, version autorisée seulement |
 | `GET /:slug/zip` | `scope=all|selection`, archive |
 | `GET /:slug/zip/status` | avancement de la préparation d'archive |
-| `PUT /:slug/selection` | `{photo, selected}` |
-| `PUT /:slug/comment` | `{photo, text}` |
-| `POST /:slug/validate` | fige la sélection, horodate, notifie |
+| `PUT /:slug/selection` | `{photo, selected}` et `{photo, comment}` — commenter une photo la retient |
+| `POST /:slug/validate` | fige la sélection et l'horodate |
 
 Session : JWT signé avec `jose` (déjà installé), portant `gallery_id`, `code_id`
 et une expiration de sept jours, dans un cookie `__Host-galerie`, `HttpOnly`,
@@ -296,16 +295,20 @@ Un écran `app/(admin)/sites/portfolio-photo/galeries/`, entrée dans
 
 ## 9. Lots
 
-1. **Le nécessaire** — statut `private`, tables, `POST /auth`, liste, images,
-   téléchargement unitaire, ZIP, page `/prive/`, vhost Caddy et déploiement VPS,
-   écran d'administration (créer, choisir les photos, un code), et import direct
-   dans `Privé/<galerie>` depuis l'atelier d'import.
-2. **La sélection** — étoiles, quota, compteur, filtre, validation, retour dans
-   l'administration, commentaires par photo.
+1. **Le nécessaire** (fait) — statut `private`, tables, `POST /auth`, liste,
+   images, téléchargement unitaire, ZIP, page `/prive/`, vhost Caddy et
+   déploiement VPS, écran d'administration (créer, choisir les photos, un code),
+   et import direct dans `Privé/<galerie>` depuis l'atelier d'import.
+2. **La sélection** (fait) — bouton « Je la garde » sur chaque vignette et dans
+   la visionneuse, compteur et quota, filtre « ma sélection », archive de la
+   seule sélection, commentaire par photo, validation qui fige tout, et dans
+   l'administration le nombre de voix par photo, les commentaires et la
+   réouverture d'une sélection validée.
 3. **Le reste** — filigrane, codes par invité, journal détaillé, notification à
    la première ouverture et à la validation, expiration automatique et relance.
 
-Le lot 1 répond à la demande initiale et se déploie seul.
+Les lots 1 et 2 se déploient ensemble ; le filigrane reste sans effet tant que
+le lot 3 n'est pas fait, bien que l'interrupteur existe déjà.
 
 ## 10. Tests
 
