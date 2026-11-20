@@ -336,6 +336,18 @@ Les trois lots se déploient ensemble.
 
 ## 13. Mise en production
 
+Fait sur le VPS le 20 novembre 2026 : dossiers `/home/ubuntu/portfolio-prive`
+et `admin-sites-astro/storage/galeries`, bloc Caddy `prive.stan-bouchet.eu`
+(sauvegarde `Caddyfile.avant-galeries-privees.*`), clé de déploiement dédiée
+dans `authorized_keys` avec l'option `restrict`, les quatre secrets du dépôt du
+site, et `GALLERY_CODE_KEY` plus `NEXT_PUBLIC_GALLERY_BASE_URL` dans
+`.env.production` (sauvegarde `.env.production.avant-galeries.*`). Les
+variables ne prendront effet qu'au redémarrage du service.
+
+Reste l'enregistrement DNS `prive` → `179.237.66.21` dans la zone
+`stan-bouchet.eu` chez O2Switch : tant qu'il manque, Let's Encrypt refuse le
+certificat et le domaine ne répond qu'en HTTP, par une redirection.
+
 ### Serveur d'administration (`.env.production`)
 
 ```sh
