@@ -17,6 +17,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Environnement « production » : il permettra de n'exposer les secrets de
+    # déploiement qu'à main (Settings > Environments > production).
+    environment: production
 
     # Au niveau du job : le contexte `secrets` n'est pas lisible dans le `if`
     # d'une étape, contrairement à `env`.
