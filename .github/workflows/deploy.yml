@@ -64,7 +64,10 @@ jobs:
           tmp_body="$(mktemp)"
           trap 'rm -f "$tmp_headers" "$tmp_body"' EXIT
 
+          # L'API ne renvoie l'en-tête CORS qu'à une origine autorisée, comme
+          # le ferait un navigateur sur stan-bouchet.eu (admin-sites-astro #90).
           code="$(curl --fail-with-body --show-error --silent \
+            --header 'Origin: https://stan-bouchet.eu' \
             --dump-header "$tmp_headers" \
             --output "$tmp_body" \
             --write-out "%{http_code}" \
