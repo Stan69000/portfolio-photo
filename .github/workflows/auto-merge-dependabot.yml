@@ -5,52 +5,69 @@ on:
     types: [opened, reopened, synchronize, labeled]
     branches: [main]
 
-permissions:
-  contents: write
-  pull-requests: write
+# Aucun droit par défaut : chaque job déclare le strict nécessaire.
+permissions: {}
 
 jobs:
-  enable-auto-merge:
-    if: github.actor == 'dependabot[bot]'
+  # Installe et construit le code de la PR. C'est ici que tournent les scripts
+  # d'installation des dépendances mises à jour : le jeton reste en lecture seule
+  # et n'est pas conservé dans le dépôt cloné, pour qu'un paquet piégé ne puisse
+  # ni pousser du code ni fusionner la PR.
+  validate:
+    # L'auteur de la PR, pas github.actor : l'acteur est celui qui a déclenché
+    # l'événement (n'importe qui peut relancer un run ou ajouter un label sur
+    # une PR Dependabot), alors que l'auteur ne peut pas être usurpé.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      update-type: ${{ steps.metadata.outputs.update-type }}
 
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+      # Patchs seulement : une version mineure apporte du code nouveau, elle
+      # mérite une relecture humaine avant fusion.
       - name: Checkout PR head
-        if: >
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        uses: actions/checkout@v7
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Setup Node.js
-        if: >
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        uses: actions/setup-node@v7
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: "npm"
 
+      # npm ci seul : un repli sur npm install réécrirait le lockfile et
+      # validerait d'autres versions que celles proposées par la PR.
       - name: Validate dependency update
-        if: >
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: |
-          npm ci || npm install
+          npm ci
           npm run build
           npm audit --omit=dev --audit-level=high
 
-      - name: Enable auto-merge for validated patch/minor updates
-        if: >
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+  # N'exécute aucun code de la PR : seul ce job reçoit les droits d'écriture.
+  enable-auto-merge:
+    needs: validate
+    if: needs.validate.outputs.update-type == 'version-update:semver-patch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Enable auto-merge for validated patch updates
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
